@@ -1,0 +1,889 @@
+body[disselect] {
+  user-select: none;
+}
+
+:root {
+  --x123aas-background-image-close: url(chrome-extension://__MSG_@@extension_id__/images/folder.svg);
+  --x123aas-background-image-close2: url(chrome-extension://__MSG_@@extension_id__/images/folder2.svg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --x123aas-background-image-close: url(chrome-extension://__MSG_@@extension_id__/images/folder-w.svg);
+    --x123aas-background-image-close2: url(chrome-extension://__MSG_@@extension_id__/images/folder2-w.svg);
+  }
+}
+
+.catalogeu-navigation-plugin-floatbar {
+  --button-size: 40px;
+  --font-size: 14px;
+
+  --color0: #fff;
+  /* --color0: #000; */
+  --color1: #fff;
+  /* --color1: #111; */
+  --color2: rgb(245 245 245);
+  /* --color2: #222; */
+  --color3: #ddd;
+  /* --color3: #333; */
+  --color4: #ccc;
+  /* --color4: #444; */
+  --color6: #999;
+  /* --color6: #666; */
+
+  --colorf: #000;
+  /* --colorf: #fff; */
+  --colore: #000;
+  /* --colore: #eee; */
+  --colord: #222;
+  /* --colord: #ddd; */
+  --colorc: #333;
+  --colora: #777;
+  /* --colora: #aaa; */
+  --colorb: #555;
+
+  --colorf3: #00000030;
+  /* --colorf3: #ffffff30; */
+  --colorfb: #000000b0;
+  /* --colorfb: #ffffffb0; */
+  --color08: #00000080;
+  /* --color08: #00000080; */
+  --colore4: #00000040;
+
+  --color-1: #99f;
+  --color-2: #fff;
+
+  --background-image-open: url(chrome-extension://__MSG_@@extension_id__/images/folder-open.svg);
+  --background-image-close: var(--x123aas-background-image-close);
+  --background-image-dot: url(chrome-extension://__MSG_@@extension_id__/images/dot.svg);
+  --background-image-loading: url(chrome-extension://__MSG_@@extension_id__/images/loading.svg)
+}
+
+@media (prefers-color-scheme: dark) {
+  .catalogeu-navigation-plugin-floatbar {
+    --color0: #000;
+    --color1: #111;
+    --color2: #222;
+    --color3: #333;
+    --color4: #444;
+    --color6: #666;
+
+    --colorf: #fff;
+    --colore: #eee;
+    --colord: #ddd;
+    --colorc: #ccc;
+    --colora: #aaa;
+    --colorb: #bbb;
+
+    --colorf3: #ffffff30;
+    --colorfb: #ffffffb0;
+    --color08: #00000080;
+    --colore4: #eeeeee40;
+
+    --color-1: #878585;
+    --color-2: #5454ff;
+
+    --background-image-open: url(chrome-extension://__MSG_@@extension_id__/images/folder-open-w.svg);
+    --background-image-close: var(--x123aas-background-image-close);
+    --background-image-dot: url(chrome-extension://__MSG_@@extension_id__/images/dot-w.svg);
+    --background-image-loading: url(chrome-extension://__MSG_@@extension_id__/images/loading-w.svg)
+  }
+}
+
+.catalogeu-navigation-plugin-floatbar {
+  position: static !important;
+  width: 0 !important;
+  height: 0 !important;
+
+  /* font-family: Arial, sans-serif,'Microsoft JhengHei', 'Segoe UI'; */
+  font-family: ui-sans-serif, -apple-system, system-ui, Segoe UI, Helvetica, Apple Color Emoji, Arial, sans-serif, Segoe UI Emoji, Segoe UI Symbol;
+  font-size: var(--font-size);
+  color: var(--colore);
+}
+
+.catalogeu-navigation-plugin-floatbar * {
+  font-family: inherit !important;
+  padding: 0;
+  margin: 0;
+}
+
+/* 按钮样式     */
+.catalogeu-navigation-plugin-floatbar .button {
+  /* background: var(--color1); */
+  border-radius: 2px;
+  cursor: pointer;
+  line-height: 1;
+  transition: all 0.2s ease;
+  width: var(--button-size);
+  height: var(--button-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* border: 1px solid var(--colore4); */
+}
+
+.catalogeu-navigation-plugin-floatbar.show-panel>.panel {
+  box-shadow: none;
+}
+
+.catalogeu-navigation-plugin-floatbar.show-panel>.panel,
+.catalogeu-navigation-plugin-floatbar>.panel.hover {
+  display: flex;
+}
+
+.catalogeu-navigation-plugin-floatbar.show-panel>.buttons {
+  display: none;
+}
+
+/* 浮动按钮容器 */
+.catalogeu-navigation-plugin-floatbar>.buttons {
+  z-index: 10000001;
+  position: fixed;
+  left: 272px;
+  top: max(10%, 50px);
+  /* transform: translateY(-50%); */
+  display: flex;
+  flex-direction: column;
+  gap: .5em;
+
+  box-sizing: border-box;
+
+  width: var(--button-size);
+  
+  /* Hide the floating button while keeping functionality */
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.catalogeu-navigation-plugin-floatbar>.buttons>.button {
+  border-radius: 4px;
+}
+
+.catalogeu-navigation-plugin-floatbar .fold:not(.open)>svg:nth-child(1) {
+  display: none;
+}
+
+.catalogeu-navigation-plugin-floatbar .fold.open>svg:nth-child(2) {
+  display: none;
+}
+
+.catalogeu-navigation-plugin-floatbar>.buttons>.button.catalog {
+  /* background: var(--colorfb); */
+  /* border: 1px solid var(--color6); */
+  background: var(--color1);
+  border: 1px solid var(--color4);
+  box-shadow: 0 0 8px 0 var(--colorf3);
+
+  cursor: move;
+
+  animation: catalog_slideIn 0.5s ease;
+}
+
+/* .catalogeu-navigation-plugin-floatbar>.buttons>.button.catalog:hover {
+        background: var(--colorf);
+}
+.catalogeu-navigation-plugin-floatbar>.buttons>.button.catalog:hover > svg{
+        height: 90%;
+} */
+.catalogeu-navigation-plugin-floatbar>.buttons>.button.catalog>img,
+.catalogeu-navigation-plugin-floatbar>.buttons>.button.catalog>svg {
+  pointer-events: none;
+}
+
+/* .catalogeu-navigation-plugin-floatbar>.buttons>.button.catalog>svg  [id="svg_1"] {
+        fill: var(--color-1) !important;
+}
+.catalogeu-navigation-plugin-floatbar>.buttons>.button.catalog>svg  [id="svg_2"] {
+        fill: var(--color-2) !important;
+} */
+
+.catalogeu-navigation-plugin-floatbar>.buttons>.button.fold>svg {
+  height: 65%;
+}
+
+.catalogeu-navigation-plugin-floatbar>.buttons>.button.partial,
+.catalogeu-navigation-plugin-floatbar>.buttons>.button.fold {
+  opacity: .2;
+  border: none;
+  background: none;
+}
+
+.catalogeu-navigation-plugin-floatbar>.buttons>.button.partial:hover,
+.catalogeu-navigation-plugin-floatbar>.buttons>.button.fold:hover {
+  opacity: 1;
+
+  /* background: var(--colorf);
+        border: 1px solid var(--color6);
+        box-shadow: 0 0 8px 0 var(--colorf3); */
+  background: var(--color1);
+  border: 1px solid var(--color4);
+  box-shadow: 0 0 8px 0 var(--colorf3);
+}
+
+
+.catalogeu-navigation-plugin-floatbar .button.areas {
+  /* width: 50px !important; */
+  border: none !important;
+}
+
+.catalogeu-navigation-plugin-floatbar .button.areas>div {
+  width: 100%;
+  height: 100%;
+
+  display: grid;
+  /* grid-template-columns: 2fr 3fr; */
+  /* grid-template-rows: 1.8fr 2fr 1.8fr; */
+  grid-template-rows: 1fr 1fr;
+  gap: 1px;
+
+  background: var(--color4);
+  border: 1px solid var(--color4);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.catalogeu-navigation-plugin-floatbar .button.areas>div>div {
+  background: var(--color2);
+  transition: all .2s;
+}
+
+.catalogeu-navigation-plugin-floatbar .button.areas>div>div:hover {
+  /* background: transparent; */
+  background: var(--colord);
+  outline: 1px solid var(--colord);
+  /* border-radius: 2px; */
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel {
+  z-index: 10000000;
+  --top: 0px;
+  position: fixed;
+  left: 0px;
+  top: var(--top);
+  min-width: 270px;
+  /* max-width: 270px; */
+  width: 270px;
+  max-height: calc(100vh - var(--top));
+  line-height: 2em;
+
+  display: none;
+  /* display: flex ; */
+  flex-direction: column;
+
+  outline: 1px solid var(--color3);
+  outline-offset: 0px;
+  background: var(--color1);
+  box-shadow: 0px 0px 6px 0 var(--color08);
+
+  transition: opacity .2s, box-shadow .2s, top .2s, left .2s, right .2s, bottom .2s, max-height .2s;
+  
+  /* Hide the floating panel while keeping functionality */
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.title {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: .5em;
+  align-items: center;
+  justify-items: center;
+
+  background: var(--color2);
+  padding: .3em .5em;
+  text-align: center;
+  font-size: 1.1em;
+  user-select: none;
+  cursor: move;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.title>svg {
+  height: 80%;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.title>* {
+  pointer-events: none;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.header {
+  flex-shrink: 0;
+
+  display: flex;
+  /* grid-template-columns: auto auto auto auto auto;
+        grid-template-rows: calc(var(--chatgpt-font-size) * 1.5); */
+  align-items: stretch;
+  justify-content: space-between;
+
+  --chatgpt-font-size: 16px;
+  /* padding: var(--chatgpt-font-size) .5em; */
+  /* height: calc(var(--chatgpt-font-size) * 3.5); */
+  line-height: 0;
+  box-sizing: border-box;
+  /* cursor: move; */
+
+  border-bottom: 1px solid var(--color2);
+  /* background: var(--color2); */
+
+  /* background: none; */
+  padding: .2em .5em;
+  height: 2em;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.header>* {
+  cursor: pointer;
+  box-sizing: border-box;
+  padding: 0 .5em;
+  border-radius: 2px;
+  transition: all .2s;
+
+  border: none;
+  background: none;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.header>*:hover {
+  background: var(--color3);
+  /* color: var(--color2); */
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.close {
+  font-size: 1.3em;
+  line-height: 1em;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.sync {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.sync.inactive,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.deep.inactive {
+  opacity: .3;
+}
+
+/* .catalogeu-navigation-plugin-floatbar>.panel>.header>.sync>svg {
+        height: 80%;
+} */
+
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.new>svg {
+  height: 85%;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.close {
+  pointer-events: none;
+  opacity: .3;
+}
+
+.catalogeu-navigation-plugin-floatbar.show-panel .panel>.header>.close {
+  /* display: block; */
+  pointer-events: all;
+  opacity: 1;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel ul {
+  list-style-type: none !important;
+  /* list-style-type: disclosure-closed;
+        list-style-position: outside; */
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>ul {
+  min-height: 3em;
+  margin: 0.5em 0em 0.5em 1em;
+  overflow: auto;
+  scrollbar-color: var(--color3) transparent;
+  scrollbar-width: auto;
+  /* scrollbar-width: thin; */
+  user-select: none;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>ul:empty:after {
+  content: attr(empty-notice);
+  display: block;
+  color: var(--colora);
+  text-align: center;
+  line-height: 3em;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel li.collapsed>ul {
+  display: none;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>ul li {
+  display: grid;
+  grid-template-columns: 1em 1fr;
+  grid-template-rows: 2em;
+  grid-auto-rows: auto;
+  align-items: center;
+  column-gap: 2px;
+  row-gap: 1px;
+
+  background: repeating-linear-gradient(var(--colora), var(--colora) 1px, transparent 1px, transparent 100%);
+  background-size: 1px 3px;
+  background-repeat: repeat-y;
+  background-position-x: .4em;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>ul li>i {
+  grid-area: 1/1/2/2;
+  background: var(--color1);
+  padding: 1px;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>ul>li>ul>li>ul>li {
+  background: none;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>ul li>div {
+  grid-area: 1/2/2/3;
+  padding: 0 .3em;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  border-radius: 2px;
+
+  cursor: pointer;
+
+  /* position: relative; */
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>ul li>div>span {
+  pointer-events: none; /* 有時候 翻譯插件會自動給text套上<font>，所以要設置div>*的pointer-events=none */
+  color: var(--colorb);
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>ul li>ul {
+  grid-area: 2/1/3/3;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>ul li>i {
+  height: 100%;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-image: var(--background-image-open);
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>ul li.collapsed>i {
+  background-image: var(--background-image-close);
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>ul>li>ul li.leaf>i {
+  background-image: var(--background-image-dot);
+  pointer-events: none;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>ul>li ul {
+  margin-left: calc(1.5em + 2px);
+}
+
+/* .catalogeu-navigation-plugin-floatbar>.panel>ul li:hover>div */
+.catalogeu-navigation-plugin-floatbar>.panel>ul li>div:hover {
+  /* background: var(--colorf);
+    color: var(--color1); */
+  outline: 2px solid var(--colorf);
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>ul li>div.loading::before {
+  display: inline-block;
+  content: '';
+  width: 1.5em;
+  height: 1.5em;
+  margin-right: .1em;
+  vertical-align: middle;
+  background-image: var(--background-image-loading);
+  background-size: contain;
+  animation: .8s linear 0s infinite running loading;
+  ;
+
+  /* border-radius: 50%;
+        background-color: var(--colorf);
+        background-repeat: no-repeat;
+        background-position: center center;
+        background-size: 1em 1em;
+        background-clip: content-box;
+        box-sizing: border-box;
+        border: 0px solid transparent;
+        animation: loading 0.4s infinite alternate; */
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.tools {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-around;
+  gap: .5em;
+
+  /* padding: .5em; */
+  padding: .5em .8em .5em .5em;
+
+  /* border-top: 1px solid var(--color3); */
+  background: var(--color2);
+
+  position: relative;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.tools>* {
+  background: none;
+  border: 1px solid var(--color3);
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.tools>*:not(.resizebar):hover {
+  /* background: var(--colore); */
+  border-color: var(--color5);
+  /* border-radius: 4px; */
+  /* color: var(--color2); */
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.tools>.wide {
+  font-size: 1.3em;
+  font-weight: 100;
+  word-break: keep-all; /* 不换行 */
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.tools>.full>svg {
+  width: 55%;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.tools>.export>svg {
+  width: 65%;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.tools>.more {
+  border: none;
+  position: relative;
+  width: var(--button-size);
+  text-align: center;
+  user-select: none;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.tools>.more:hover {
+  border: none;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.tools>.more>ul {
+  position: absolute;
+  left: 0;
+  bottom: 98%;
+  background: var(--color2);
+  box-shadow: 0 0 3px 0 var(--colorf3);
+
+  display: none;
+  flex-direction: column;
+  gap: .5em;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.tools>.more:hover>ul {
+  display: flex;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.tools>.more>ul>li>button {
+  border: 1px solid var(--color2);
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.tools>.more>ul>li>button:hover {
+  border-color: var(--color5);
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.tools>.resizebar {
+  position: absolute;
+  right: 0;
+  top: .5em;
+  height: calc(100% - 1em);
+  width: 6px;
+  background: repeating-linear-gradient(to right, var(--color3), var(--color3), 1px, transparent 1px, transparent 2px);
+  cursor: ew-resize;
+  border: none;
+}
+
+.catalogeu-navigation-plugin-floatbar .button.partial {
+  position: relative;
+}
+
+.catalogeu-navigation-plugin-floatbar .button.partial>svg:nth-child(2) {
+  width: 55%;
+  position: relative;
+  top: 3px;
+  left: -2px;
+}
+
+.catalogeu-navigation-plugin-floatbar .button.partial>svg:nth-child(1) {
+  position: absolute;
+  width: 60%;
+  top: 1px;
+  transform: rotate(180deg) scale(1.1);
+  left: 13px;
+}
+
+/* .button裏的svg統一css */
+.catalogeu-navigation-plugin-floatbar .button svg,
+.catalogeu-navigation-plugin-floatbar button svg {
+  height: 80%;
+}
+
+.catalogeu-navigation-plugin-floatbar label svg [fill="#000000"],
+.catalogeu-navigation-plugin-floatbar button svg [fill="#000000"],
+.catalogeu-navigation-plugin-floatbar .button svg [fill="#000000"] {
+  fill: var(--colorf) !important;
+}
+
+.catalogeu-navigation-plugin-floatbar button svg [fill="#353535"] {
+  fill: var(--colorc) !important;
+}
+
+/* .catalogeu-navigation-plugin-floatbar label:hover svg [fill="#000000"],
+.catalogeu-navigation-plugin-floatbar button:hover svg [fill="#000000"],
+.catalogeu-navigation-plugin-floatbar .button:hover svg [fill="#000000"] {
+        fill: var(--color0) !important;
+} */
+
+/* .panel隱藏時的效果 */
+.catalogeu-navigation-plugin-floatbar>.panel.hiding {
+  transition: all .3s;
+  max-width: 50px;
+  min-width: 0px;
+  max-height: 50px;
+  min-height: 0px;
+  overflow: hidden;
+  opacity: 0.2;
+  border: 1px solid #000;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel.hiding>* {
+  opacity: 0;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel.hiding>ul,
+.catalogeu-navigation-plugin-floatbar>.panel.hiding>.catalogeu-navigation-plugin-floatbar-buy {
+  display: none;
+}
+
+/* .catalogeu-navigation-plugin-floatbar> .payment-iframe{
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        outline: none !important;
+        border: none !important;
+        background: #000fff30 !important;
+} */
+
+/* catalog初次顯示時的動畫效果 */
+@keyframes catalog_slideIn {
+  0% {
+    /* background: var(--color0); */
+    border-width: 9px;
+  }
+
+  100% {
+    /* background: var(--color1); */
+    border-width: 1px;
+  }
+}
+
+/* li的loading效果 */
+@keyframes loading {
+  0% {
+    transform: rotate(0);
+    /* border-width: .5em;
+                opacity: 1; */
+  }
+
+  100% {
+    transform: rotate(360deg);
+    /* border-width: 0px;
+                opacity: 0; */
+  }
+}
+
+/* 部分全屏的css */
+[plug-in-full-screen]:not(video):not(img) {
+  overflow: auto !important;
+  padding: 2em 4em !important;
+
+  --fullscreen-background-color: inherit;
+  /* --fullscreen-text-color: inherit; */
+
+  background: var(--fullscreen-background-color);
+  /* color: var(--fullscreen-text-color); */
+}
+
+dialog.zoom-reminder {
+  position: fixed;
+  top: 30%;
+  left: 50%;
+  margin: 0;
+  padding: 0;
+  transform: translate(-50%, -50%);
+  outline: none;
+  border: 1px solid #333;
+  background: #222222d0;
+  color: #fff;
+  font-size: 14px;
+  letter-spacing: 2px;
+  line-height: 2.5em;
+
+  user-select: none;
+}
+
+dialog.zoom-reminder:active {
+  outline: none;
+}
+
+dialog.zoom-reminder::backdrop {
+  background: none;
+}
+
+dialog.zoom-reminder>div {
+  padding: .5em 3em;
+}
+
+dialog.zoom-reminder>div>p>span {
+  font-size: 1em;
+  border: 1px solid #fff;
+  padding: .2em .4em;
+  border-radius: 1px;
+}
+
+/* 折叠状态样式；@需要动画效果*/
+/* [data-message-author-role="assistant"]  */
+article[collapsed] .markdown>*:not(:first-child) {
+  display: none;
+}
+
+/* @注意：div.whitespace-pre-wrap這個選擇器不可靠 */
+article[collapsed] [data-message-author-role="user"] div.whitespace-pre-wrap,
+article[collapsed] .markdown>*:first-child {
+  max-height: 2.5em !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.8;
+
+  cursor: pointer;
+}
+
+article[collapsed] [data-message-author-role="user"] div.whitespace-pre-wrap::before,
+article[collapsed] .markdown>*:first-child::before {
+  margin-right: .3em;
+  content: " ";
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-image: var(--x123aas-background-image-close2);
+}
+
+article[collapsed] .markdown>*:first-child:hover {
+  opacity: 1;
+}
+
+article[collapsed] [data-message-author-role="user"] div.whitespace-pre-wrap:hover::before,
+article[collapsed] .markdown>*:first-child:hover::before {
+  background-image: var(--x123aas-background-image-close);
+}
+
+article[collapsed] [data-message-author-role="user"] div.whitespace-pre-wrap {
+  opacity: 1;
+}
+
+
+/* 展开消息内容宽度 */
+main#main[wide] article>div.text-base>div[tabindex="-1"] {
+  margin-left: 1em !important;
+  margin-right: 1em !important;
+  max-width: none !important;
+  padding-left: 0 !important;
+}
+
+main#main[wide] [role="presentation"]>#page-header {
+  position: sticky !important;
+  /* 展开消息内容宽度后，保持页面头部粘性 */
+}
+
+/* 隐藏/显示 左/上/下时 */
+main#main[headbar][speakbox] {
+  overflow: hidden !important;
+}
+
+main#main[headbar] [role="presentation"]>#page-header,
+main#main[speakbox] [role="presentation"]>#thread-bottom-container {
+  display: none !important;
+}
+
+/* 宽度切换过渡效果 */
+/* main#main>div>div,
+div.text-base,
+article {
+        transition: all 0.3s ease !important;
+} */
+
+/* main#main article[sticky] {
+        position: sticky !important;
+        top: 0;
+        z-index: 10;
+} */
+
+/* main#main article [data-message-author-role="user"]>div>div {
+        outline: 1px solid #00000040;
+        outline-offset: -1px;
+} */
+
+/* main#main article[sticky] [data-message-author-role="user"]>div>div {
+        height: 2.5em !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        box-shadow: 0 0 5px 0 #00000050;
+} */
+
+/* [scroll-bax], */
+/* main#main #page-header + div > div,
+main#main #page-header + div > div > div {
+        scrollbar-width: auto !important;
+        scrollbar-color: #00000050 transparent !important;
+} */
+
+/* @media print {} */
+
+/* Sidebar-specific styles */
+#super-mapper-sidebar {
+  font-family: inherit;
+}
+
+#super-mapper-sidebar .panel {
+  box-shadow: none !important;
+  border: none !important;
+}
+
+#super-mapper-sidebar .panel > .title {
+  background: var(--color1, #ffffff);
+  border-bottom: 1px solid var(--color4, #e0e0e0);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+#super-mapper-sidebar .panel > ul {
+  padding-top: 10px;
+}
+
+/* Ensure sidebar content is properly themed */
+#super-mapper-sidebar .panel,
+#super-mapper-sidebar .panel * {
+  color: var(--text-color, #333);
+  background-color: inherit;
+}
+
+/* Adjust close button on hover */
+#super-mapper-sidebar button:hover {
+  background-color: var(--color4, #e0e0e0) !important;
+}

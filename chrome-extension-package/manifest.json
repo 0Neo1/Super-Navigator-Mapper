@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "Prompt Engine by ZeroEka",
+  "version": "1.0.0",
+  "description": "Transform your ideas into super-optimized prompts with advanced Prompt Engine by ZeroEka. ",
+  "permissions": [
+    "sidePanel",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://api.promptengine.zeroeka.com/*",
+    "http://44.208.217.246/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "action": {
+    "default_title": "Open Prompt Engine",
+    "default_icon": {
+      "16": "icon-16.png",
+      "32": "icon-32.png",
+      "48": "icon-48.png",
+      "128": "icon-128.png"
+    }
+  },
+  "icons": {
+    "16": "icon-16.png",
+    "32": "icon-32.png",
+    "48": "icon-48.png",
+    "128": "icon-128.png"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "web_accessible_resources": [{
+    "resources": ["login-success.js"],
+    "matches": ["<all_urls>"]
+  }],
+  "author": "ZeroEka",
+  "homepage_url": "https://zeroeka.com"
+}

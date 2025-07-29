@@ -1,0 +1,73 @@
+{
+"update_url": "https://clients2.google.com/service/update2/crx",
+
+  "manifest_version": 3,
+  "name": "__MSG_name__",
+  "version": "1.1.0",
+  "description": "__MSG_description__",
+  "icons": {
+    "16": "images/icons/icon-128.png",
+    "32": "images/icons/icon-128.png",
+    "48": "images/icons/icon-128.png",
+    "64": "images/icons/icon-128.png",
+    "128": "images/icons/icon-128.png"
+  },
+  "default_locale": "en",
+  "permissions": [
+    "storage",
+    "cookies",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://chatgpt.com/",
+    "https://www.chatgpt.com/",
+    "https://gemini.google.com/"
+    
+  ],
+  "action": {},
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://www.chatgpt.com/*",
+        "https://gemini.google.com/*"
+      ],
+      "js": [
+        "global-error-capture.js",
+        "tools.js",
+        "fullscreen.js",
+        "content.js"
+      ],
+      "css": [
+        "styles.css"
+      ],
+      "run_at": "document_end"
+    },
+    {
+      "matches": [
+        "https://chatgptmessagetree.com/pay/*",
+        "https://www.chatgptmessagetree.com/pay/*"
+      ],
+      "js": [
+        "content-payment.js"
+      ],
+              "run_at": "document_end"
+      }
+    ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "images/*",
+        "resources/*"
+      ],
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://www.chatgpt.com/*",
+        "https://gemini.google.com/*"
+      ]
+    }
+  ]
+}

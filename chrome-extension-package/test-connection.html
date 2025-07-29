@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Connection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #1a1a1a;
+            color: #fff;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #28a745;
+            color: white;
+        }
+        .error {
+            background-color: #dc3545;
+            color: white;
+        }
+        .info {
+            background-color: #17a2b8;
+            color: white;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Chrome Extension Server Connection Test</h1>
+        
+        <div id="configStatus" class="status info">
+            <h3>Configuration Status:</h3>
+            <p>Loading configuration...</p>
+        </div>
+        
+        <button onclick="testServerConnection()">Test Server Connection</button>
+        <button onclick="testHealthEndpoint()">Test Health Endpoint</button>
+        
+        <div id="connectionStatus" class="status info" style="display: none;">
+            <h3>Connection Test Results:</h3>
+            <p id="connectionResult">Testing...</p>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script>
+        // Display current configuration
+        document.addEventListener('DOMContentLoaded', () => {
+            const configDiv = document.getElementById('configStatus');
+            configDiv.innerHTML = `
+                <h3>Configuration Status:</h3>
+                <p><strong>Server URL:</strong> ${API_URL || 'Not loaded'}</p>
+                <p><strong>Window API_BASE_URL:</strong> ${window.API_BASE_URL || 'Not loaded'}</p>
+                <p><strong>Window API_URL:</strong> ${window.API_URL || 'Not loaded'}</p>
+            `;
+        });
+
+        async function testServerConnection() {
+            const statusDiv = document.getElementById('connectionStatus');
+            const resultP = document.getElementById('connectionResult');
+            
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'status info';
+            resultP.textContent = 'Testing connection to server...';
+            
+            try {
+                const response = await fetch(`${API_URL}/api/health`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    statusDiv.className = 'status success';
+                    resultP.innerHTML = `
+                        <strong>✅ SUCCESS!</strong><br>
+                        Server responded with status: ${response.status}<br>
+                        Response: ${JSON.stringify(data, null, 2)}
+                    `;
+                } else {
+                    statusDiv.className = 'status error';
+                    resultP.textContent = `❌ Server responded with error status: ${response.status}`;
+                }
+            } catch (error) {
+                statusDiv.className = 'status error';
+                resultP.textContent = `❌ Connection failed: ${error.message}`;
+            }
+        }
+
+        async function testHealthEndpoint() {
+            const statusDiv = document.getElementById('connectionStatus');
+            const resultP = document.getElementById('connectionResult');
+            
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'status info';
+            resultP.textContent = 'Testing health endpoint...';
+            
+            try {
+                const response = await fetch(`${API_URL}/api/health`);
+                const text = await response.text();
+                
+                statusDiv.className = response.ok ? 'status success' : 'status error';
+                resultP.innerHTML = `
+                    <strong>${response.ok ? '✅' : '❌'} Health Check:</strong><br>
+                    Status: ${response.status}<br>
+                    Response: <pre>${text}</pre>
+                `;
+            } catch (error) {
+                statusDiv.className = 'status error';
+                resultP.textContent = `❌ Health check failed: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html> 

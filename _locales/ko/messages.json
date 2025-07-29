@@ -1,0 +1,317 @@
+{
+  "name": {
+    "message": "Super Mapper-Navigator: 빠른 탐색 | 메시지 접기 | 마인드 맵 | PDF 내보내기"
+  },
+  "title": {
+    "message": "Super Mapper-Navigator"
+  },
+  "description": {
+    "message": "채팅 메시지에서 깊은 탐색 트리를 생성하여 긴 대화나 큰 텍스트의 탐색 문제를 완벽하게 해결합니다."
+  },
+  "emptyNotice": {
+    "message": "채팅 메시지가 없습니다."
+  },
+  "loadingNotice": {
+    "message": "로딩 중……"
+  },
+  "catalogTitle": {
+    "message": "이동하려면 누르세요\n 고정 트리 메뉴 클릭"
+  },
+  "moveTitle": {
+    "message": "이동하려면 누르세요"
+  },
+  "fullTitle": {
+    "message": "전체 화면 전환"
+  },
+  "partialTitle": {
+    "message": "선택 영역 전체 화면"
+  },
+  "toggleTitle": {
+    "message": "메시지 접기/펼치기"
+  },
+  "foldTitle": {
+    "message": "접기/펼치기"
+  },
+  "mindTitle": {
+    "message": "마인드 맵"
+  },
+  "syncTitle": {
+    "message": "접힌/펴진 메시지 동기화"
+  },
+  "refreshTitle": {
+    "message": "카탈로그 트리 보기 새로고침"
+  },
+  "newTitle": {
+    "message": "새 채팅"
+  },
+  "deepTitle": {
+    "message": "트리 깊이 전환"
+  },
+  "closeTitle": {
+    "message": "카탈로그 트리 보기 닫기"
+  },
+  "areasTitle": {
+    "message": "사이드바+헤더+입력상자 숨기기/표시"
+  },
+  "areasTitle_sidebar": {
+    "message": "사이드바 숨기기/표시"
+  },
+  "areasTitle_head": {
+    "message": "헤더 숨기기/표시"
+  },
+  "areasTitle_inputbox": {
+    "message": "입력상자 숨기기/표시"
+  },
+  "exportTitle": {
+    "message": "PDF로 내보내기"
+  },
+  "wideTitle": {
+    "message": "채팅 너비 전환"
+  },
+  "emptyTreeAlert": {
+    "message": "채팅 메시지가 없습니다."
+  },
+  "refreshAlert": {
+    "message": "응답 진행 중입니다. 나중에 새로고침 해주세요."
+  },
+  "ok": {
+    "message": "확인"
+  },
+  "syncFold": {
+    "message": "접기 동기화"
+  },
+  "capture": {
+    "message": "클릭하고 드래그하여 확대"
+  },
+  "zoomPageTitle": {
+    "message": "페이지 확대 :"
+  },
+  "zoomPageContent": {
+    "message": "Ctrl+마우스 휠"
+  },
+  "automaticLoginFailureTitle": {
+    "message": "자동 로그인 실패"
+  },
+  "automaticLoginFailurePrompt": {
+    "message": "결제는 성공했으나 자동 로그인에 실패했습니다. 나중에 이메일을 사용하여 로그인해 주세요."
+  },
+  "operationFailure": {
+    "message": "작업 실패"
+  },
+  "loginSuccessfully": {
+    "message": "로그인 성공!"
+  },
+  "CommanLoginFailurePrompt": {
+    "message": "로그인에 실패했습니다. 나중에 다시 시도해 주세요."
+  },
+  "popup_html": {
+    "message": "popup.html"
+  },
+  "tagline": {
+    "message": "ChatGPT 대화를 구조화된 트리 네비게이션으로 변환\n정보 검색 효율성 개선"
+  },
+  "yourAccount": {
+    "message": "내 계정"
+  },
+  "windowTitle_yourAccount": {
+    "message": "ChatGPT 메시지 트리 - 내 계정"
+  },
+  "loginManagement": {
+    "message": "로그인 관리"
+  },
+  "current": {
+    "message": "(현재)"
+  },
+  "logoutDevice": {
+    "message": "이 기기에서 로그아웃"
+  },
+  "loginTime": {
+    "message": "로그인 시간 :"
+  },
+  "logoutButton": {
+    "message": "로그아웃"
+  },
+  "trialStatus": {
+    "message": "체험판 상태"
+  },
+  "trialBadge": {
+    "message": "7일 체험판"
+  },
+  "trialInfo": {
+    "message": "당신은 <span class='highlight'>모든 기능이 포함된 체험버전</span>을 이용중입니다, 체험 기간 잔여일수 : <span class='time-value' id='trialDays'>3일</span><br>체험판 기간 종료 후에는 핵심 기능을 사용할 수 없습니다."
+  },
+  "coreFeatures": {
+    "message": "핵심 기능은 다음과 같습니다."
+  },
+  "feature1": {
+    "message": "무제한 대화 트리 생성"
+  },
+  "feature2": {
+    "message": "대화 노드의 지능형 분류 및 태깅"
+  },
+  "feature3": {
+    "message": "접을 수 있는 대화 메시지."
+  },
+  "feature4": {
+    "message": "최대 3개의 브라우저가 동시에 로그인 가능"
+  },
+  "oneTimePayment": {
+    "message": "일회성 결제, 평생 사용"
+  },
+  "officialWebsite": {
+    "message": "공식 웹사이트"
+  },
+  "contactUs": {
+    "message": "문의하기"
+  },
+  "trialExpired": {
+    "message": "체험판 만료됨"
+  },
+  "browserExitPrompt": {
+    "message": "이 브라우저에서 나갔습니다."
+  },
+  "1day": {
+    "message": "하루"
+  },
+  "2day": {
+    "message": "이틀"
+  },
+  "3day": {
+    "message": "사흘"
+  },
+  "4day": {
+    "message": "나흘"
+  },
+  "5day": {
+    "message": "닷새"
+  },
+  "6day": {
+    "message": "엿새"
+  },
+  "7day": {
+    "message": "이레"
+  },
+  "exitBeforePrompt": {
+    "message": "정말로 종료하시겠습니까?"
+  },
+  "exitBrowserBeforePrompt": {
+    "message": "정말로 이 브라우저를 종료하시겠습니까?"
+  },
+  "imply_html": {
+    "message": "imply.html"
+  },
+  "trialEnded": {
+    "message": "체험판 종료"
+  },
+  "coreFeaturesDisabled": {
+    "message": "핵심 기능 비활성화됨"
+  },
+  "upgradeNow": {
+    "message": "지금 업그레이드 ($$18)"
+  },
+  "alreadyUpgraded": {
+    "message": "이미 업그레이드 하였습니다. 로그인 해주세요."
+  },
+  "confirm_html": {
+    "message": "confirm.html"
+  },
+  "cancel": {
+    "message": "취소"
+  },
+  "confirm": {
+    "message": "확인"
+  },
+  "confirmOperation": {
+    "message": "작업 확인"
+  },
+  "login_html": {
+    "message": "login.html"
+  },
+  "closeButtonTitle": {
+    "message": "닫기"
+  },
+  "logoAltText": {
+    "message": "로고"
+  },
+  "emailLabel": {
+    "message": "이메일 주소"
+  },
+  "emailPlaceholder": {
+    "message": "구매 시 사용한 이메일 주소를 입력하세요."
+  },
+  "verificationCodeLabel": {
+    "message": "확인 코드"
+  },
+  "verificationCodePlaceholder": {
+    "message": "확인 코드를 입력하세요."
+  },
+  "sendCodeButton": {
+    "message": "확인 코드 보내기"
+  },
+  "loginButton": {
+    "message": "로그인"
+  },
+  "emailRequiredError": {
+    "message": "이메일 주소는 필수 입력입니다."
+  },
+  "invalidEmailError": {
+    "message": "올바른 이메일 주소를 입력해주세요."
+  },
+  "codeRequiredError": {
+    "message": "확인 코드가 필요합니다."
+  },
+  "invalidCodeError": {
+    "message": "6자리 확인 코드를 입력해주세요."
+  },
+  "codeSentSuccess": {
+    "message": "확인 코드가 성공적으로 전송되었습니다."
+  },
+  "loginSuccess": {
+    "message": "로그인이 성공적으로 완료되었습니다."
+  },
+  "verifyCode404": {
+    "message": "확인 코드가 잘못되었습니다."
+  },
+  "user404": {
+    "message": "사용자가 존재하지 않습니다."
+  },
+  "email405": {
+    "message": "이메일 주소가 올바르지 않습니다."
+  },
+  "loginByOrderId404": {
+    "message": "자동 로그인이 실패하였습니다. 나중에 이메일을 사용하여 로그인해 주세요."
+  },
+  "sign404": {
+    "message": "로그인되지 않았습니다."
+  },
+  "signError": {
+    "message": "로그인되지 않았습니다."
+  },
+  "serverError": {
+    "message": "서버 오류"
+  },
+  "emptyCodePrompt": {
+    "message": "확인 코드를 입력해주세요."
+  },
+  "CodeLengthPrompt": {
+    "message": "확인 코드는 5자리 숫자여야 합니다."
+  },
+  "emptyEmailPrompt": {
+    "message": "이메일 주소를 입력해주세요."
+  },
+  "invalidEmailPrompt": {
+    "message": "올바른 이메일 주소를 입력해주세요."
+  },
+  "codeSentPrompt": {
+    "message": "확인 코드가 전송되었습니다! 수신하지 못했다면 스팸 폴더를 확인해 보세요."
+  },
+  "commanCodeSendFailurePrompt": {
+    "message": "확인 코드 전송에 실패하였습니다. 나중에 다시 시도해 주세요."
+  },
+  "paymentSuccess": {
+    "message": "결제 성공"
+  },
+  "automaticLogingPrompt": {
+    "message": "자동 로그인 진행 중......"
+  }
+}

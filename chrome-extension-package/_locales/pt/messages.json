@@ -1,0 +1,317 @@
+{
+  "name": {
+    "message": "Super Mapper-Navigator: Navegação rápida | Dobrar mensagens | Mapa mental | Exportação PDF"
+  },
+  "title": {
+    "message": "Super Mapper-Navigator"
+  },
+  "description": {
+    "message": "Gera árvores de navegação profundas a partir das mensagens do chat, resolvendo perfeitamente os desafios de navegação em conversas longas ou textos grandes."
+  },
+  "emptyNotice": {
+    "message": "Nenhuma mensagem de chat."
+  },
+  "loadingNotice": {
+    "message": "Carregando……"
+  },
+  "catalogTitle": {
+    "message": "Clique para mover\n Clique no menu fixo da árvore"
+  },
+  "moveTitle": {
+    "message": "Clique para mover"
+  },
+  "fullTitle": {
+    "message": "Alternar tela cheia"
+  },
+  "partialTitle": {
+    "message": "Tela cheia da área selecionada"
+  },
+  "toggleTitle": {
+    "message": "Recolher/Expandir mensagem"
+  },
+  "foldTitle": {
+    "message": "Recolher/Expandir"
+  },
+  "mindTitle": {
+    "message": "Mapa mental"
+  },
+  "syncTitle": {
+    "message": "Sincronizar mensagens recolhidas/expandidas"
+  },
+  "refreshTitle": {
+    "message": "Atualizar visualização da árvore do catálogo"
+  },
+  "newTitle": {
+    "message": "Novo chat"
+  },
+  "deepTitle": {
+    "message": "Alternar profundidade da árvore"
+  },
+  "closeTitle": {
+    "message": "Fechar visualização da árvore do catálogo"
+  },
+  "areasTitle": {
+    "message": "Ocultar/Mostrar barra lateral+cabeçalho+caixa de entrada"
+  },
+  "areasTitle_sidebar": {
+    "message": "Ocultar/Mostrar barra lateral"
+  },
+  "areasTitle_head": {
+    "message": "Ocultar/Mostrar cabeçalho"
+  },
+  "areasTitle_inputbox": {
+    "message": "Ocultar/Mostrar caixa de entrada"
+  },
+  "exportTitle": {
+    "message": "Exportar PDF"
+  },
+  "wideTitle": {
+    "message": "Alternar largura do chat"
+  },
+  "emptyTreeAlert": {
+    "message": "Nenhuma mensagem de chat"
+  },
+  "refreshAlert": {
+    "message": "Resposta em andamento. Por favor, atualize mais tarde"
+  },
+  "ok": {
+    "message": "Confirmar"
+  },
+  "syncFold": {
+    "message": "Sincronizar recolhimento"
+  },
+  "capture": {
+    "message": "Clique e arraste para zoom"
+  },
+  "zoomPageTitle": {
+    "message": "Zoom da página :"
+  },
+  "zoomPageContent": {
+    "message": "Ctrl+Roda do mouse"
+  },
+  "automaticLoginFailureTitle": {
+    "message": "Falha no login automático"
+  },
+  "automaticLoginFailurePrompt": {
+    "message": "O pagamento foi realizado com sucesso, mas o login automático falhou. Faça login posteriormente usando seu e-mail."
+  },
+  "operationFailure": {
+    "message": "Operação falhou"
+  },
+  "loginSuccessfully": {
+    "message": "Login bem-sucedido!"
+  },
+  "CommanLoginFailurePrompt": {
+    "message": "Falha ao fazer login. Por favor, tente novamente mais tarde."
+  },
+  "popup_html": {
+    "message": "popup.html"
+  },
+  "tagline": {
+    "message": "Transforme conversas do ChatGPT em navegação estruturada em forma de árvore\nMelhore a eficiência na recuperação de informações"
+  },
+  "yourAccount": {
+    "message": "Minha conta"
+  },
+  "windowTitle_yourAccount": {
+    "message": "Árvore de Mensagens do ChatGPT - Minha Conta"
+  },
+  "loginManagement": {
+    "message": "Gerenciamento de login"
+  },
+  "current": {
+    "message": "(atual)"
+  },
+  "logoutDevice": {
+    "message": "Fazer logout neste dispositivo"
+  },
+  "loginTime": {
+    "message": "Horário de login :"
+  },
+  "logoutButton": {
+    "message": "Sair"
+  },
+  "trialStatus": {
+    "message": "Status do teste"
+  },
+  "trialBadge": {
+    "message": "Teste de 7 dias"
+  },
+  "trialInfo": {
+    "message": "Você está aproveitando a <span class='highlight'>versão de teste completa</span>, período de teste restante : <span class='time-value' id='trialDays'>3 dias</span><br>As funcionalidades principais não estarão disponíveis após o término do teste"
+  },
+  "coreFeatures": {
+    "message": "Funcionalidades principais incluem"
+  },
+  "feature1": {
+    "message": "Geração ilimitada de árvores de conversa"
+  },
+  "feature2": {
+    "message": "Classificação e marcação inteligente de nós de conversa"
+  },
+  "feature3": {
+    "message": "Mensagens de conversa com possibilidade de recolher."
+  },
+  "feature4": {
+    "message": "Até 3 navegadores podem fazer login simultaneamente"
+  },
+  "oneTimePayment": {
+    "message": "Pagamento único, uso vitalício"
+  },
+  "officialWebsite": {
+    "message": "Site oficial"
+  },
+  "contactUs": {
+    "message": "Entre em contato conosco"
+  },
+  "trialExpired": {
+    "message": "Teste expirado"
+  },
+  "browserExitPrompt": {
+    "message": "Você saiu deste navegador"
+  },
+  "1day": {
+    "message": "um dia"
+  },
+  "2day": {
+    "message": "dois dias"
+  },
+  "3day": {
+    "message": "três dias"
+  },
+  "4day": {
+    "message": "quatro dias"
+  },
+  "5day": {
+    "message": "cinco dias"
+  },
+  "6day": {
+    "message": "seis dias"
+  },
+  "7day": {
+    "message": "sete dias"
+  },
+  "exitBeforePrompt": {
+    "message": "Tem certeza que deseja sair?"
+  },
+  "exitBrowserBeforePrompt": {
+    "message": "Tem certeza que deseja sair deste navegador?"
+  },
+  "imply_html": {
+    "message": "imply.html"
+  },
+  "trialEnded": {
+    "message": "Teste finalizado"
+  },
+  "coreFeaturesDisabled": {
+    "message": "Funcionalidades principais desativadas"
+  },
+  "upgradeNow": {
+    "message": "Atualize agora ($$18)"
+  },
+  "alreadyUpgraded": {
+    "message": "Já atualizei, faça login"
+  },
+  "confirm_html": {
+    "message": "confirm.html"
+  },
+  "cancel": {
+    "message": "Cancelar"
+  },
+  "confirm": {
+    "message": "Confirmar"
+  },
+  "confirmOperation": {
+    "message": "Confirmar operação"
+  },
+  "login_html": {
+    "message": "login.html"
+  },
+  "closeButtonTitle": {
+    "message": "Fechar"
+  },
+  "logoAltText": {
+    "message": "Logotipo"
+  },
+  "emailLabel": {
+    "message": "Endereço de e-mail"
+  },
+  "emailPlaceholder": {
+    "message": "Por favor, insira seu endereço de e-mail de compra"
+  },
+  "verificationCodeLabel": {
+    "message": "Código de verificação"
+  },
+  "verificationCodePlaceholder": {
+    "message": "Por favor, insira o código de verificação"
+  },
+  "sendCodeButton": {
+    "message": "Enviar código de verificação"
+  },
+  "loginButton": {
+    "message": "Entrar"
+  },
+  "emailRequiredError": {
+    "message": "E-mail é obrigatório"
+  },
+  "invalidEmailError": {
+    "message": "Por favor, insira um endereço de e-mail válido"
+  },
+  "codeRequiredError": {
+    "message": "Código de verificação é obrigatório"
+  },
+  "invalidCodeError": {
+    "message": "Por favor, insira um código de verificação de 6 dígitos"
+  },
+  "codeSentSuccess": {
+    "message": "Código de verificação enviado com sucesso"
+  },
+  "loginSuccess": {
+    "message": "Login bem-sucedido"
+  },
+  "verifyCode404": {
+    "message": "O código de verificação está incorreto"
+  },
+  "user404": {
+    "message": "O usuário não existe."
+  },
+  "email405": {
+    "message": "O endereço de e-mail é inválido."
+  },
+  "loginByOrderId404": {
+    "message": "Falha no login automático. Faça login usando seu e-mail mais tarde."
+  },
+  "sign404": {
+    "message": "Não está logado"
+  },
+  "signError": {
+    "message": "Não está logado"
+  },
+  "serverError": {
+    "message": "Erro no servidor"
+  },
+  "emptyCodePrompt": {
+    "message": "Por favor, insira o código de verificação."
+  },
+  "CodeLengthPrompt": {
+    "message": "O código de verificação deve ter cinco dígitos."
+  },
+  "emptyEmailPrompt": {
+    "message": "Por favor, insira seu endereço de e-mail."
+  },
+  "invalidEmailPrompt": {
+    "message": "Por favor, insira um endereço de e-mail válido."
+  },
+  "codeSentPrompt": {
+    "message": "Código de verificação enviado! Se você não receber, verifique sua pasta de spam."
+  },
+  "commanCodeSendFailurePrompt": {
+    "message": "Falha ao enviar o código de verificação. Por favor, tente novamente mais tarde."
+  },
+  "paymentSuccess": {
+    "message": "Pagamento bem-sucedido"
+  },
+  "automaticLogingPrompt": {
+    "message": "Login automático em andamento......"
+  }
+}

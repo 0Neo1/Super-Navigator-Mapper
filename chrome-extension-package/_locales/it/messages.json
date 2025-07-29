@@ -1,0 +1,317 @@
+{
+  "name": {
+    "message": "Super Mapper-Navigator: Navigazione rapida | Mappa mentale | PDF"
+  },
+  "title": {
+    "message": "Super Mapper-Navigator"
+  },
+  "description": {
+    "message": "Genera alberi di navigazione approfonditi dai messaggi della chat, risolvendo perfettamente le sfide di navigazione nelle conversazioni lunghe o nei testi estesi."
+  },
+  "emptyNotice": {
+    "message": "Nessun messaggio di chat."
+  },
+  "loadingNotice": {
+    "message": "Caricamento in corso……"
+  },
+  "catalogTitle": {
+    "message": "Premere per spostare\n Clicca sul menu fisso dell'albero"
+  },
+  "moveTitle": {
+    "message": "Premere per spostare"
+  },
+  "fullTitle": {
+    "message": "Attiva/disattiva schermo intero"
+  },
+  "partialTitle": {
+    "message": "Schermo intero dell'area selezionata"
+  },
+  "toggleTitle": {
+    "message": "Espandi/Comprimi messaggio"
+  },
+  "foldTitle": {
+    "message": "Espandi/Comprimi"
+  },
+  "mindTitle": {
+    "message": "Mappa mentale"
+  },
+  "syncTitle": {
+    "message": "Sincronizza messaggi compressi/espansi"
+  },
+  "refreshTitle": {
+    "message": "Aggiorna la visualizzazione dell'albero del catalogo"
+  },
+  "newTitle": {
+    "message": "Nuova chat"
+  },
+  "deepTitle": {
+    "message": "Cambia profondità dell'albero"
+  },
+  "closeTitle": {
+    "message": "Chiudi la visualizzazione dell'albero del catalogo"
+  },
+  "areasTitle": {
+    "message": "Mostra/Nascondi barra laterale+intestazione+casella di input"
+  },
+  "areasTitle_sidebar": {
+    "message": "Mostra/Nascondi barra laterale"
+  },
+  "areasTitle_head": {
+    "message": "Mostra/Nascondi intestazione"
+  },
+  "areasTitle_inputbox": {
+    "message": "Mostra/Nascondi casella di input"
+  },
+  "exportTitle": {
+    "message": "Esporta in PDF"
+  },
+  "wideTitle": {
+    "message": "Cambia larghezza chat"
+  },
+  "emptyTreeAlert": {
+    "message": "Nessun messaggio di chat"
+  },
+  "refreshAlert": {
+    "message": "Risposta in elaborazione. Per favore aggiorna più tardi"
+  },
+  "ok": {
+    "message": "Conferma"
+  },
+  "syncFold": {
+    "message": "Sincronizza compressione"
+  },
+  "capture": {
+    "message": "Clicca e trascina per zoomare"
+  },
+  "zoomPageTitle": {
+    "message": "Zoom della pagina :"
+  },
+  "zoomPageContent": {
+    "message": "Ctrl+Rotella del mouse"
+  },
+  "automaticLoginFailureTitle": {
+    "message": "Accesso automatico non riuscito"
+  },
+  "automaticLoginFailurePrompt": {
+    "message": "Il pagamento è andato a buon fine, ma l'accesso automatico è fallito. Effettua il login successivamente utilizzando la tua email."
+  },
+  "operationFailure": {
+    "message": "Operazione non riuscita"
+  },
+  "loginSuccessfully": {
+    "message": "Accesso effettuato con successo!"
+  },
+  "CommanLoginFailurePrompt": {
+    "message": "Accesso non riuscito. Riprova più tardi."
+  },
+  "popup_html": {
+    "message": "popup.html"
+  },
+  "tagline": {
+    "message": "Trasforma le conversazioni di ChatGPT in una navigazione strutturata ad albero\nMigliora l'efficienza nel recupero delle informazioni"
+  },
+  "yourAccount": {
+    "message": "Il mio account"
+  },
+  "windowTitle_yourAccount": {
+    "message": "Albero dei Messaggi di ChatGPT - Il Mio Account"
+  },
+  "loginManagement": {
+    "message": "Gestione accesso"
+  },
+  "current": {
+    "message": "(attuale)"
+  },
+  "logoutDevice": {
+    "message": "Disconnetti questo dispositivo"
+  },
+  "loginTime": {
+    "message": "Ora di accesso :"
+  },
+  "logoutButton": {
+    "message": "Esci"
+  },
+  "trialStatus": {
+    "message": "Stato prova gratuita"
+  },
+  "trialBadge": {
+    "message": "Prova gratuita di 7 giorni"
+  },
+  "trialInfo": {
+    "message": "Stai usufruendo della <span class='highlight'>versione completa con tutte le funzioni</span>, periodo di prova rimanente : <span class='time-value' id='trialDays'>3 giorni</span><br>Le funzionalità principali non saranno disponibili dopo la fine del periodo di prova"
+  },
+  "coreFeatures": {
+    "message": "Le funzionalità principali includono"
+  },
+  "feature1": {
+    "message": "Generazione illimitata di alberi di conversazione"
+  },
+  "feature2": {
+    "message": "Classificazione e marcatura intelligente dei nodi di conversazione"
+  },
+  "feature3": {
+    "message": "Messaggi di conversazione comprimibili."
+  },
+  "feature4": {
+    "message": "Fino a 3 browser possono accedere contemporaneamente"
+  },
+  "oneTimePayment": {
+    "message": "Pagamento unico, uso illimitato"
+  },
+  "officialWebsite": {
+    "message": "Sito ufficiale"
+  },
+  "contactUs": {
+    "message": "Contattaci"
+  },
+  "trialExpired": {
+    "message": "Prova gratuita scaduta"
+  },
+  "browserExitPrompt": {
+    "message": "Sei uscito da questo browser"
+  },
+  "1day": {
+    "message": "un giorno"
+  },
+  "2day": {
+    "message": "due giorni"
+  },
+  "3day": {
+    "message": "tre giorni"
+  },
+  "4day": {
+    "message": "quattro giorni"
+  },
+  "5day": {
+    "message": "cinque giorni"
+  },
+  "6day": {
+    "message": "sei giorni"
+  },
+  "7day": {
+    "message": "sette giorni"
+  },
+  "exitBeforePrompt": {
+    "message": "Sei sicuro di voler uscire?"
+  },
+  "exitBrowserBeforePrompt": {
+    "message": "Sei sicuro di voler uscire da questo browser?"
+  },
+  "imply_html": {
+    "message": "imply.html"
+  },
+  "trialEnded": {
+    "message": "Fine della prova gratuita"
+  },
+  "coreFeaturesDisabled": {
+    "message": "Funzionalità principali disattivate"
+  },
+  "upgradeNow": {
+    "message": "Aggiorna ora ($$18)"
+  },
+  "alreadyUpgraded": {
+    "message": "Ho già effettuato l'aggiornamento, effettua il login"
+  },
+  "confirm_html": {
+    "message": "confirm.html"
+  },
+  "cancel": {
+    "message": "Annulla"
+  },
+  "confirm": {
+    "message": "Conferma"
+  },
+  "confirmOperation": {
+    "message": "Conferma operazione"
+  },
+  "login_html": {
+    "message": "login.html"
+  },
+  "closeButtonTitle": {
+    "message": "Chiudi"
+  },
+  "logoAltText": {
+    "message": "Logo"
+  },
+  "emailLabel": {
+    "message": "Indirizzo email"
+  },
+  "emailPlaceholder": {
+    "message": "Inserisci il tuo indirizzo email di acquisto"
+  },
+  "verificationCodeLabel": {
+    "message": "Codice di verifica"
+  },
+  "verificationCodePlaceholder": {
+    "message": "Inserisci il codice di verifica"
+  },
+  "sendCodeButton": {
+    "message": "Invia codice di verifica"
+  },
+  "loginButton": {
+    "message": "Accedi"
+  },
+  "emailRequiredError": {
+    "message": "L'email è obbligatoria"
+  },
+  "invalidEmailError": {
+    "message": "Inserisci un indirizzo email valido"
+  },
+  "codeRequiredError": {
+    "message": "Il codice di verifica è obbligatorio"
+  },
+  "invalidCodeError": {
+    "message": "Inserisci un codice di verifica di 6 cifre"
+  },
+  "codeSentSuccess": {
+    "message": "Codice di verifica inviato con successo"
+  },
+  "loginSuccess": {
+    "message": "Accesso effettuato con successo"
+  },
+  "verifyCode404": {
+    "message": "Il codice di verifica è errato"
+  },
+  "user404": {
+    "message": "L'utente non esiste."
+  },
+  "email405": {
+    "message": "L'indirizzo email non è legale."
+  },
+  "loginByOrderId404": {
+    "message": "Accesso automatico non riuscito. Accedi in seguito utilizzando la tua email."
+  },
+  "sign404": {
+    "message": "Non hai effettuato l'accesso"
+  },
+  "signError": {
+    "message": "Non hai effettuato l'accesso"
+  },
+  "serverError": {
+    "message": "Errore del server"
+  },
+  "emptyCodePrompt": {
+    "message": "Inserisci il codice di verifica."
+  },
+  "CodeLengthPrompt": {
+    "message": "Il codice di verifica deve essere composto da cinque cifre."
+  },
+  "emptyEmailPrompt": {
+    "message": "Inserisci il tuo indirizzo email."
+  },
+  "invalidEmailPrompt": {
+    "message": "Inserisci un indirizzo email valido."
+  },
+  "codeSentPrompt": {
+    "message": "Codice di verifica inviato! Se non lo ricevi, controlla la tua cartella spam."
+  },
+  "commanCodeSendFailurePrompt": {
+    "message": "Impossibile inviare il codice di verifica. Riprova più tardi."
+  },
+  "paymentSuccess": {
+    "message": "Pagamento riuscito"
+  },
+  "automaticLogingPrompt": {
+    "message": "Accesso automatico in corso......"
+  }
+}

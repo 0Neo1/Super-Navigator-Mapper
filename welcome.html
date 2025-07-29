@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Super Mapper-Navigator</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            display: block;
+        }
+        
+        h1 {
+            color: #10a37f;
+            margin: 0 0 10px 0;
+            font-size: 2.5em;
+            font-weight: 600;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 1.2em;
+            margin: 0;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin: 40px 0;
+        }
+        
+        .feature {
+            text-align: center;
+            padding: 20px;
+            border-radius: 15px;
+            background: #f8f9fa;
+            transition: transform 0.3s ease;
+        }
+        
+        .feature:hover {
+            transform: translateY(-5px);
+        }
+        
+        .feature-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+        
+        .feature h3 {
+            color: #10a37f;
+            margin: 0 0 10px 0;
+            font-size: 1.3em;
+        }
+        
+        .feature p {
+            color: #666;
+            margin: 0;
+            line-height: 1.5;
+        }
+        
+        .cta {
+            text-align: center;
+            margin-top: 40px;
+        }
+        
+        .btn {
+            display: inline-block;
+            background: #10a37f;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1em;
+            transition: background 0.3s ease;
+            margin: 0 10px;
+        }
+        
+        .btn:hover {
+            background: #0d8b6b;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .instructions {
+            margin-top: 40px;
+            padding: 25px;
+            background: #e8f5f0;
+            border-radius: 15px;
+            border-left: 5px solid #10a37f;
+        }
+        
+        .instructions h3 {
+            color: #10a37f;
+            margin: 0 0 15px 0;
+        }
+        
+        .instructions ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .instructions li {
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+        
+        @media (max-width: 600px) {
+            body {
+                padding: 20px 10px;
+            }
+            
+            .container {
+                padding: 30px 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .features {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+                    <img src="images/icons/icon-128.png" alt="Super Mapper-Navigator Logo" class="logo">
+        <h1>Super Mapper-Navigator</h1>
+            <p class="subtitle">Navigate long conversations with ease using an intelligent tree structure</p>
+        </div>
+        
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">🌳</div>
+                <h3>Tree Navigation</h3>
+                <p>Organize chat messages in a hierarchical tree structure for better navigation and understanding</p>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">🧠</div>
+                <h3>Mind Maps</h3>
+                <p>Generate interactive mind maps from your conversations to visualize the flow of ideas</p>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">📁</div>
+                <h3>Message Folding</h3>
+                <p>Collapse and expand message threads to focus on what's important</p>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">📄</div>
+                <h3>PDF Export</h3>
+                <p>Export your conversations to PDF format for sharing or archiving</p>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h3>🚀 How to Get Started</h3>
+            <ol>
+                <li>Navigate to <strong>chatgpt.com</strong> and start or open a conversation</li>
+                <li>Look for the floating tree icon button that appears on the page</li>
+                <li>Click the tree icon to open the navigation panel</li>
+                <li>Use the mind map button to generate visual representations of your conversations</li>
+                <li>Explore other features like message folding, PDF export, and fullscreen mode</li>
+            </ol>
+        </div>
+        
+        <div class="cta">
+            <a href="https://chatgpt.com" class="btn" target="_blank">Open ChatGPT</a>
+            <a href="#" class="btn btn-secondary" onclick="window.close()">Close</a>
+        </div>
+    </div>
+</body>
+</html> 

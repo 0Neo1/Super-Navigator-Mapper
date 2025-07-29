@@ -1,0 +1,317 @@
+{
+  "name": {
+    "message": "Super Mapper-Navigator: Navegación rápida|Mapa mental|PDF"
+  },
+  "title": {
+    "message": "Super Mapper-Navigator"
+  },
+  "description": {
+    "message": "Genera árboles de navegación profunda a partir de mensajes de chat, resolviendo perfectamente los desafíos de navegación en conversaciones largas o textos grandes."
+  },
+  "emptyNotice": {
+    "message": "No hay mensajes de chat."
+  },
+  "loadingNotice": {
+    "message": "Cargando……"
+  },
+  "catalogTitle": {
+    "message": "Pulse para mover\n Haga clic en el menú fijo del árbol"
+  },
+  "moveTitle": {
+    "message": "Pulse para mover"
+  },
+  "fullTitle": {
+    "message": "Alternar pantalla completa"
+  },
+  "partialTitle": {
+    "message": "Pantalla completa del área seleccionada"
+  },
+  "toggleTitle": {
+    "message": "Contraer/Expandir mensaje"
+  },
+  "foldTitle": {
+    "message": "Contraer/Expandir"
+  },
+  "mindTitle": {
+    "message": "Mapa mental"
+  },
+  "syncTitle": {
+    "message": "Sincronizar mensajes contraídos/expandidos"
+  },
+  "refreshTitle": {
+    "message": "Actualizar vista del árbol de catálogo"
+  },
+  "newTitle": {
+    "message": "Nuevo chat"
+  },
+  "deepTitle": {
+    "message": "Cambiar profundidad del árbol"
+  },
+  "closeTitle": {
+    "message": "Cerrar vista del árbol de catálogo"
+  },
+  "areasTitle": {
+    "message": "Ocultar/Mostrar barra lateral + encabezado + cuadro de entrada"
+  },
+  "areasTitle_sidebar": {
+    "message": "Ocultar/Mostrar barra lateral"
+  },
+  "areasTitle_head": {
+    "message": "Ocultar/Mostrar encabezado"
+  },
+  "areasTitle_inputbox": {
+    "message": "Ocultar/Mostrar cuadro de entrada"
+  },
+  "exportTitle": {
+    "message": "Exportar PDF"
+  },
+  "wideTitle": {
+    "message": "Alternar ancho del chat"
+  },
+  "emptyTreeAlert": {
+    "message": "No hay mensajes de chat"
+  },
+  "refreshAlert": {
+    "message": "Respuesta en progreso. Por favor, actualice más tarde"
+  },
+  "ok": {
+    "message": "Confirmar"
+  },
+  "syncFold": {
+    "message": "Sincronizar plegado"
+  },
+  "capture": {
+    "message": "Haga clic y arrastre para hacer zoom"
+  },
+  "zoomPageTitle": {
+    "message": "Zoom de página:"
+  },
+  "zoomPageContent": {
+    "message": "Ctrl+Rueda del ratón"
+  },
+  "automaticLoginFailureTitle": {
+    "message": "Fallo al iniciar sesión automáticamente"
+  },
+  "automaticLoginFailurePrompt": {
+    "message": "El pago fue exitoso, pero falló el inicio de sesión automático. Inicie sesión más tarde utilizando su correo electrónico."
+  },
+  "operationFailure": {
+    "message": "Fallo en la operación"
+  },
+  "loginSuccessfully": {
+    "message": "¡Inicio de sesión exitoso!"
+  },
+  "CommanLoginFailurePrompt": {
+    "message": "Fallo al iniciar sesión. Por favor, inténtelo de nuevo más tarde."
+  },
+  "popup_html": {
+    "message": "popup.html"
+  },
+  "tagline": {
+    "message": "Transforme conversaciones de ChatGPT en navegación estructurada por árbol\nMejore la eficiencia en la recuperación de información"
+  },
+  "yourAccount": {
+    "message": "Mi cuenta"
+  },
+  "windowTitle_yourAccount": {
+    "message": "ChatGPT Árbol de Mensajes - Mi cuenta"
+  },
+  "loginManagement": {
+    "message": "Gestión de inicio de sesión"
+  },
+  "current": {
+    "message": "(actual)"
+  },
+  "logoutDevice": {
+    "message": "Cerrar sesión en este dispositivo"
+  },
+  "loginTime": {
+    "message": "Hora de inicio de sesión:"
+  },
+  "logoutButton": {
+    "message": "Cerrar sesión"
+  },
+  "trialStatus": {
+    "message": "Estado de prueba"
+  },
+  "trialBadge": {
+    "message": "Prueba de 7 días"
+  },
+  "trialInfo": {
+    "message": "Está disfrutando de la <span class='highlight'>versión de prueba con todas las funciones</span>, período de prueba restante: <span class='time-value' id='trialDays'>3 días</span><br>Las funciones principales no estarán disponibles después de que termine la prueba"
+  },
+  "coreFeatures": {
+    "message": "Funciones principales incluyen"
+  },
+  "feature1": {
+    "message": "Generación ilimitada de árboles de conversación"
+  },
+  "feature2": {
+    "message": "Clasificación y etiquetado inteligente de nodos de conversación"
+  },
+  "feature3": {
+    "message": "Mensajes de conversación plegables."
+  },
+  "feature4": {
+    "message": "Hasta 3 navegadores pueden iniciar sesión simultáneamente"
+  },
+  "oneTimePayment": {
+    "message": "Pago único, uso de por vida"
+  },
+  "officialWebsite": {
+    "message": "Sitio web oficial"
+  },
+  "contactUs": {
+    "message": "Contáctenos"
+  },
+  "trialExpired": {
+    "message": "Prueba expirada"
+  },
+  "browserExitPrompt": {
+    "message": "Ha salido de este navegador"
+  },
+  "1day": {
+    "message": "un día"
+  },
+  "2day": {
+    "message": "dos días"
+  },
+  "3day": {
+    "message": "tres días"
+  },
+  "4day": {
+    "message": "cuatro días"
+  },
+  "5day": {
+    "message": "cinco días"
+  },
+  "6day": {
+    "message": "seis días"
+  },
+  "7day": {
+    "message": "siete días"
+  },
+  "exitBeforePrompt": {
+    "message": "¿Seguro que desea salir?"
+  },
+  "exitBrowserBeforePrompt": {
+    "message": "¿Seguro que desea salir de este navegador?"
+  },
+  "imply_html": {
+    "message": "imply.html"
+  },
+  "trialEnded": {
+    "message": "Prueba finalizada"
+  },
+  "coreFeaturesDisabled": {
+    "message": "Funciones principales desactivadas"
+  },
+  "upgradeNow": {
+    "message": "Actualice ahora ($$18)"
+  },
+  "alreadyUpgraded": {
+    "message": "Ya he actualizado, inicie sesión"
+  },
+  "confirm_html": {
+    "message": "confirm.html"
+  },
+  "cancel": {
+    "message": "Cancelar"
+  },
+  "confirm": {
+    "message": "Confirmar"
+  },
+  "confirmOperation": {
+    "message": "Confirmar operación"
+  },
+  "login_html": {
+    "message": "login.html"
+  },
+  "closeButtonTitle": {
+    "message": "Cerrar"
+  },
+  "logoAltText": {
+    "message": "Logo"
+  },
+  "emailLabel": {
+    "message": "Dirección de correo electrónico"
+  },
+  "emailPlaceholder": {
+    "message": "Por favor ingrese su dirección de correo electrónico de compra"
+  },
+  "verificationCodeLabel": {
+    "message": "Código de verificación"
+  },
+  "verificationCodePlaceholder": {
+    "message": "Por favor ingrese el código de verificación"
+  },
+  "sendCodeButton": {
+    "message": "Enviar código de verificación"
+  },
+  "loginButton": {
+    "message": "Iniciar sesión"
+  },
+  "emailRequiredError": {
+    "message": "Se requiere correo electrónico"
+  },
+  "invalidEmailError": {
+    "message": "Por favor ingrese una dirección de correo electrónico válida"
+  },
+  "codeRequiredError": {
+    "message": "Se requiere código de verificación"
+  },
+  "invalidCodeError": {
+    "message": "Por favor ingrese un código de verificación de 6 dígitos"
+  },
+  "codeSentSuccess": {
+    "message": "Código de verificación enviado exitosamente"
+  },
+  "loginSuccess": {
+    "message": "Inicio de sesión exitoso"
+  },
+  "verifyCode404": {
+    "message": "El código de verificación es incorrecto"
+  },
+  "user404": {
+    "message": "El usuario no existe."
+  },
+  "email405": {
+    "message": "La dirección de correo electrónico es ilegal."
+  },
+  "loginByOrderId404": {
+    "message": "Fallo al iniciar sesión automáticamente. Inicie sesión utilizando su correo electrónico más tarde."
+  },
+  "sign404": {
+    "message": "No ha iniciado sesión"
+  },
+  "signError": {
+    "message": "No ha iniciado sesión"
+  },
+  "serverError": {
+    "message": "Error del servidor"
+  },
+  "emptyCodePrompt": {
+    "message": "Por favor ingrese el código de verificación."
+  },
+  "CodeLengthPrompt": {
+    "message": "El código de verificación debe tener cinco dígitos."
+  },
+  "emptyEmailPrompt": {
+    "message": "Por favor ingrese su dirección de correo electrónico."
+  },
+  "invalidEmailPrompt": {
+    "message": "Por favor ingrese una dirección de correo electrónico válida."
+  },
+  "codeSentPrompt": {
+    "message": "¡Código de verificación enviado! Si no lo recibe, revise su carpeta de spam."
+  },
+  "commanCodeSendFailurePrompt": {
+    "message": "Fallo al enviar el código de verificación. Por favor, inténtelo de nuevo más tarde."
+  },
+  "paymentSuccess": {
+    "message": "Pago exitoso"
+  },
+  "automaticLogingPrompt": {
+    "message": "Iniciando sesión automáticamente......"
+  }
+}

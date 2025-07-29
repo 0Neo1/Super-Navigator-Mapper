@@ -1,0 +1,317 @@
+{
+  "name": {
+    "message": "Super Mapper-Navigator: クイックナビゲーション | メッセージの折りたたみ | マインドマップ | PDFエクスポート"
+  },
+  "title": {
+    "message": "Super Mapper-Navigator"
+  },
+  "description": {
+    "message": "チャットメッセージから深層ナビゲーションツリーを生成し、長文の会話や大規模なテキストのナビゲーション上の課題を完全に解決します。"
+  },
+  "emptyNotice": {
+    "message": "チャットメッセージはありません。"
+  },
+  "loadingNotice": {
+    "message": "読み込み中……"
+  },
+  "catalogTitle": {
+    "message": "移動するには押してください\n 固定ツリーメニューをクリック"
+  },
+  "moveTitle": {
+    "message": "移動するには押してください"
+  },
+  "fullTitle": {
+    "message": "フルスクリーン切り替え"
+  },
+  "partialTitle": {
+    "message": "選択範囲をフルスクリーン表示"
+  },
+  "toggleTitle": {
+    "message": "メッセージの折りたたみ/展開"
+  },
+  "foldTitle": {
+    "message": "折りたたみ/展開"
+  },
+  "mindTitle": {
+    "message": "マインドマップ"
+  },
+  "syncTitle": {
+    "message": "折りたたまれた/展開されたメッセージを同期"
+  },
+  "refreshTitle": {
+    "message": "カタログツリー表示を更新"
+  },
+  "newTitle": {
+    "message": "新規チャット"
+  },
+  "deepTitle": {
+    "message": "ツリー深度の切り替え"
+  },
+  "closeTitle": {
+    "message": "カタログツリー表示を閉じる"
+  },
+  "areasTitle": {
+    "message": "サイドバー+ヘッダー+入力ボックスの表示/非表示"
+  },
+  "areasTitle_sidebar": {
+    "message": "サイドバーの表示/非表示"
+  },
+  "areasTitle_head": {
+    "message": "ヘッダーの表示/非表示"
+  },
+  "areasTitle_inputbox": {
+    "message": "入力ボックスの表示/非表示"
+  },
+  "exportTitle": {
+    "message": "PDFをエクスポート"
+  },
+  "wideTitle": {
+    "message": "チャット幅の切り替え"
+  },
+  "emptyTreeAlert": {
+    "message": "チャットメッセージはありません"
+  },
+  "refreshAlert": {
+    "message": "応答処理中です。後でもう一度更新してください"
+  },
+  "ok": {
+    "message": "確認"
+  },
+  "syncFold": {
+    "message": "折りたたみを同期"
+  },
+  "capture": {
+    "message": "クリックしてドラッグでズーム"
+  },
+  "zoomPageTitle": {
+    "message": "ページズーム :"
+  },
+  "zoomPageContent": {
+    "message": "Ctrl+マウスホイール"
+  },
+  "automaticLoginFailureTitle": {
+    "message": "自動ログイン失敗"
+  },
+  "automaticLoginFailurePrompt": {
+    "message": "支払いは成功しましたが、自動ログインに失敗しました。後でメールアドレスを使用してログインしてください。"
+  },
+  "operationFailure": {
+    "message": "操作失敗"
+  },
+  "loginSuccessfully": {
+    "message": "ログイン成功！"
+  },
+  "CommanLoginFailurePrompt": {
+    "message": "ログインに失敗しました。しばらくしてから再度お試しください。"
+  },
+  "popup_html": {
+    "message": "popup.html"
+  },
+  "tagline": {
+    "message": "ChatGPTの会話を構造化されたツリーナビゲーションへ変換\n情報検索効率を向上"
+  },
+  "yourAccount": {
+    "message": "マイアカウント"
+  },
+  "windowTitle_yourAccount": {
+    "message": "ChatGPT メッセージツリー - マイアカウント"
+  },
+  "loginManagement": {
+    "message": "ログイン管理"
+  },
+  "current": {
+    "message": "(現在)"
+  },
+  "logoutDevice": {
+    "message": "この端末からログアウト"
+  },
+  "loginTime": {
+    "message": "ログイン時間 :"
+  },
+  "logoutButton": {
+    "message": "ログアウト"
+  },
+  "trialStatus": {
+    "message": "トライアルステータス"
+  },
+  "trialBadge": {
+    "message": "7日間トライアル"
+  },
+  "trialInfo": {
+    "message": "あなたは<span class='highlight'>全機能付きトライアルバージョン</span>をお楽しみいただいています。残りトライアル期間：<span class='time-value' id='trialDays'>3日</span><br>トライアル終了後はコア機能が利用できなくなります。"
+  },
+  "coreFeatures": {
+    "message": "コア機能は以下を含みます"
+  },
+  "feature1": {
+    "message": "無制限の会話ツリー生成"
+  },
+  "feature2": {
+    "message": "会話ノードのインテリジェントな分類とタグ付け"
+  },
+  "feature3": {
+    "message": "折りたたみ可能な会話メッセージ。"
+  },
+  "feature4": {
+    "message": "最大3つのブラウザで同時にログイン可能"
+  },
+  "oneTimePayment": {
+    "message": "一度だけの支払い、生涯使用"
+  },
+  "officialWebsite": {
+    "message": "公式サイト"
+  },
+  "contactUs": {
+    "message": "お問い合わせ"
+  },
+  "trialExpired": {
+    "message": "トライアル期限切れ"
+  },
+  "browserExitPrompt": {
+    "message": "このブラウザから退出しました"
+  },
+  "1day": {
+    "message": "1日"
+  },
+  "2day": {
+    "message": "2日"
+  },
+  "3day": {
+    "message": "3日"
+  },
+  "4day": {
+    "message": "4日"
+  },
+  "5day": {
+    "message": "5日"
+  },
+  "6day": {
+    "message": "6日"
+  },
+  "7day": {
+    "message": "7日"
+  },
+  "exitBeforePrompt": {
+    "message": "本当に終了しますか？"
+  },
+  "exitBrowserBeforePrompt": {
+    "message": "本当にこのブラウザを終了しますか？"
+  },
+  "imply_html": {
+    "message": "imply.html"
+  },
+  "trialEnded": {
+    "message": "トライアル終了"
+  },
+  "coreFeaturesDisabled": {
+    "message": "コア機能は無効化されています"
+  },
+  "upgradeNow": {
+    "message": "今すぐアップグレード ($$18)"
+  },
+  "alreadyUpgraded": {
+    "message": "すでにアップグレード済み、ログインしてください"
+  },
+  "confirm_html": {
+    "message": "confirm.html"
+  },
+  "cancel": {
+    "message": "キャンセル"
+  },
+  "confirm": {
+    "message": "確認"
+  },
+  "confirmOperation": {
+    "message": "操作を確認"
+  },
+  "login_html": {
+    "message": "login.html"
+  },
+  "closeButtonTitle": {
+    "message": "閉じる"
+  },
+  "logoAltText": {
+    "message": "ロゴ"
+  },
+  "emailLabel": {
+    "message": "メールアドレス"
+  },
+  "emailPlaceholder": {
+    "message": "購入用メールアドレスを入力してください"
+  },
+  "verificationCodeLabel": {
+    "message": "確認コード"
+  },
+  "verificationCodePlaceholder": {
+    "message": "確認コードを入力してください"
+  },
+  "sendCodeButton": {
+    "message": "確認コードを送信"
+  },
+  "loginButton": {
+    "message": "ログイン"
+  },
+  "emailRequiredError": {
+    "message": "メールアドレスは必須です"
+  },
+  "invalidEmailError": {
+    "message": "有効なメールアドレスを入力してください"
+  },
+  "codeRequiredError": {
+    "message": "確認コードが必要です"
+  },
+  "invalidCodeError": {
+    "message": "6桁の確認コードを入力してください"
+  },
+  "codeSentSuccess": {
+    "message": "確認コードを送信しました"
+  },
+  "loginSuccess": {
+    "message": "ログイン成功"
+  },
+  "verifyCode404": {
+    "message": "確認コードが正しくありません"
+  },
+  "user404": {
+    "message": "ユーザーが存在しません。"
+  },
+  "email405": {
+    "message": "メールアドレスが不正です。"
+  },
+  "loginByOrderId404": {
+    "message": "自動ログインに失敗しました。後でメールアドレスを使用してログインしてください。"
+  },
+  "sign404": {
+    "message": "ログインしていません"
+  },
+  "signError": {
+    "message": "ログインしていません"
+  },
+  "serverError": {
+    "message": "サーバーエラー"
+  },
+  "emptyCodePrompt": {
+    "message": "確認コードを入力してください。"
+  },
+  "CodeLengthPrompt": {
+    "message": "確認コードは5桁の数字である必要があります。"
+  },
+  "emptyEmailPrompt": {
+    "message": "メールアドレスを入力してください。"
+  },
+  "invalidEmailPrompt": {
+    "message": "有効なメールアドレスを入力してください。"
+  },
+  "codeSentPrompt": {
+    "message": "確認コードを送信しました！受信しない場合はスパムフォルダをご確認ください。"
+  },
+  "commanCodeSendFailurePrompt": {
+    "message": "確認コードの送信に失敗しました。しばらくしてから再度お試しください。"
+  },
+  "paymentSuccess": {
+    "message": "支払い成功"
+  },
+  "automaticLogingPrompt": {
+    "message": "自動ログイン中......"
+  }
+}

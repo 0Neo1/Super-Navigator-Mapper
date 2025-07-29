@@ -1,0 +1,714 @@
+/* Super Mapper-Navigator Sidebar Styles */
+
+/* CSS Variables for theming */
+:root {
+  --color1: #ffffff;
+  --color2: #f8f9fa;
+  --color3: #e9ecef;
+  --color4: #dee2e6;
+  --color08: rgba(0, 0, 0, 0.08);
+  --colora: #6c757d;
+  --colorb: #495057;
+  --colord: #007bff;
+  --colorf: #0056b3;
+  --colorf3: rgba(0, 123, 255, 0.3);
+  --text-color: #212529;
+  --background-image-open: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23495057'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  --background-image-close: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23495057'%3E%3Cpath d='M10 17l5-5-5-5v10z'/%3E%3C/svg%3E");
+  --background-image-dot: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236c757d'%3E%3Ccircle cx='12' cy='12' r='2'/%3E%3C/svg%3E");
+  --background-image-loading: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23007bff'%3E%3Cpath d='M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z'/%3E%3C/svg%3E");
+  --button-size: 40px;
+}
+
+/* Dark mode variables */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color1: #1a1a1a;
+    --color2: #2d2d2d;
+    --color3: #404040;
+    --color4: #525252;
+    --color08: rgba(255, 255, 255, 0.08);
+    --colora: #a0a0a0;
+    --colorb: #e0e0e0;
+    --colord: #4dabf7;
+    --colorf: #339af0;
+    --colorf3: rgba(77, 171, 247, 0.3);
+    --text-color: #e0e0e0;
+    --background-image-open: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e0e0e0'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+    --background-image-close: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e0e0e0'%3E%3Cpath d='M10 17l5-5-5-5v10z'/%3E%3C/svg%3E");
+    --background-image-dot: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a0a0a0'%3E%3Ccircle cx='12' cy='12' r='2'/%3E%3C/svg%3E");
+    --background-image-loading: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%234dabf7'%3E%3Cpath d='M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z'/%3E%3C/svg%3E");
+  }
+}
+
+/* Reset and base styles */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: var(--color1);
+  color: var(--text-color);
+  overflow: hidden;
+}
+
+/* Sidebar mode specific styles */
+.catalogeu-navigation-plugin-floatbar.sidebar-mode {
+  width: 100%;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 2147483647;
+  font-family: inherit;
+}
+
+.catalogeu-navigation-plugin-floatbar.sidebar-mode .panel {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color1);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  margin: 0;
+  max-height: none;
+  outline: none;
+  overflow: hidden;
+}
+
+/* Title bar styling */
+.catalogeu-navigation-plugin-floatbar .panel > .title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--color2);
+  padding: 12px 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-color);
+  border-bottom: 1px solid var(--color3);
+  flex-shrink: 0;
+  user-select: none;
+  cursor: default;
+  min-height: 56px;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .title .logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .title > svg {
+  height: 32px;
+  width: 32px;
+  flex-shrink: 0;
+}
+
+/* Header controls styling */
+.catalogeu-navigation-plugin-floatbar .panel > .header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--color2);
+  border-bottom: 1px solid var(--color3);
+  min-height: 48px;
+  gap: 8px;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .header > * {
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-color);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .header > *:hover {
+  background: var(--color3);
+  transform: scale(1.05);
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .header > .close {
+  font-size: 20px;
+  font-weight: bold;
+  line-height: 1;
+  color: #dc3545;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .header > .close:hover {
+  background: rgba(220, 53, 69, 0.1);
+  color: #dc3545;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .header svg {
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .header > .fold,
+.catalogeu-navigation-plugin-floatbar .panel > .header > .sync,
+.catalogeu-navigation-plugin-floatbar .panel > .header > .deep,
+.catalogeu-navigation-plugin-floatbar .panel > .header > .refresh,
+.catalogeu-navigation-plugin-floatbar .panel > .header > .new {
+  color: var(--colord);
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .header > .sync.inactive,
+.catalogeu-navigation-plugin-floatbar .panel > .header > .deep.inactive {
+  opacity: 0.5;
+  color: var(--colora);
+}
+
+/* Fold button specific styles */
+.catalogeu-navigation-plugin-floatbar .panel > .header > .fold {
+  position: relative;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .header > .fold svg:nth-child(2) {
+  display: none;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .header > .fold.open svg:nth-child(1) {
+  display: none;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .header > .fold.open svg:nth-child(2) {
+  display: block;
+}
+
+/* Main content area - Tree list */
+.catalogeu-navigation-plugin-floatbar .panel > ul,
+.catalogeu-navigation-plugin-floatbar .panel > .tree-list {
+  flex: 1;
+  list-style: none;
+  margin: 0;
+  padding: 12px 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--color1);
+  user-select: none;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > ul:empty::after,
+.catalogeu-navigation-plugin-floatbar .panel > .tree-list:empty::after {
+  content: attr(empty-notice);
+  display: block;
+  color: var(--colora);
+  text-align: center;
+  padding: 40px 20px;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+/* Tree list items */
+.catalogeu-navigation-plugin-floatbar .panel ul li {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  grid-template-rows: auto;
+  grid-auto-rows: auto;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 2px;
+  padding: 0 16px;
+  position: relative;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel ul li::before {
+  content: '';
+  position: absolute;
+  left: 28px;
+  top: 24px;
+  bottom: 0;
+  width: 1px;
+  background: var(--color3);
+  z-index: 1;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel ul li:last-child::before {
+  display: none;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel ul li.collapsed > ul {
+  display: none;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel ul li > i {
+  grid-area: 1/1/2/2;
+  width: 20px;
+  height: 20px;
+  background: var(--color1);
+  border-radius: 4px;
+  border: 1px solid var(--color3);
+  background-size: 12px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-image: var(--background-image-close);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 2;
+  position: relative;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel ul li > i:hover {
+  background-color: var(--color2);
+  border-color: var(--colord);
+  transform: scale(1.1);
+}
+
+.catalogeu-navigation-plugin-floatbar .panel ul li:not(.collapsed) > i {
+  background-image: var(--background-image-open);
+}
+
+.catalogeu-navigation-plugin-floatbar .panel ul li.leaf > i {
+  background-image: var(--background-image-dot);
+  cursor: default;
+  opacity: 0.7;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel ul li.leaf > i:hover {
+  transform: none;
+  background-color: var(--color1);
+  border-color: var(--color3);
+}
+
+.catalogeu-navigation-plugin-floatbar .panel ul li > div {
+  grid-area: 1/2/2/3;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  color: var(--colorb);
+  font-size: 14px;
+  line-height: 1.4;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel ul li > div:hover {
+  background: var(--color2);
+  border: 2px solid var(--colord);
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px var(--color08);
+}
+
+.catalogeu-navigation-plugin-floatbar .panel ul li > div.loading {
+  color: var(--colord);
+  position: relative;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel ul li > div.loading::before {
+  content: '';
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  background-image: var(--background-image-loading);
+  background-size: contain;
+  animation: spin 1s linear infinite;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel ul li > div > span {
+  pointer-events: none;
+  color: inherit;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel ul li > ul {
+  grid-area: 2/1/3/3;
+  margin-left: 16px;
+  padding-left: 8px;
+  border-left: 1px solid var(--color3);
+}
+
+/* Tools section */
+.catalogeu-navigation-plugin-floatbar .panel > .tools {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--color2);
+  border-top: 1px solid var(--color3);
+  gap: 8px;
+  min-height: 48px;
+  overflow-x: auto;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .tools > * {
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-color);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  flex-shrink: 0;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .tools > *:not(.resizebar):hover {
+  background: var(--color3);
+  transform: scale(1.05);
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .tools svg {
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .tools > .resizebar {
+  width: 4px;
+  height: 24px;
+  background: var(--color3);
+  border-radius: 2px;
+  cursor: col-resize;
+  margin: 0 4px;
+  position: relative;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .tools > .resizebar:hover {
+  background: var(--colord);
+  transform: none;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .tools > .resizebar::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  border-left: 2px solid var(--color4);
+  border-right: 2px solid var(--color4);
+  opacity: 0.6;
+}
+
+/* Partial mode button */
+.catalogeu-navigation-plugin-floatbar .panel > .tools > .partial {
+  position: relative;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .tools > .partial svg:nth-child(2) {
+  display: none;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .tools > .partial.active svg:nth-child(1) {
+  display: none;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .tools > .partial.active svg:nth-child(2) {
+  display: block;
+}
+
+/* Areas button */
+.catalogeu-navigation-plugin-floatbar .panel > .tools > .areas {
+  position: relative;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .tools > .areas > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .tools > .areas > div > div {
+  width: 16px;
+  height: 2px;
+  background: var(--text-color);
+  border-radius: 1px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .tools > .areas > div > div:hover {
+  background: var(--colord);
+}
+
+/* Wide mode button */
+.catalogeu-navigation-plugin-floatbar .panel > .tools > .wide {
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* Mind map button */
+.catalogeu-navigation-plugin-floatbar .panel > .tools > .mind {
+  position: relative;
+}
+
+/* More menu - updated structure */
+.catalogeu-navigation-plugin-floatbar .panel > .tools > .more {
+  position: relative;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .tools > .more > span {
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .tools > .more > ul {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  background: var(--color1);
+  border: 1px solid var(--color3);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px var(--color08);
+  list-style: none;
+  margin: 0;
+  padding: 8px 0;
+  min-width: 160px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px);
+  transition: all 0.2s ease;
+  z-index: 1000;
+  margin-bottom: 8px;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .tools > .more:hover > ul {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .tools > .more > ul li {
+  margin: 0;
+  padding: 0;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .tools > .more > ul button {
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-color);
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  border-radius: 0;
+  display: block;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > .tools > .more > ul button:hover {
+  background: var(--color2);
+}
+
+
+
+/* Loading overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+}
+
+.loading-overlay.show {
+  display: flex;
+}
+
+.loading-spinner {
+  text-align: center;
+  color: white;
+}
+
+.spinner-icon {
+  margin-bottom: 16px;
+}
+
+.spinning-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  animation: spin 1s linear infinite;
+}
+
+.loading-text {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* Error message */
+.error-message {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--color1);
+  border: 1px solid #dc3545;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(220, 53, 69, 0.2);
+  display: none;
+  z-index: 9999;
+  max-width: 300px;
+  text-align: center;
+}
+
+.error-message.show {
+  display: block;
+}
+
+.error-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.error-text {
+  color: #dc3545;
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+.retry-button {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s ease;
+}
+
+.retry-button:hover {
+  background: #c82333;
+}
+
+/* Animations */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes catalog_slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes loading {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Scrollbar styling */
+.catalogeu-navigation-plugin-floatbar .panel > ul::-webkit-scrollbar,
+.catalogeu-navigation-plugin-floatbar .panel > .tree-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > ul::-webkit-scrollbar-track,
+.catalogeu-navigation-plugin-floatbar .panel > .tree-list::-webkit-scrollbar-track {
+  background: var(--color2);
+  border-radius: 4px;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > ul::-webkit-scrollbar-thumb,
+.catalogeu-navigation-plugin-floatbar .panel > .tree-list::-webkit-scrollbar-thumb {
+  background: var(--color3);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.catalogeu-navigation-plugin-floatbar .panel > ul::-webkit-scrollbar-thumb:hover,
+.catalogeu-navigation-plugin-floatbar .panel > .tree-list::-webkit-scrollbar-thumb:hover {
+  background: var(--colord);
+}
+
+/* Responsive adjustments */
+@media (max-width: 400px) {
+  .catalogeu-navigation-plugin-floatbar .panel > .title {
+    padding: 8px 12px;
+    font-size: 14px;
+    min-height: 48px;
+  }
+  
+  .catalogeu-navigation-plugin-floatbar .panel > .title .logo {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .catalogeu-navigation-plugin-floatbar .panel > .header,
+  .catalogeu-navigation-plugin-floatbar .panel > .tools {
+    padding: 6px 8px;
+    min-height: 40px;
+  }
+  
+  .catalogeu-navigation-plugin-floatbar .panel > .header > *,
+  .catalogeu-navigation-plugin-floatbar .panel > .tools > * {
+    min-width: 28px;
+    min-height: 28px;
+    padding: 6px;
+  }
+  
+  .catalogeu-navigation-plugin-floatbar .panel ul li > div {
+    padding: 6px 8px;
+    font-size: 13px;
+    min-height: 32px;
+  }
+}
+
+/* Focus styles for accessibility */
+.catalogeu-navigation-plugin-floatbar .panel button:focus,
+.catalogeu-navigation-plugin-floatbar .panel > ul li > i:focus,
+.catalogeu-navigation-plugin-floatbar .panel > ul li > div:focus {
+  outline: 2px solid var(--colord);
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --color3: #000000;
+    --color4: #333333;
+    --colord: #0066cc;
+    --colorf: #004499;
+  }
+} 

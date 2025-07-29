@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title data-i18n="windowTitle_yourAccount">Super Mapper-Navigator - My account</title>
+  <style>
+    :root {
+      --primary-color: #3bb910;
+      --primary-dark: #5d6902;
+      --text-color: #1f2735;
+      --light-text: #718096;
+      --border-color: #E2E8F0;
+      --bg-color: #F7FAFC;
+      --card-bg: #FFFFFF;
+      --danger-color: #F56565;
+    }
+
+    /* 對 Webkit 引擎的瀏覽器 (Chrome, Safari) */
+    * {
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      /* 針對 macOS 上的 Firefox */
+    }
+
+    body {
+      font-feature-settings: "liga" 1;
+      /* 启用连字 */
+      text-rendering: optimizeLegibility;
+      /* 优化文本可读性 */
+      -webkit-font-smoothing: antialiased;
+      /* Webkit/Safari */
+      -moz-osx-font-smoothing: grayscale;
+      /* Firefox */
+      /* font-family: Arial, sans-serif,'Microsoft JhengHei', 'Segoe UI',serif; */
+      font-family: ui-sans-serif, -apple-system, system-ui, Segoe UI, Helvetica, Apple Color Emoji, Arial, sans-serif, Segoe UI Emoji, Segoe UI Symbol;
+      min-width: 380px;
+      max-width: 500px;
+      margin: 0;
+      padding: 12px;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-size: 15px;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .header {
+      text-align: center;
+      /* margin-bottom: 10px; */
+    }
+
+    .tagline {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--light-text);
+      /* line-height: 1.4; */
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border-radius: 8px;
+      padding: 14px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      border: 1px solid var(--border-color);
+    }
+
+    .section-title {
+      font-weight: 600;
+      color: var(--text-color);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      /* font-size: 16px; */
+      font-size: 1.1em;
+    }
+
+    .section-title svg {
+      width: 16px;
+      height: 16px;
+      color: var(--primary-color);
+    }
+
+    .user-email {
+      font-weight: 500;
+      margin-bottom: 10px;
+      word-break: break-all;
+      padding: 8px;
+      background-color: #ecfbc3;
+      border-radius: 4px;
+      border-left: 3px solid var(--primary-color);
+      /* font-size: 15px; */
+      line-height: 1.3;
+    }
+
+    .devices-list {
+      margin-top: 10px;
+      /* font-size: 14px; */
+      line-height: 1.3;
+      pointer-events: none;
+    }
+
+    .device-item {
+      display: grid;
+      grid-template-columns: auto auto;
+      justify-content: space-between;
+      align-items: start;
+      row-gap: .3em;
+      padding: 8px 5px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .device-item.delete {
+      background-color: #eee;
+    }
+
+    .device-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .device-icon {
+      margin-right: 8px;
+      color: #4299E1;
+    }
+
+    .device-time {
+      grid-area: 2/1/3/-1;
+      /* font-size: 12px; */
+      font-size: .8em;
+      color: var(--light-text);
+    }
+
+    .logout-device-btn {
+      background: none;
+      border: none;
+      color: var(--danger-color);
+      /* font-size: 12px; */
+      font-size: .9em;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      pointer-events: all;
+    }
+
+    .logout-device-btn:hover {
+      background-color: #FEE2E2;
+    }
+
+    .trial-info {
+      /* font-size: 15px; */
+      margin-bottom: 12px;
+      line-height: 1.4;
+      color: var(--text-color);
+    }
+
+    .highlight {
+      color: var(--primary-color);
+      font-weight: 600;
+    }
+
+    .feature-list {
+      list-style: none;
+      margin: 12px 0;
+      padding-left: 0;
+    }
+
+    .feature-item {
+      margin-bottom: 8px;
+      position: relative;
+      color: var(--text-color);
+      padding-left: 22px;
+      /* font-size: 14px; */
+      font-size: .95em;
+      line-height: 1.3;
+    }
+
+    .feature-item:before {
+      content: "✓";
+      color: var(--primary-color);
+      font-weight: bold;
+      position: absolute;
+      left: 0;
+    }
+
+    .time-value {
+      font-weight: 600;
+      color: #DD6B20;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      /* font-weight: 750; */
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+      margin-top: 10px;
+      /* font-size: 15px; */
+      font-size: 1.15em;
+    }
+
+    .btn-primary {
+      background-color: var(--primary-color);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--primary-dark);
+    }
+
+    .btn-primary2 {
+      background-color: var(--light-text);
+      color: white;
+      margin-top: 1em;
+    }
+
+    .btn-primary2:hover {
+      background-color: var(--text-color);
+    }
+
+    .btn-secondary {
+      background-color: #EDF2F7;
+      color: var(--text-color);
+    }
+
+    .btn-secondary:hover {
+      background-color: #E2E8F0;
+    }
+
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 12px;
+      border-top: 1px solid var(--border-color);
+      padding-top: 12px;
+    }
+
+    .footer-btn {
+      /* font-size: 14px; */
+      font-size: .85em;
+      color: var(--light-text);
+      cursor: pointer;
+      transition: color 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      text-decoration: none;
+    }
+
+    .footer-btn:hover {
+      color: var(--primary-color);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .badge {
+      background-color: var(--primary-color);
+      color: white;
+      padding: 2px 8px;
+      border-radius: 12px;
+      /* font-size: 12px; */
+      font-size: .9em;
+      font-weight: 500;
+      margin-left: 8px;
+    }
+
+    /* 深色模式樣式 */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --primary-color: #6ee7b7;
+        --primary-dark: #cbfae4;
+        --text-color: #E2E8F0;
+        --light-text: #A0AEC0;
+        --border-color: #16305e;
+        --bg-color: #1A202C;
+        --card-bg: #1f2735;
+        --danger-color: #FC8181;
+      }
+
+      body {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+      }
+
+      .user-email {
+        background-color: #2F4538;
+        border-left-color: var(--primary-color);
+        color: var(--text-color);
+      }
+
+      .device-item.delete {
+        background-color: #4A5568;
+      }
+
+      .logout-device-btn:hover {
+        background-color: #4A2525;
+      }
+
+      .btn-secondary {
+        background-color: #4A5568;
+        color: var(--text-color);
+      }
+
+      .btn-secondary:hover {
+        background-color: #1f2735;
+      }
+
+      .btn-primary {
+        background-color: var(--primary-color);
+        color: #000;
+      }
+
+      .btn-primary:hover {
+        background-color: var(--primary-dark);
+      }
+
+      .btn-primary2 {
+        background-color: #4A5568;
+      }
+
+      .btn-primary2:hover {
+        background-color: #2e3e5a;
+      }
+
+      .badge {
+        color: #000;
+      }
+    }
+  </style>
+  <script type="text/javascript" src="./global-error-capture.js"></script>
+  <script type="text/javascript" src="./tools.js"></script>
+  <script type="text/javascript" src="./popup.js"></script>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <!-- <div class="tagline" html-i18n="tagline">將ChatGPT對話消息轉化為結構化樹狀導覽<br>提升信息檢索效率</div> -->
+              <div class="tagline" data-i18n="title">Super Mapper-Navigator</div>
+    </div>
+
+    <div id="loggedInView" class="card hidden">
+      <div class="section-title">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+        <span data-i18n="yourAccount">你的賬戶</span>
+      </div>
+      <div class="user-email" id="userEmail">user@example.com</div>
+
+      <div class="section-title">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
+        <span data-i18n="loginManagement">登錄管理</span>
+      </div>
+      <div class="devices-list">
+        <!-- <div class="device-item">
+                                        <div class="device-header">
+                                                <span class="device-icon">💻</span>
+                                                <span>Chrome <span data-i18n="current">(當前)</span></span>
+                                        </div>
+                                        <div class="device-actions">
+                                                <button class="logout-device-btn" device-id="xxx"
+                                                        data-i18n="logoutDevice">退出此設備</button>
+                                        </div>
+                                        <div class="device-time" >
+                                                <span data-i18n="loginTime">登錄時間: </span>
+                                                <span>2023-11-15 14:30</span>
+                                        </div>
+                                </div> -->
+      </div>
+      <button id="logoutBtn" class="btn btn-secondary" data-i18n="logoutButton">退出登錄</button>
+    </div>
+
+    <!-- 未登錄狀態 -->
+    <div id="loggedOutView" class="card hidden">
+      <div class="section-title">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span data-i18n="trialStatus">試用狀態</span>
+        <span class="badge" data-i18n="trialBadge">7天試用</span>
+      </div>
+      <div class="trial-info" html-i18n="trialInfo">
+        您正在享受<span class="highlight">完整功能試用版</span>，試用期剩餘: <span class="time-value" id="trialDays">3天</span><br>
+        試用結束後將無法繼續使用核心功能
+      </div>
+
+      <div class="section-title">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+        <span data-i18n="coreFeatures">核心功能包含</span>
+      </div>
+      <ul class="feature-list">
+        <li class="feature-item" data-i18n="feature1">無限生成對話樹狀結構</li>
+        <li class="feature-item" data-i18n="feature2">智能對話節點分類與標記</li>
+        <li class="feature-item" data-i18n="feature3">摺叠對話消息</li>
+        <li class="feature-item" data-i18n="feature4">最多3個瀏覽器同時登錄使用</li>
+      </ul>
+
+      <div class="section-title">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span data-i18n="oneTimePayment">一次付款，永久使用</span>
+      </div>
+      <button id="upgradeBtn" class="btn btn-primary" data-i18n="upgradeNow">立即升級 ($18)</button>
+      <button id="loginBtn" class="btn btn-primary2" data-i18n="alreadyUpgraded">我已升級，登錄</button>
+    </div>
+
+    <div class="footer">
+      <a href="https://chatgptmessagetree.com/" target="_blank" class="footer-btn"
+        title="https://chatgptmessagetree.com" data-i18n="officialWebsite">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14"
+          height="14">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+        </svg>
+        官方網站
+      </a>
+      <a href="mailto:info@chatgptmessagetree.com" class="footer-btn" title="info@chatgptmessagetree.com"
+        data-i18n="contactUs">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14"
+          height="14">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+          </path>
+        </svg>
+        聯繫我們
+      </a>
+    </div>
+  </div>
+</body>
+
+</html>
