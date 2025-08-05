@@ -173,14 +173,14 @@ body[disselect] {
   display: none;
 }
 
-/* 浮动按钮容器 */
+/* 浮动按钮容器 - 隐藏浮动按钮，只使用ZeroEka侧边栏按钮 */
 .catalogeu-navigation-plugin-floatbar>.buttons {
   z-index: 10000001;
   position: fixed;
   left: 272px;
   top: max(10%, 50px);
   /* transform: translateY(-50%); */
-  display: flex;
+  display: none; /* Hide floating button - only use ZeroEka sidebar button */
   flex-direction: column;
   gap: .5em;
 

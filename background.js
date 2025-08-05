@@ -79,4 +79,32 @@
   });
 
   // Extension icon clicks are now disabled - sidebar can only be opened via floating button
+  
+  // Notify content scripts when extension is reloaded
+  chrome.runtime.onStartup.addListener(() => {
+    console.log('Extension started, notifying content scripts...');
+    chrome.tabs.query({}, (tabs) => {
+      tabs.forEach(tab => {
+        if (tab.url && (tab.url.includes('chatgpt.com') || tab.url.includes('gemini.google.com'))) {
+          chrome.tabs.sendMessage(tab.id, { type: 'extension-reloaded' }).catch(() => {
+            // Ignore errors if content script is not ready
+          });
+        }
+      });
+    });
+  });
+  
+  // Also notify on extension update
+  chrome.runtime.onUpdateAvailable.addListener(() => {
+    console.log('Extension update available, notifying content scripts...');
+    chrome.tabs.query({}, (tabs) => {
+      tabs.forEach(tab => {
+        if (tab.url && (tab.url.includes('chatgpt.com') || tab.url.includes('gemini.google.com'))) {
+          chrome.tabs.sendMessage(tab.id, { type: 'extension-reloaded' }).catch(() => {
+            // Ignore errors if content script is not ready
+          });
+        }
+      });
+    });
+  });
 })();

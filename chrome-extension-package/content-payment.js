@@ -1,1 +1,0 @@
-window.addEventListener("message",e=>{e.source===window&&e.data&&"payment-page"===e.data.source&&chrome.runtime.sendMessage({type:"payment-result",data:e.data.data})});

@@ -20,8 +20,8 @@
   ],
   "host_permissions": [
     "https://chatgpt.com/",
-    "https://www.chatgpt.com/",
-    "https://gemini.google.com/"
+    "https://www.chatgpt.com/"
+
     
   ],
   "action": {},
