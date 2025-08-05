@@ -724,6 +724,7 @@ const createZeroEkaIconButton = () => {
         
         if (isBookmarked) {
           chatItem.classList.add('bookmarked');
+          chatItem.setAttribute('data-was-bookmarked', 'true');
           
           // Move bookmarked chat to top
           const chatList = chatItem.parentElement;
@@ -788,6 +789,7 @@ const createZeroEkaIconButton = () => {
           if (!isBookmarked) {
             // Bookmark the chat
             chatItem.classList.add('bookmarked');
+            chatItem.setAttribute('data-was-bookmarked', 'true');
             chatItem.style.border = '2px solid #3bb910';
             chatItem.style.borderRadius = '8px';
             
@@ -824,6 +826,8 @@ const createZeroEkaIconButton = () => {
           } else {
             // Unbookmark the chat
             chatItem.classList.remove('bookmarked');
+            // Keep the data-was-bookmarked attribute to maintain position
+            // chatItem.removeAttribute('data-was-bookmarked'); // Don't remove this attribute
             chatItem.style.border = '';
             chatItem.style.borderRadius = '';
             
@@ -832,22 +836,11 @@ const createZeroEkaIconButton = () => {
             const updatedBookmarks = bookmarkedChats.filter(id => id !== chatId);
             localStorage.setItem('bookmarkedChats', JSON.stringify(updatedBookmarks));
             
-            // Move chat back to its original position (after unbookmarked chats)
-            const chatList = chatItem.parentElement;
-            if (chatList) {
-              // Find the first unbookmarked chat to insert after
-              const unbookmarkedChats = Array.from(chatList.children).filter(child => 
-                !child.classList.contains('bookmarked')
-              );
-              
-              if (unbookmarkedChats.length > 0) {
-                // Insert after the last unbookmarked chat
-                const lastUnbookmarked = unbookmarkedChats[unbookmarkedChats.length - 1];
-                chatList.insertBefore(chatItem, lastUnbookmarked.nextSibling);
-              }
-            }
+            // Keep chat at the top of the list (don't move it back)
+            // The chat will stay at the top even when unbookmarked
+            console.log('Chat unbookmarked but kept at top position');
             
-            console.log('Chat unbookmarked and moved to original position');
+            console.log('Chat unbookmarked but kept at top position');
           }
         });
       });
@@ -3239,6 +3232,10 @@ const addVanillaMindmapNavigation = (mindmapContainer) => {
                     console.log('Re-moved bookmarked chat to top after delay:', chatId);
                   }
                 }, 100);
+                
+                // Add a data attribute to mark this as a previously bookmarked chat
+                // This helps maintain position even after unbookmarking
+                chatItem.setAttribute('data-was-bookmarked', 'true');
               } else {
                 console.error('No parent list found for chat:', chatId);
               }
@@ -3281,7 +3278,7 @@ const addVanillaMindmapNavigation = (mindmapContainer) => {
           return itemId === chatId;
         });
         
-        if (chatItem && chatItem.classList.contains('bookmarked')) {
+        if (chatItem && (chatItem.classList.contains('bookmarked') || chatItem.hasAttribute('data-was-bookmarked'))) {
           const chatList = chatItem.parentElement;
           if (chatList && chatList.firstChild !== chatItem) {
             chatList.insertBefore(chatItem, chatList.firstChild);
