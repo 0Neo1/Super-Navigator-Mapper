@@ -70,7 +70,8 @@
     {
       "resources": [
         "images/*",
-        "resources/*"
+        "resources/*",
+        "resources/firebase/*"
       ],
       "matches": [
         "https://chatgpt.com/*",
