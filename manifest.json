@@ -71,7 +71,8 @@
       "resources": [
         "images/*",
         "resources/*",
-        "resources/firebase/*"
+        "resources/firebase/*",
+        "resources/login.js"
       ],
       "matches": [
         "https://chatgpt.com/*",
