@@ -2,6 +2,53 @@
   // Import tools.js
   importScripts("./tools.js");
   
+  // --- Google OAuth via chrome.identity + Firebase id_token exchange ---
+  const OAUTH_SCOPES = "openid email profile";
+  const CLIENT_ID = chrome.runtime.getManifest()?.oauth2?.client_id;
+  
+  function getRedirectUri() {
+    // e.g., https://<EXTENSION_ID>.chromiumapp.org/provider_cb
+    return chrome.identity.getRedirectURL("provider_cb");
+  }
+  
+  function buildAuthUrl() {
+    const redirectUri = getRedirectUri();
+    const state = crypto.getRandomValues(new Uint32Array(4)).join(".");
+    const nonce = crypto.getRandomValues(new Uint32Array(4)).join(".");
+    const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+    url.searchParams.set("client_id", CLIENT_ID);
+    url.searchParams.set("response_type", "token id_token");
+    url.searchParams.set("redirect_uri", redirectUri);
+    url.searchParams.set("scope", OAUTH_SCOPES);
+    url.searchParams.set("prompt", "consent");
+    url.searchParams.set("state", state);
+    url.searchParams.set("nonce", nonce);
+    return url.toString();
+  }
+  
+  async function startGoogleLogin(sendResponse) {
+    try {
+      const url = buildAuthUrl();
+      chrome.identity.launchWebAuthFlow({ url, interactive: true }, (redirectedTo) => {
+        if (chrome.runtime.lastError || !redirectedTo) {
+          sendResponse({ error: chrome.runtime.lastError?.message || "Canceled" });
+          return;
+        }
+        const hash = new URL(redirectedTo).hash.slice(1);
+        const params = new URLSearchParams(hash);
+        const idToken = params.get("id_token");
+        const accessToken = params.get("access_token");
+        if (idToken) {
+          sendResponse({ id_token: idToken, access_token: accessToken });
+        } else {
+          sendResponse({ error: "No id_token returned" });
+        }
+      });
+    } catch (e) {
+      sendResponse({ error: e?.message || "auth_failed" });
+    }
+  }
+  
   // Browser detection without sending to backend
   let browserType;
   (async function() {
@@ -64,6 +111,12 @@
     
 
     
+    // Start Google OAuth flow and return id_token
+    if (type === "start-google-login") {
+      startGoogleLogin(sendResponse);
+      return true; // keep port open for async response
+    }
+
     console.log('Unhandled message type:', type);
     return true;
   });

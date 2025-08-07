@@ -619,6 +619,53 @@ const createZeroEkaIconButton = () => {
   pinUnpinButton.appendChild(pinIcon);
   topButtonsContainer.appendChild(pinUnpinButton);
 
+  // Create ZeroEka extension button below Pin/Unpin button
+  const zeroekaExtensionButton = document.createElement('div');
+  zeroekaExtensionButton.id = 'zeroeka-extension-button';
+  zeroekaExtensionButton.style.cssText = `
+    width: 48px;
+    height: 48px;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-top: 12px;
+    transition: all 0.3s ease;
+  `;
+
+  // Create ZeroEka image for the button
+  const zeroekaExtensionImage = document.createElement('img');
+  zeroekaExtensionImage.src = chrome.runtime.getURL('images/ZeroEka.png');
+  zeroekaExtensionImage.style.cssText = `
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+  `;
+
+  zeroekaExtensionButton.appendChild(zeroekaExtensionImage);
+  topButtonsContainer.appendChild(zeroekaExtensionButton);
+
+  // Add hover effects for ZeroEka extension button
+  zeroekaExtensionButton.addEventListener('mouseenter', () => {
+    zeroekaExtensionButton.style.background = '#2a2a2a';
+    zeroekaExtensionImage.style.transform = 'scale(1.1)';
+  });
+
+  zeroekaExtensionButton.addEventListener('mouseleave', () => {
+    zeroekaExtensionButton.style.background = '#1a1a1a';
+    zeroekaExtensionImage.style.transform = 'scale(1)';
+  });
+
+  // Add click functionality for ZeroEka extension button
+  zeroekaExtensionButton.addEventListener('click', () => {
+    console.log('ZeroEka extension button clicked');
+    // Redirect to Prompt Engine Chrome extension link
+    window.open('https://chromewebstore.google.com/detail/prompt-engine-by-zeroeka/enkgghbjjigjjkodkgbakchhflmkaphj', '_blank');
+  });
+
   // Add hover effects for pin/unpin button
   pinUnpinButton.addEventListener('mouseenter', () => {
     pinUnpinButton.style.background = '#2a2a2a';
@@ -652,13 +699,6 @@ const createZeroEkaIconButton = () => {
       
       // Add bookmark mode to ChatGPT sidebar chats
       addPinButtonsToChats();
-      
-      // Show green borders on existing bookmarked chats
-      const bookmarkedChats = document.querySelectorAll('.bookmarked');
-      bookmarkedChats.forEach(chatItem => {
-        chatItem.style.border = '2px solid #3bb910';
-        chatItem.style.borderRadius = '8px';
-      });
       
       console.log('Bookmark mode activated');
     } else {
@@ -724,18 +764,11 @@ const createZeroEkaIconButton = () => {
         
         if (isBookmarked) {
           chatItem.classList.add('bookmarked');
-          chatItem.setAttribute('data-was-bookmarked', 'true');
           
           // Move bookmarked chat to top
           const chatList = chatItem.parentElement;
           if (chatList && chatList.firstChild !== chatItem) {
             chatList.insertBefore(chatItem, chatList.firstChild);
-          }
-          
-          // Only show green border if bookmark mode is active
-          if (window.bookmarkModeActive) {
-            chatItem.style.border = '2px solid #3bb910';
-            chatItem.style.borderRadius = '8px';
           }
         }
         
@@ -765,14 +798,17 @@ const createZeroEkaIconButton = () => {
             const isBookmarked = chatItem.classList.contains('bookmarked');
             
             if (isBookmarked) {
-              // Keep green border for bookmarked chats
-              chatItem.style.border = '2px solid #3bb910';
-              chatItem.style.borderRadius = '8px';
+              // Remove border for bookmarked chats when mouse leaves
+              chatItem.style.border = '';
+              chatItem.style.borderRadius = '';
+              chatItem.style.cursor = '';
+              chatItem.style.transition = '';
             } else {
               // Remove border for unbookmarked chats
               chatItem.style.border = '';
               chatItem.style.borderRadius = '';
               chatItem.style.cursor = '';
+              chatItem.style.transition = '';
             }
           }
         });
@@ -789,7 +825,6 @@ const createZeroEkaIconButton = () => {
           if (!isBookmarked) {
             // Bookmark the chat
             chatItem.classList.add('bookmarked');
-            chatItem.setAttribute('data-was-bookmarked', 'true');
             chatItem.style.border = '2px solid #3bb910';
             chatItem.style.borderRadius = '8px';
             
@@ -823,24 +858,50 @@ const createZeroEkaIconButton = () => {
             }
             
             console.log('Chat bookmarked and moved to top');
+            
+            // Refresh page after bookmarking
+            setTimeout(() => {
+              window.location.reload();
+            }, 500);
           } else {
             // Unbookmark the chat
             chatItem.classList.remove('bookmarked');
-            // Keep the data-was-bookmarked attribute to maintain position
-            // chatItem.removeAttribute('data-was-bookmarked'); // Don't remove this attribute
             chatItem.style.border = '';
             chatItem.style.borderRadius = '';
+            chatItem.style.cursor = '';
+            chatItem.style.transition = '';
             
             // Remove from localStorage
             const bookmarkedChats = JSON.parse(localStorage.getItem('bookmarkedChats') || '[]');
             const updatedBookmarks = bookmarkedChats.filter(id => id !== chatId);
             localStorage.setItem('bookmarkedChats', JSON.stringify(updatedBookmarks));
             
-            // Keep chat at the top of the list (don't move it back)
-            // The chat will stay at the top even when unbookmarked
-            console.log('Chat unbookmarked but kept at top position');
+            // Move chat back to its original position (after the last unbookmarked chat)
+            const chatList = chatItem.parentElement;
+            if (chatList) {
+              // Find all unbookmarked chats
+              const unbookmarkedChats = Array.from(chatList.children).filter(child => 
+                !child.classList.contains('bookmarked')
+              );
+              
+              if (unbookmarkedChats.length > 0) {
+                // Insert after the last unbookmarked chat
+                const lastUnbookmarked = unbookmarkedChats[unbookmarkedChats.length - 1];
+                chatList.insertBefore(chatItem, lastUnbookmarked.nextSibling);
+                console.log('Chat moved back to original position after unbookmarking');
+              } else {
+                // If no unbookmarked chats, move to the end
+                chatList.appendChild(chatItem);
+                console.log('Chat moved to end of list after unbookmarking');
+              }
+            }
             
-            console.log('Chat unbookmarked but kept at top position');
+            console.log('Chat unbookmarked and moved to original position');
+            
+            // Refresh page after unbookmarking
+            setTimeout(() => {
+              window.location.reload();
+            }, 500);
           }
         });
       });
@@ -1200,13 +1261,13 @@ const createZeroEkaIconButton = () => {
           }
           
           if (bestMatch && bestMatchIndex !== -1) {
-            // Extract context around the match, preserving line breaks
-            const startIndex = Math.max(0, bestMatchIndex - 50);
-            const endIndex = Math.min(content.length, bestMatchIndex + bestMatch.length + 50);
+            // Extract more context around the match for better display
+            const startIndex = Math.max(0, bestMatchIndex - 40);
+            const endIndex = Math.min(content.length, bestMatchIndex + bestMatch.length + 40);
             
-            const beforeMatch = content.substring(startIndex, bestMatchIndex);
+            const beforeMatch = content.substring(startIndex, bestMatchIndex).replace(/\s+/g, ' ').trim();
             const match = content.substring(bestMatchIndex, bestMatchIndex + bestMatch.length);
-            const afterMatch = content.substring(bestMatchIndex + bestMatch.length, endIndex);
+            const afterMatch = content.substring(bestMatchIndex + bestMatch.length, endIndex).replace(/\s+/g, ' ').trim();
             
             // Calculate how many query words are found in this context
             const contextText = (beforeMatch + match + afterMatch).toLowerCase();
@@ -1326,10 +1387,10 @@ const createZeroEkaIconButton = () => {
       deduplicatedResults.forEach((result, resultIndex) => {
         const resultItem = document.createElement('div');
         resultItem.style.cssText = `
-          padding: 16px;
+          padding: 12px 14px;
           border: 1px solid #444444;
-          border-radius: 8px;
-          margin-bottom: 12px;
+          border-radius: 6px;
+          margin-bottom: 10px;
           background: #2a2a2a;
           cursor: pointer;
           transition: all 0.3s ease;
@@ -1344,22 +1405,17 @@ const createZeroEkaIconButton = () => {
         const priorityText = result.wordMatchCount === result.totalQueryWords ? 'Perfect Match' :
                            result.wordMatchCount >= result.totalQueryWords * 0.7 ? 'Good Match' : 'Partial Match';
         
-        // Show multiple matches info if applicable
+        // Show concise match info
         const matchInfo = result.totalMatches > 1 ? 
-          ` - ${result.totalMatches} matches found` : 
-          ` - Match: "${result.match}"`;
+          ` (${result.totalMatches} matches)` : 
+          '';
         
         resultItem.innerHTML = `
-          <div style="font-weight: 600; color: #3bb910; margin-bottom: 6px; font-size: 14px;">
-            ${authorLabel} (Message ${messageNumber})${matchInfo}
+          <div style="font-weight: 600; color: #3bb910; margin-bottom: 4px; font-size: 13px;">
+            ${authorLabel} ${messageNumber}${matchInfo}
           </div>
-          <div style="color: #888888; font-size: 12px; margin-bottom: 4px;">
-            <span style="color: ${priorityColor}; font-weight: 600;">${priorityText}</span> 
-            (${result.wordMatchCount}/${result.totalQueryWords} words matched)
-            ${result.totalMatches > 1 ? ` • ${result.totalMatches} total matches` : ''}
-          </div>
-          <div style="color: #cccccc; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word;">
-            ${highlightAllWordsInText(result.beforeMatch + result.match + result.afterMatch, query)}
+          <div style="color: #cccccc; font-size: 13px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; max-height: 80px; overflow: hidden;">
+            ${result.beforeMatch ? '...' + result.beforeMatch : ''}${highlightAllWordsInText(result.match, query)}${result.afterMatch ? result.afterMatch + '...' : ''}
           </div>
         `;
 
@@ -3232,13 +3288,11 @@ const addVanillaMindmapNavigation = (mindmapContainer) => {
                     console.log('Re-moved bookmarked chat to top after delay:', chatId);
                   }
                 }, 100);
-                
-                // Add a data attribute to mark this as a previously bookmarked chat
-                // This helps maintain position even after unbookmarking
-                chatItem.setAttribute('data-was-bookmarked', 'true');
               } else {
                 console.error('No parent list found for chat:', chatId);
               }
+              
+
             } else {
               console.warn('Bookmarked chat not found in sidebar:', chatId);
             }
@@ -3278,12 +3332,14 @@ const addVanillaMindmapNavigation = (mindmapContainer) => {
           return itemId === chatId;
         });
         
-        if (chatItem && (chatItem.classList.contains('bookmarked') || chatItem.hasAttribute('data-was-bookmarked'))) {
+        if (chatItem && chatItem.classList.contains('bookmarked')) {
           const chatList = chatItem.parentElement;
           if (chatList && chatList.firstChild !== chatItem) {
             chatList.insertBefore(chatItem, chatList.firstChild);
             console.log('Fixed bookmark position for:', chatId);
           }
+          
+
         }
       });
     } catch (error) {

@@ -16,15 +16,23 @@
   "permissions": [
     "storage",
     "cookies",
-    "activeTab"
+    "activeTab",
+    "identity"
   ],
   "host_permissions": [
     "https://chatgpt.com/",
-    "https://www.chatgpt.com/"
+    "https://www.chatgpt.com/",
+    "https://accounts.google.com/*",
+    "https://oauth2.googleapis.com/*",
+    "https://identitytoolkit.googleapis.com/*"
 
     
   ],
   "action": {},
+  "oauth2": {
+    "client_id": "73293690559-ja3cf3l6g3eqmrhvt2369uu44a38h1g3.apps.googleusercontent.com",
+    "scopes": ["openid", "email", "profile"]
+  },
   "background": {
     "service_worker": "background.js"
   },
@@ -36,6 +44,7 @@
         "https://gemini.google.com/*"
       ],
       "js": [
+        "auth-gate.js",
         "global-error-capture.js",
         "tools.js",
         "fullscreen.js",

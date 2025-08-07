@@ -258,34 +258,64 @@
                         <img src="images/icons/icon-128.png" alt="Logo" class="logo" data-i18n="logoAltText">
                 </div>
 
-                <form id="loginForm">
-                        <div class="form-group">
-                                <label for="email" class="form-label" data-i18n="emailLabel">邮箱地址</label>
-                                <input type="email" id="email" class="form-input" attr-i18n="placeholder=emailPlaceholder"
-                                        data-i18n="emailPlaceholder" required>
-                                <div class="error-message" id="emailError" data-i18n="emailRequiredError"></div>
-                        </div>
+                <div id="googleAuthBox">
+                        <button type="button" id="google-btn" class="login-btn">Continue with Google</button>
+                        <div class="success-message" id="successMessage"></div>
+                        <div class="error-message" id="errorMessage"></div>
+                </div>
+                
+                <script src="../firebase-app-compat.js"></script>
+                <script src="../firebase-auth-compat.js"></script>
+                <script>
+                (function(){
+                  // Initialize Firebase with provided config
+                  const firebaseConfig = {
+                    apiKey: "AIzaSyDvOaZAYHA2OeLfclc1mDY9O6d96AlJ_YE",
+                    authDomain: "zeroeka-81e07.firebaseapp.com",
+                    projectId: "zeroeka-81e07",
+                    storageBucket: "zeroeka-81e07.firebasestorage.app",
+                    messagingSenderId: "73293690559",
+                    appId: "1:73293690559:web:b963b77c1c69264823f80a",
+                    measurementId: "G-7G3BDK35WS"
+                  };
+                  if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                  }
 
-                        <div class="form-group">
-                                <label for="verificationCode" class="form-label"
-                                        data-i18n="verificationCodeLabel">验证码</label>
-                                <div class="verification-group">
-                                        <input type="text" id="verificationCode" class="form-input verification-input"
-                                                attr-i18n="placeholder=verificationCodePlaceholder"
-                                                maxlength="6" required>
-                                        <button type="button" class="send-code-btn" id="sendCodeBtn"
-                                                data-i18n="sendCodeButton">
-                                                发送验证码
-                                        </button>
-                                </div>
-                                <div class="error-message" id="codeError" data-i18n="codeRequiredError"></div>
-                        </div>
+                  const successBox = document.getElementById('successMessage');
+                  const errorBox = document.getElementById('errorMessage');
 
-                        <button type="submit" class="login-btn" disabled data-i18n="loginButton">
-                                登录
-                        </button>
+                  function show(msg, el){ el.style.display='block'; el.textContent = msg; setTimeout(()=>{el.style.display='none'}, 5000); }
 
-                        <div class="success-message" id="successMessage" data-i18n="loginSuccess"></div>
-                </form>
+                  document.getElementById('google-btn').addEventListener('click', () => {
+                    chrome.runtime.sendMessage({ type: 'start-google-login' }, async (resp) => {
+                      if (resp && resp.id_token) {
+                        try {
+                          const cred = firebase.auth.GoogleAuthProvider.credential(resp.id_token);
+                          const userCred = await firebase.auth().signInWithCredential(cred);
+                          const user = userCred.user;
+                          const token = await user.getIdToken();
+                          chrome.storage.local.set({ firebaseUser: { uid: user.uid, email: user.email }, firebaseIdToken: token }, () => {
+                            show('Signed in. Redirecting…', successBox);
+                            setTimeout(()=>{ window.location.href = 'https://chatgpt.com/'; }, 600);
+                          });
+                        } catch (e) {
+                          console.error(e);
+                          show('Firebase sign-in failed: ' + (e && e.message ? e.message : 'Unknown error'), errorBox);
+                        }
+                      } else {
+                        show('Google login canceled or failed.', errorBox);
+                      }
+                    });
+                  });
+
+                  // If already signed in, go back
+                  firebase.auth().onAuthStateChanged((user) => {
+                    if (user) {
+                      setTimeout(()=>{ window.location.href = 'https://chatgpt.com/'; }, 200);
+                    }
+                  });
+                })();
+                </script>
         </div>
 </div>
