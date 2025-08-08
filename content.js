@@ -2416,8 +2416,7 @@ const loadJsMindAndRender = (mindmapData, container) => {
     }, 100);
   }).catch(error => {
     console.error('Failed to load jsMind:', error);
-    console.log('Falling back to vanilla JavaScript mindmap...');
-    renderVanillaMindmap(mindmapData, container);
+    container.innerHTML = '<div style="padding:16px;color:#666;text-align:center">Failed to load jsMind. Please refresh the page.</div>';
   });
 };
 
@@ -2588,151 +2587,6 @@ const renderJsMindMindmap = (mindmapData, container) => {
   } catch (_) {}
 };
 
-// Vanilla JavaScript fallback mindmap (when React Flow fails to load)
-const renderVanillaMindmap = (mindmapData, container) => {
-  console.log('Rendering vanilla JavaScript mindmap...');
-  
-  // Clear container
-  container.innerHTML = '';
-
-  if (!mindmapData) {
-    container.textContent = 'No mindmap data provided.';
-    return;
-  }
-
-  // Handle different data structures
-  let rootNode;
-  if (mindmapData.data) {
-    rootNode = mindmapData.data;
-  } else if (mindmapData.topic) {
-    rootNode = mindmapData;
-  } else {
-    console.error('Invalid mindmap data structure:', mindmapData);
-    container.textContent = 'Invalid mindmap data structure.';
-    return;
-  }
-
-  console.log('Root node:', rootNode);
-
-  // Add vanilla mindmap styles
-  const style = document.createElement('style');
-  style.textContent = `
-    .vanilla-mindmap-container {
-      padding: 20px;
-      background: #f8f9fa;
-      height: 100%;
-      overflow: auto;
-      scroll-behavior: smooth;
-      font-family: ui-sans-serif, -apple-system, system-ui, Segoe UI, Helvetica, Arial, sans-serif;
-      position: relative;
-    }
-    .vanilla-node-container {
-      position: relative;
-      margin: 10px 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    .vanilla-node {
-      background-color: #ffffff;
-      color: #000000;
-      border: 2px solid #e0e0e0;
-      border-radius: 12px;
-      padding: 15px 20px;
-      margin-bottom: 10px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      transition: all 0.3s ease;
-      cursor: pointer;
-      font-size: 14px;
-      line-height: 1.4;
-      word-wrap: break-word;
-      white-space: normal;
-      max-width: 300px;
-      text-align: center;
-      position: relative;
-    }
-    .vanilla-node:hover {
-      transform: scale(1.05);
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-    }
-    .vanilla-root-node {
-      background-color: #10a37f;
-      color: white;
-      font-size: 18px;
-      font-weight: bold;
-      border-color: #0e8a6f;
-      margin: 20px auto;
-      max-width: 400px;
-    }
-    .vanilla-children-container {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 30px;
-      padding-top: 20px;
-      position: relative;
-    }
-    .vanilla-children-container::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 50%;
-      width: 2px;
-      height: 20px;
-      background-color: #ccc;
-      transform: translateX(-50%);
-    }
-    .vanilla-node-container[data-depth="1"] .vanilla-node { background-color: #e6f7ff; border-color: #91d5ff; color: #000000; }
-    .vanilla-node-container[data-depth="2"] .vanilla-node { background-color: #f6ffed; border-color: #b7eb8f; color: #000000; }
-    .vanilla-node-container[data-depth="3"] .vanilla-node { background-color: #fff0f6; border-color: #ffadd2; color: #000000; }
-    .vanilla-node-container[data-depth="4"] .vanilla-node { background-color: #f9f0ff; border-color: #d3adf7; color: #000000; }
-    .vanilla-node-container[data-depth="5"] .vanilla-node { background-color: #fffbe6; border-color: #ffe58f; color: #000000; }
-  `;
-  document.head.appendChild(style);
-
-  // Function to create a node element
-  function createVanillaNodeElement(node, depth = 0) {
-    console.log('Creating vanilla node at depth', depth, ':', node);
-
-    const nodeDiv = document.createElement('div');
-    nodeDiv.className = 'vanilla-node-container';
-    nodeDiv.setAttribute('data-depth', depth);
-
-    const nodeContent = document.createElement('div');
-    nodeContent.className = 'vanilla-node';
-    nodeContent.textContent = node.topic || node.title || node.name || 'Untitled';
-
-    if (depth === 0) {
-      nodeContent.classList.add('vanilla-root-node');
-    }
-
-    nodeDiv.appendChild(nodeContent);
-
-    if (node.children && node.children.length > 0) {
-      const childrenContainer = document.createElement('div');
-      childrenContainer.className = 'vanilla-children-container';
-      node.children.forEach(child => {
-        childrenContainer.appendChild(createVanillaNodeElement(child, depth + 1));
-      });
-      nodeDiv.appendChild(childrenContainer);
-    }
-    return nodeDiv;
-  }
-
-  // Create the mindmap container
-  const mindmapContainer = document.createElement('div');
-  mindmapContainer.className = 'vanilla-mindmap-container';
-
-  // Create the root node
-  const rootElement = createVanillaNodeElement(rootNode, 0);
-  mindmapContainer.appendChild(rootElement);
-  container.appendChild(mindmapContainer);
-
-  console.log('Vanilla JavaScript mindmap rendered successfully');
-  
-  // Add navigation controls to vanilla mindmap
-  addVanillaMindmapNavigation(mindmapContainer);
-};
 
 // Navigation functionality for React Flow mindmap
 const addMindmapNavigation = (container) => {
@@ -2797,21 +2651,6 @@ const updateTextSize = (container, size) => {
   document.head.appendChild(style);
 };
 
-// Navigation functionality for vanilla mindmap
-const addVanillaMindmapNavigation = (mindmapContainer) => {
-  let currentTextSize = 1;
-
-  // Text size controls (using the same header buttons)
-  document.getElementById('text-increase').addEventListener('click', () => {
-    currentTextSize = Math.min(currentTextSize * 1.1, 2);
-    updateTextSize(mindmapContainer, currentTextSize);
-  });
-
-  document.getElementById('text-decrease').addEventListener('click', () => {
-    currentTextSize = Math.max(currentTextSize / 1.1, 0.7);
-    updateTextSize(mindmapContainer, currentTextSize);
-  });
-};
 
 // Sidebar functionality enhancements
 (function() {
