@@ -850,7 +850,13 @@ const createZeroEkaIconButton = () => {
               localStorage.setItem('bookmarkedChats', JSON.stringify(bookmarkedChats));
             }
             
-            // Do not reorder immediately on click; keep current visible order stable
+            // Move this newly bookmarked chat to the top immediately (latest-first order)
+            try {
+              const chatList = chatItem.parentElement;
+              if (chatList && chatList.firstChild !== chatItem) {
+                chatList.insertBefore(chatItem, chatList.firstChild);
+              }
+            } catch (moveErr) { console.warn('Could not move chat to top:', moveErr); }
           } else {
             // Unbookmark the chat
             chatItem.classList.remove('bookmarked');
@@ -875,7 +881,7 @@ const createZeroEkaIconButton = () => {
     }
   };
 
-  // Reorder all bookmarked chats so they appear grouped and in the order they were bookmarked
+  // Reorder all bookmarked chats so they appear grouped and in the order they were bookmarked (latest first)
   const reorderBookmarkedChatsGroup = () => {
     const bookmarkedIds = JSON.parse(localStorage.getItem('bookmarkedChats') || '[]');
     if (!Array.isArray(bookmarkedIds) || bookmarkedIds.length === 0) return;
@@ -891,8 +897,8 @@ const createZeroEkaIconButton = () => {
     });
 
     // Insert bookmarked items to the top of their respective list in correct order
-    // Iterate from last to first so the earliest bookmarked ends up at the very top
-    for (let i = bookmarkedIds.length - 1; i >= 0; i -= 1) {
+    // Iterate from first to last so the latest bookmarked ends up at the very top
+    for (let i = 0; i < bookmarkedIds.length; i += 1) {
       const id = bookmarkedIds[i];
       const el = idToEl.get(id);
       if (!el) continue;
