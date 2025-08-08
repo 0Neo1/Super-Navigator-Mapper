@@ -2367,7 +2367,7 @@ const loadReactFlowAndRender = (mindmapData, container) => {
     </div>
   `;
 
-  // Load React Flow from CDN
+  // Load React Flow from local/remote
   const loadScript = (src) => {
     return new Promise((resolve, reject) => {
       console.log('Loading script:', src);
@@ -2383,6 +2383,22 @@ const loadReactFlowAndRender = (mindmapData, container) => {
       };
       document.head.appendChild(script);
     });
+  };
+
+  const renderReactFlowInIframe = (mindmapData, host) => {
+    try {
+      const rfCSS = chrome.runtime.getURL('lib/reactflow/style.css');
+      const reactJs = chrome.runtime.getURL('lib/react/react.production.min.js');
+      const reactDomJs = chrome.runtime.getURL('lib/react-dom/react-dom.production.min.js');
+      const flowJs = chrome.runtime.getURL('lib/reactflow/reactflow.umd.min.js');
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText = 'width:100%;height:100%;border:0;';
+      const dataJson = JSON.stringify(mindmapData).replace(/<\//g,'<\\/');
+      iframe.srcdoc = `<!DOCTYPE html><html><head><meta charset="utf-8"/><link rel="stylesheet" href="${rfCSS}"><style>html,body,#root{height:100%;margin:0}</style></head><body><div id="root"></div><script src="${reactJs}"><\/script><script src="${reactDomJs}"><\/script><script src="${flowJs}"><\/script><script>(function(){var mm=${dataJson};function GC(l){var c=['#10a37f','#e6f7ff','#f6ffed','#fff0f6','#f9f0ff','#fffbe6'];return c[l%c.length]}function GB(l){var c=['#0e8a6f','#91d5ff','#b7eb8f','#ffadd2','#d3adf7','#ffe58f'];return c[l%c.length]}function conv(m){var ns=[],es=[],id=0;function walk(n,p,x,y,l){var nid='n-'+(id++);ns.push({id:nid,position:{x:x,y:y},data:{label:(n.topic||n.title||'Untitled'),level:l,messageId:n.id||null},style:{background:l===0?'#10a37f':GC(l),color:l===0?'#fff':'#000',border:'2px solid '+(l===0?'#0e8a6f':GB(l)),borderRadius:'12px',padding:(l===0?'20px':'15px'),fontSize:(l===0?'18px':'14px'),minWidth:(l===0?'200px':'150px'),maxWidth:'300px',textAlign:'center',boxShadow:'0 4px 12px rgba(0,0,0,.1)',cursor:'pointer'}});if(p){es.push({id:'e-'+p+'-'+nid,source:p,target:nid,type:'smoothstep',style:{stroke:'#666',strokeWidth:2}})}if(n.children&&n.children.length){var cnt=n.children.length,sp=250,start=x-(sp*(cnt-1))/2;for(var i=0;i<cnt;i++){walk(n.children[i],nid,start+sp*i,y+150,l+1)}}}var root=m.data||m;walk(root,null,0,0,0);return {nodes:ns,edges:es}}var data=conv(mm);var el=React.createElement(ReactFlow.ReactFlow,{nodes:data.nodes,edges:data.edges,fitView:true,fitViewOptions:{padding:.2},panOnScroll:true,zoomOnPinch:true,panOnDrag:true,onNodeClick:function(e,n){try{if(n&&n.data&&n.data.messageId){parent.postMessage({type:'mindmap-nav',messageId:n.data.messageId},'*')}}catch(_){}}},[React.createElement(ReactFlow.Controls,{key:'c'}),React.createElement(ReactFlow.MiniMap,{key:'m',nodeColor:function(n){return n.data.level===0?'#10a37f':GC(n.data.level)},nodeStrokeWidth:3,zoomable:true,pannable:true}),React.createElement(ReactFlow.Background,{key:'b',variant:'dots',gap:20,size:1,color:'#ddd'})]);ReactDOM.createRoot(document.getElementById('root')).render(el);} )();<\/script></body></html>`;
+      host.innerHTML='';
+      host.appendChild(iframe);
+      try{window.addEventListener('message',function(ev){if(ev&&ev.data&&ev.data.type==='mindmap-nav'&&ev.data.messageId){try{navigateToMessage(ev.data.messageId)}catch(_){} }})}catch(_){ }
+    } catch(err){ console.error('Iframe render failed:', err); renderVanillaMindmap(mindmapData, host); }
   };
 
   const loadCSS = (href) => {
@@ -2442,8 +2458,8 @@ const loadReactFlowAndRender = (mindmapData, container) => {
           loaded = true;
           console.log('Loaded React Flow from jsDelivr');
         } catch (e2) {
-          console.error('Failed to load React Flow from local and CDNs, falling back to vanilla:', e2);
-          renderVanillaMindmap(mindmapData, container);
+          console.error('Failed to load React Flow from local and CDNs, rendering via iframe:', e2);
+          renderReactFlowInIframe(mindmapData, container);
           return;
         }
       }
