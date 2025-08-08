@@ -2288,8 +2288,8 @@ const createReactFlowMindmapPopup = (mindmapData, wasVisible = false) => {
     contractedSidebar.style.display = 'none';
   }
 
-  // Load React Flow and render mindmap
-  loadReactFlowAndRender(mindmapData, reactFlowContainer);
+  // Load jsMind and render mindmap
+  loadJsMindAndRender(mindmapData, reactFlowContainer);
 
   // Function to restore sidebar if it was visible before
   const restoreSidebar = () => {
@@ -2350,13 +2350,13 @@ const createReactFlowMindmapPopup = (mindmapData, wasVisible = false) => {
     }
   });
 
-  // Add navigation functionality
+  // Add navigation functionality (text size still applicable to jsMind container)
   addMindmapNavigation(reactFlowContainer);
 };
 
-// Load React Flow and render the mindmap
-const loadReactFlowAndRender = (mindmapData, container) => {
-  console.log('Loading React Flow dependencies...');
+// Load jsMind and render the mindmap
+const loadJsMindAndRender = (mindmapData, container) => {
+  console.log('Loading jsMind dependencies...');
   
   // Show loading state
   container.innerHTML = `
@@ -2367,7 +2367,7 @@ const loadReactFlowAndRender = (mindmapData, container) => {
     </div>
   `;
 
-  // Load React Flow from CDN
+  // Load jsMind from CDN
   const loadScript = (src) => {
     return new Promise((resolve, reject) => {
       console.log('Loading script:', src);
@@ -2403,20 +2403,19 @@ const loadReactFlowAndRender = (mindmapData, container) => {
     });
   };
 
-  // Load React Flow dependencies with correct URLs
+  // Load jsMind dependencies with correct URLs
   Promise.all([
-    loadCSS('https://unpkg.com/@reactflow/core@11.10.1/dist/style.css'),
-    loadScript('https://unpkg.com/react@18.2.0/umd/react.production.min.js'),
-    loadScript('https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js'),
-    loadScript('https://unpkg.com/@reactflow/core@11.10.1/dist/umd/index.js')
+    loadCSS('https://unpkg.com/jsmind@0.8.7/style/jsmind.css'),
+    loadScript('https://unpkg.com/jsmind@0.8.7/es6/jsmind.js'),
+    loadScript('https://unpkg.com/jsmind@0.8.7/es6/jsmind.draggable-node.js')
   ]).then(() => {
-    console.log('All React Flow dependencies loaded successfully');
+    console.log('All jsMind dependencies loaded successfully');
     // Add a small delay to ensure everything is properly initialized
     setTimeout(() => {
-      renderReactFlowMindmap(mindmapData, container);
+      renderJsMindMindmap(mindmapData, container);
     }, 100);
   }).catch(error => {
-    console.error('Failed to load React Flow:', error);
+    console.error('Failed to load jsMind:', error);
     console.log('Falling back to vanilla JavaScript mindmap...');
     renderVanillaMindmap(mindmapData, container);
   });
@@ -2437,10 +2436,9 @@ const convertToReactFlowData = (mindmapData) => {
       type: 'default',
       position: { x, y },
       data: { 
-        label: node.topic || node.title || node.name || node.content || 'Untitled',
+        label: node.topic || node.title || 'Untitled',
         level: level,
-        content: node.topic || node.title || node.name || node.content || 'Untitled',
-        messageId: node.id || node.messageId || undefined
+        content: node.topic || node.title || 'Untitled'
       },
       style: {
         background: level === 0 ? '#10a37f' : getNodeColor(level),
@@ -2489,18 +2487,8 @@ const convertToReactFlowData = (mindmapData) => {
     }
   };
 
-  // Start processing from root. Support multiple input shapes:
-  // 1) { data: { id, topic, children } }
-  // 2) { id, topic, children }
-  // 3) [ { id, topic/content, children? }, ... ]
-  let rootNode;
-  if (mindmapData && mindmapData.data) {
-    rootNode = mindmapData.data;
-  } else if (Array.isArray(mindmapData)) {
-    rootNode = { id: 'root', topic: document.title || 'Conversation', children: mindmapData };
-  } else {
-    rootNode = mindmapData;
-  }
+  // Start processing from root
+  const rootNode = mindmapData.data || mindmapData;
   processNode(rootNode, null, 0, 0, 0);
 
   return { nodes, edges };
@@ -2533,138 +2521,71 @@ const getNodeBorderColor = (level) => {
   return colors[level % colors.length];
 };
 
-// Render React Flow mindmap
-const renderReactFlowMindmap = (mindmapData, container) => {
-  console.log('Starting React Flow mindmap rendering...');
-  
-  // Check if React Flow is available
-  if (typeof React === 'undefined' || typeof ReactDOM === 'undefined' || typeof ReactFlow === 'undefined') {
-    console.error('React Flow dependencies not loaded properly');
-    container.innerHTML = `
-      <div style="padding: 20px; text-align: center; color: #666;">
-        <div style="font-size: 24px; margin-bottom: 20px;">⚠️</div>
-        <div style="font-size: 18px; margin-bottom: 10px;">React Flow library not loaded</div>
-        <div style="font-size: 14px; margin-bottom: 20px;">Please refresh the page and try again</div>
-        <button onclick="location.reload()" style="background: #10a37f; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Retry</button>
-      </div>
-    `;
+// Render jsMind mindmap
+const renderJsMindMindmap = (mindmapData, container) => {
+  console.log('Starting jsMind mindmap rendering...');
+  if (typeof window.jsMind === 'undefined' && typeof jsMind === 'undefined') {
+    console.error('jsMind not loaded');
+    renderVanillaMindmap(mindmapData, container);
     return;
   }
 
-  const { nodes, edges } = convertToReactFlowData(mindmapData);
-  console.log('Converted data:', { nodes: nodes.length, edges: edges.length });
-  
-  // Create React Flow container
+  // Clear container
   container.innerHTML = '';
-  
-  // Add React Flow styles
-  const style = document.createElement('style');
-  style.textContent = `
-    .react-flow__node {
-      transition: all 0.3s ease !important;
-    }
-    .react-flow__node:hover {
-      transform: scale(1.05) !important;
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
-    }
-    .react-flow__node .react-flow__handle {
-      background: #10a37f !important;
-    }
-    .react-flow__node-text {
-      color: #000000 !important;
-      font-weight: 500 !important;
-    }
-    .react-flow__controls {
-      background: white !important;
-      border-radius: 8px !important;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
-    }
-    .react-flow__controls button {
-      border-radius: 6px !important;
-      margin: 2px !important;
-    }
-    .react-flow__minimap {
-      border-radius: 8px !important;
-      overflow: hidden !important;
-    }
-    .react-flow__background {
-      background: #f8f9fa !important;
-    }
-  `;
-  document.head.appendChild(style);
 
+  // Create a container div for jsMind
+  const jmContainer = document.createElement('div');
+  jmContainer.id = 'jsmind_container';
+  jmContainer.style.cssText = 'width: 100%; height: 100%; background: #f8f9fa;';
+  container.appendChild(jmContainer);
+
+  // Convert our structure to jsMind format (node_tree)
+  const source = mindmapData.data ? mindmapData : { format: 'node_tree', data: mindmapData };
+
+  // jsMind options
+  const options = {
+    container: 'jsmind_container',
+    editable: false,
+    theme: 'primary',
+    mode: 'full',
+    support_html: true,
+    view: {
+      engine: 'canvas',
+      hmargin: 100,
+      vmargin: 80,
+      line_width: 2,
+      line_color: '#555',
+      line_style: 'curved',
+      draggable: true,
+      enable_device_pixel_ratio: true,
+      zoom: { min: 0.5, max: 2.1, step: 0.1 },
+    },
+    layout: { hspace: 40, vspace: 20, pspace: 18, cousin_space: 10 },
+    shortcut: { enable: true },
+  };
+
+  const JM = window.jsMind || jsMind;
+  const jm = new JM(options);
+  jm.show(source);
+
+  // Enable draggable node plugin if present
+  try { if (JM.draggable_node) JM.draggable_node(jm); } catch (_) {}
+
+  // Click to navigate to message (node id should match message id when possible)
   try {
-    // Create React Flow instance using ReactDOM
-    const reactFlowInstance = ReactDOM.createRoot(container);
-    
-    // Create React Flow component
-    const ReactFlowComponent = React.createElement(ReactFlow.ReactFlow, {
-      nodes: nodes,
-      edges: edges,
-      fitView: true,
-      fitViewOptions: { padding: 0.2 },
-      panOnScroll: true,
-      zoomOnPinch: true,
-      zoomOnScroll: true,
-      panOnDrag: true,
-      defaultEdgeOptions: {
-        type: 'smoothstep',
-        style: { stroke: '#666', strokeWidth: 2 }
-      },
-      onNodeClick: (event, node) => {
-        try {
-          const messageId = node?.data?.messageId;
-          if (messageId) {
-            navigateToMessage(messageId);
-          }
-        } catch (err) {
-          console.warn('Navigation on node click failed:', err);
+    jmContainer.addEventListener('click', (e) => {
+      const nodeEl = e.target.closest('jmnode');
+      if (!nodeEl) return;
+      const nodeId = nodeEl.getAttribute('nodeid');
+      if (nodeId) {
+        // Attempt navigation on same page
+        if (typeof navigateToMessage === 'function') {
+          const ok = navigateToMessage(nodeId);
+          if (!ok) console.warn('navigateToMessage failed for', nodeId);
         }
-      },
-      onEdgeClick: (event, edge) => {
-        console.log('Edge clicked:', edge);
-        // Add edge click interactions here
-      },
-      onConnect: (params) => {
-        console.log('Connection created:', params);
-        // Add connection logic here
-      },
-      style: {
-        background: '#f8f9fa'
       }
-    }, [
-      React.createElement(ReactFlow.Controls, { key: 'controls' }),
-      React.createElement(ReactFlow.MiniMap, { 
-        key: 'minimap',
-        nodeColor: (node) => node.data.level === 0 ? '#10a37f' : getNodeColor(node.data.level),
-        nodeStrokeWidth: 3,
-        zoomable: true,
-        pannable: true
-      }),
-      React.createElement(ReactFlow.Background, { 
-        key: 'background',
-        variant: 'dots',
-        gap: 20,
-        size: 1,
-        color: '#ddd'
-      })
-    ]);
-
-    reactFlowInstance.render(ReactFlowComponent);
-
-    console.log('React Flow mindmap rendered successfully');
-    console.log('Nodes:', nodes.length, 'Edges:', edges.length);
-  } catch (error) {
-    console.error('Error rendering React Flow mindmap:', error);
-    container.innerHTML = `
-      <div style="padding: 20px; text-align: center; color: #666;">
-        <div style="font-size: 24px; margin-bottom: 20px;">⚠️</div>
-        <div style="font-size: 18px; margin-bottom: 10px;">Error rendering mindmap</div>
-        <div style="font-size: 14px; margin-bottom: 20px;">${error.message}</div>
-        <button onclick="location.reload()" style="background: #10a37f; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Retry</button>
-      </div>
-    `;
-  }
+    });
+  } catch (_) {}
 };
 
 // Vanilla JavaScript fallback mindmap (when React Flow fails to load)

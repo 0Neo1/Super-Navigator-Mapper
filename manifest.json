@@ -73,7 +73,10 @@
         "images/*",
         "resources/*",
         "resources/firebase/*",
-        "resources/login.js"
+        "resources/login.js",
+        "jsmind.js",
+        "jsmind.css",
+        "jsmind.draggable-node.js"
       ],
       "matches": [
         "https://chatgpt.com/*",
