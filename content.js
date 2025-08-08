@@ -751,6 +751,22 @@ const createZeroEkaIconButton = () => {
     }
   });
 
+  // Helper to get the container element representing a chat row in the sidebar
+  const getChatItemContainer = (el) => {
+    if (!el) return el;
+    return el.closest('li, .conversation-item, [data-testid="conversation-item"], [data-testid="conversation-turn-2"]') || el;
+  };
+
+  // Helper to extract a stable chat id from an item/container
+  const getChatIdFromEl = (el) => {
+    if (!el) return '';
+    const directId = el.getAttribute && (el.getAttribute('href') || el.getAttribute('data-testid'));
+    if (directId) return directId;
+    const a = el.querySelector && el.querySelector('a[href*="/c/"]');
+    if (a) return a.getAttribute('href');
+    return (el.textContent || '').trim();
+  };
+
   // Function to add bookmark mode to ChatGPT sidebar chats
   const addPinButtonsToChats = () => {
     try {
@@ -776,21 +792,22 @@ const createZeroEkaIconButton = () => {
         // Mark as bookmark mode enabled
         chatItem.classList.add('bookmark-mode-enabled');
         
-        // Get chat ID for persistence
-        const chatId = chatItem.getAttribute('href') || chatItem.getAttribute('data-testid') || chatItem.textContent.trim();
+        // Get container and chat ID for persistence
+        const itemEl = getChatItemContainer(chatItem);
+        const chatId = getChatIdFromEl(chatItem) || getChatIdFromEl(itemEl);
         
         // Check if this chat is already bookmarked
         const bookmarkedChats = JSON.parse(localStorage.getItem('bookmarkedChats') || '[]');
         const isBookmarked = bookmarkedChats.includes(chatId);
         
         if (isBookmarked) {
-          chatItem.classList.add('bookmarked');
+          itemEl.classList.add('bookmarked');
         }
         
         // Add hover effect for bookmark mode
         chatItem.addEventListener('mouseenter', () => {
           if (window.bookmarkModeActive) {
-            const isBookmarked = chatItem.classList.contains('bookmarked');
+            const isBookmarked = itemEl.classList.contains('bookmarked');
             
             if (isBookmarked) {
               // Show green border for bookmarked chats (for unbookmarking)
@@ -810,7 +827,7 @@ const createZeroEkaIconButton = () => {
         
         chatItem.addEventListener('mouseleave', () => {
           if (window.bookmarkModeActive) {
-            const isBookmarked = chatItem.classList.contains('bookmarked');
+            const isBookmarked = itemEl.classList.contains('bookmarked');
             
             if (isBookmarked) {
               // Remove border for bookmarked chats when mouse leaves
@@ -835,11 +852,11 @@ const createZeroEkaIconButton = () => {
           e.preventDefault();
           e.stopPropagation();
           
-          const isBookmarked = chatItem.classList.contains('bookmarked');
+          const isBookmarked = itemEl.classList.contains('bookmarked');
           
           if (!isBookmarked) {
             // Bookmark the chat
-            chatItem.classList.add('bookmarked');
+            itemEl.classList.add('bookmarked');
             chatItem.style.border = '2px solid #3bb910';
             chatItem.style.borderRadius = '8px';
             
@@ -854,12 +871,12 @@ const createZeroEkaIconButton = () => {
             try { reorderBookmarkedChatsGroup(); } catch (err) { console.warn('Reorder failed:', err); }
           } else {
             // Unbookmark the chat
-            const parent = chatItem.parentElement;
+            const parent = itemEl.parentElement;
             let insertBeforeNode = null;
             if (parent) {
               const siblings = Array.from(parent.children);
               // Find the first non-bookmarked item other than this one
-              insertBeforeNode = siblings.find(el => el !== chatItem && !el.classList.contains('bookmarked')) || null;
+              insertBeforeNode = siblings.find(el => el !== itemEl && !el.classList.contains('bookmarked')) || null;
             }
 
             // Remove from localStorage first so monitors don't bring it back
@@ -868,19 +885,23 @@ const createZeroEkaIconButton = () => {
             localStorage.setItem('bookmarkedChats', JSON.stringify(updatedBookmarks));
 
             // Remove bookmarked visuals
-            chatItem.classList.remove('bookmarked');
-            chatItem.style.border = '';
-            chatItem.style.borderRadius = '';
-            chatItem.style.cursor = '';
-            chatItem.style.transition = '';
+            itemEl.classList.remove('bookmarked');
+            [itemEl, chatItem].forEach(el => {
+              try {
+                el.style.border = '';
+                el.style.borderRadius = '';
+                el.style.cursor = '';
+                el.style.transition = '';
+              } catch (_) {}
+            });
 
             // Move this item to just after the bookmarked group (start of non-bookmarked region)
             if (parent) {
               if (insertBeforeNode) {
-                parent.insertBefore(chatItem, insertBeforeNode);
+                parent.insertBefore(itemEl, insertBeforeNode);
               } else {
                 // No non-bookmarked items yet; append to end
-                parent.appendChild(chatItem);
+                parent.appendChild(itemEl);
               }
             }
 
@@ -907,8 +928,15 @@ const createZeroEkaIconButton = () => {
     const chatItems = Array.from(document.querySelectorAll('nav[data-testid="chat-history"] a, nav[data-testid="chat-history"] [role="button"], nav[data-testid="chat-history"] .conversation-item, nav[data-testid="chat-history"] [data-testid="conversation-turn-2"], nav[data-testid="chat-history"] [data-testid="conversation-item"], nav[data-testid="chat-history"] .conversation-turn-2, nav[data-testid="chat-history"] a[href*="/c/"], nav a[href*="/c/"], aside a[href*="/c/"], [data-testid="chat-history"] a, [data-testid="chat-history"] [role="button"]'));
 
     // Determine current DOM-ordered list of bookmarked elements
-    const getId = (el) => el.getAttribute('href') || el.getAttribute('data-testid') || el.textContent.trim();
-    const bookmarkedEls = chatItems.filter((el) => idSet.has(getId(el)));
+    const getId = (el) => {
+      const id = el.getAttribute && (el.getAttribute('href') || el.getAttribute('data-testid'));
+      if (id) return id;
+      const a = el.querySelector && el.querySelector('a[href*="/c/"]');
+      if (a) return a.getAttribute('href');
+      return (el.textContent || '').trim();
+    };
+    const bookmarkedEls = chatItems.map(el => el.closest('li, .conversation-item, [data-testid="conversation-item"], [data-testid="conversation-turn-2"]') || el)
+                                   .filter((el) => idSet.has(getId(el)));
     if (bookmarkedEls.length === 0) return;
 
     // For each parent container, check if its leading children already match bookmarkedEls (in order)
