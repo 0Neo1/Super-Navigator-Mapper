@@ -2372,71 +2372,7 @@ const createReactFlowMindmapPopup = (mindmapData, wasVisible = false) => {
   addMindmapNavigation(reactFlowContainer);
 };
 
-// Load jsMind and render the mindmap
-const loadJsMindAndRender = (mindmapData, container) => {
-  console.log('Loading jsMind dependencies...');
-  
-  // Show loading state
-  container.innerHTML = `
-    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #666;">
-      <div style="font-size: 24px; margin-bottom: 20px;">🧠</div>
-      <div style="font-size: 18px; margin-bottom: 10px;">Loading Interactive Mindmap...</div>
-      <div style="font-size: 14px;">Please wait while we load the visualization library</div>
-    </div>
-  `;
-
-  // Load jsMind from CDN
-  const loadScript = (src) => {
-    return new Promise((resolve, reject) => {
-      console.log('Loading script:', src);
-      const script = document.createElement('script');
-      script.src = src;
-      script.onload = () => {
-        console.log('Script loaded successfully:', src);
-        resolve();
-      };
-      script.onerror = (error) => {
-        console.error('Script failed to load:', src, error);
-        reject(new Error(`Failed to load script: ${src}`));
-      };
-      document.head.appendChild(script);
-    });
-  };
-
-  const loadCSS = (href) => {
-    return new Promise((resolve) => {
-      console.log('Loading CSS:', href);
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = href;
-      link.onload = () => {
-        console.log('CSS loaded successfully:', href);
-        resolve();
-      };
-      link.onerror = () => {
-        console.warn('CSS failed to load:', href);
-        resolve(); // CSS failure is not critical
-      };
-      document.head.appendChild(link);
-    });
-  };
-
-  // Load jsMind dependencies with correct URLs
-  Promise.all([
-    loadCSS('https://unpkg.com/jsmind@0.8.7/style/jsmind.css'),
-    loadScript('https://unpkg.com/jsmind@0.8.7/es6/jsmind.js'),
-    loadScript('https://unpkg.com/jsmind@0.8.7/es6/jsmind.draggable-node.js')
-  ]).then(() => {
-    console.log('All jsMind dependencies loaded successfully');
-    // Add a small delay to ensure everything is properly initialized
-    setTimeout(() => {
-      renderJsMindMindmap(mindmapData, container);
-    }, 100);
-  }).catch(error => {
-    console.error('Failed to load jsMind:', error);
-    container.innerHTML = '<div style="padding:16px;color:#666;text-align:center">Failed to load jsMind. Please refresh the page.</div>';
-  });
-};
+// (Removed old in-page jsMind loader to avoid CSP issues)
 
 // Convert mindmap data to React Flow format
 const convertToReactFlowData = (mindmapData) => {
