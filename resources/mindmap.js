@@ -21,9 +21,15 @@
       layout: { hspace: 40, vspace: 20, pspace: 18, cousin_space: 10 },
       shortcut: { enable: true },
     };
-    const JM = window.jsMind || jsMind;
-    const jm = new JM(options);
-    jm.show(mind);
+    try {
+      const JM = window.jsMind || jsMind;
+      const jm = new JM(options);
+      jm.show(mind);
+      try { if (JM.draggable_node) JM.draggable_node(jm); } catch(_){}
+    } catch (e) {
+      const c = document.getElementById('jsmind_container');
+      if (c) c.innerHTML = '<div style="padding:16px">Failed to initialize jsMind. '+String(e)+'</div>';
+    }
 
     // Click to navigate: send message to opener
     try {
