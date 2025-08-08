@@ -850,13 +850,8 @@ const createZeroEkaIconButton = () => {
               localStorage.setItem('bookmarkedChats', JSON.stringify(bookmarkedChats));
             }
             
-            // Move this newly bookmarked chat to the top immediately (latest-first order)
-            try {
-              const chatList = chatItem.parentElement;
-              if (chatList && chatList.firstChild !== chatItem) {
-                chatList.insertBefore(chatItem, chatList.firstChild);
-              }
-            } catch (moveErr) { console.warn('Could not move chat to top:', moveErr); }
+            // Do not reorder entire list on toggle; only ensure the group stays together
+            try { reorderBookmarkedChatsGroup(); } catch (err) { console.warn('Reorder failed:', err); }
           } else {
             // Unbookmark the chat
             chatItem.classList.remove('bookmarked');
@@ -870,7 +865,8 @@ const createZeroEkaIconButton = () => {
             const updatedBookmarks = bookmarkedChats.filter(id => id !== chatId);
             localStorage.setItem('bookmarkedChats', JSON.stringify(updatedBookmarks));
             
-            // Do not reorder on unbookmark; allow natural position to remain
+            // Do not reorder entire list on toggle; only ensure the group stays together
+            try { reorderBookmarkedChatsGroup(); } catch (err) { console.warn('Reorder failed:', err); }
           }
         });
       });
@@ -881,32 +877,42 @@ const createZeroEkaIconButton = () => {
     }
   };
 
-  // Reorder all bookmarked chats so they appear grouped and in the order they were bookmarked (latest first)
+  // Reorder all bookmarked chats to the top while preserving their current on-screen order
   const reorderBookmarkedChatsGroup = () => {
     const bookmarkedIds = JSON.parse(localStorage.getItem('bookmarkedChats') || '[]');
     if (!Array.isArray(bookmarkedIds) || bookmarkedIds.length === 0) return;
 
-    // Find all chat items in sidebar
+    const idSet = new Set(bookmarkedIds);
+
+    // Collect all sidebar chat items in current DOM order
     const chatItems = Array.from(document.querySelectorAll('nav[data-testid="chat-history"] a, nav[data-testid="chat-history"] [role="button"], nav[data-testid="chat-history"] .conversation-item, nav[data-testid="chat-history"] [data-testid="conversation-turn-2"], nav[data-testid="chat-history"] [data-testid="conversation-item"], nav[data-testid="chat-history"] .conversation-turn-2, nav[data-testid="chat-history"] a[href*="/c/"], nav a[href*="/c/"], aside a[href*="/c/"], [data-testid="chat-history"] a, [data-testid="chat-history"] [role="button"]'));
 
-    // Build id → element map
-    const idToEl = new Map();
-    chatItems.forEach((item) => {
-      const id = item.getAttribute('href') || item.getAttribute('data-testid') || item.textContent.trim();
-      if (id) idToEl.set(id, item);
-    });
+    // Determine current DOM-ordered list of bookmarked elements
+    const getId = (el) => el.getAttribute('href') || el.getAttribute('data-testid') || el.textContent.trim();
+    const bookmarkedEls = chatItems.filter((el) => idSet.has(getId(el)));
+    if (bookmarkedEls.length === 0) return;
 
-    // Insert bookmarked items to the top of their respective list in correct order
-    // Iterate from first to last so the latest bookmarked ends up at the very top
-    for (let i = 0; i < bookmarkedIds.length; i += 1) {
-      const id = bookmarkedIds[i];
-      const el = idToEl.get(id);
-      if (!el) continue;
-      el.classList.add('bookmarked');
-      const parent = el.parentElement;
-      if (!parent) continue;
-      if (parent.firstChild !== el) parent.insertBefore(el, parent.firstChild);
-    }
+    // For each parent container, check if its leading children already match bookmarkedEls (in order)
+    // If yes, do nothing; else, move elements to top WHILE PRESERVING their current relative order
+    const parents = new Set(bookmarkedEls.map(el => el.parentElement).filter(Boolean));
+    parents.forEach((parent) => {
+      const group = bookmarkedEls.filter(el => el.parentElement === parent);
+      if (group.length === 0) return;
+
+      // Early exit if already at top in same order
+      let alreadyAtTop = true;
+      for (let i = 0; i < group.length; i += 1) {
+        if (parent.children[i] !== group[i]) { alreadyAtTop = false; break; }
+      }
+      if (alreadyAtTop) return;
+
+      // Insert in reverse so the final order at the top matches current DOM order
+      for (let i = group.length - 1; i >= 0; i -= 1) {
+        const el = group[i];
+        el.classList.add('bookmarked');
+        if (parent.firstChild !== el) parent.insertBefore(el, parent.firstChild);
+      }
+    });
   };
 
   // Function to remove bookmark mode from ChatGPT sidebar chats
@@ -3295,7 +3301,7 @@ const addVanillaMindmapNavigation = (mindmapContainer) => {
     }
   });
 
-  // Function to restore bookmarked chats on page load
+  // Function to restore bookmarked chats on page load (without changing their relative order if already grouped)
   const restoreBookmarkedChats = () => {
     try {
       const bookmarkedChats = JSON.parse(localStorage.getItem('bookmarkedChats') || '[]');
@@ -3313,20 +3319,41 @@ const addVanillaMindmapNavigation = (mindmapContainer) => {
         console.log(`Checking for sidebar (attempt ${retryCount + 1}/${maxRetries}), found ${chatItems.length} chat items`);
         
         if (chatItems.length > 0) {
-          // Mark bookmarked chats; do not reorder here. We'll reorder once to stable order.
-          bookmarkedChats.forEach(chatId => {
+           // Ensure bookmarked chats are grouped at the top without changing their current relative order
+           const found = [];
+           bookmarkedChats.forEach(chatId => {
             const chatItem = Array.from(chatItems).find(item => {
               const itemId = item.getAttribute('href') || item.getAttribute('data-testid') || item.textContent.trim();
               return itemId === chatId;
             });
+            
             if (chatItem) {
+              // Add bookmarked class (no visual indicator by default)
               chatItem.classList.add('bookmarked');
+               found.push(chatItem);
+              
+
             } else {
               console.warn('Bookmarked chat not found in sidebar:', chatId);
             }
           });
-          // Apply a single stable reorder to preserve the original bookmark sequence (earliest at top)
-          try { reorderBookmarkedChatsGroup(); } catch (err) { console.warn('Reorder on restore failed:', err); }
+           if (found.length) {
+             const parent = found[0].parentElement;
+             if (parent) {
+               // If already at the top in correct order, skip
+               let alreadyAtTop = true;
+               for (let i = 0; i < found.length; i += 1) {
+                 if (parent.children[i] !== found[i]) { alreadyAtTop = false; break; }
+               }
+               if (!alreadyAtTop) {
+                 // Move in reverse so top order matches current DOM order
+                 for (let i = found.length - 1; i >= 0; i -= 1) {
+                   const el = found[i];
+                   if (parent.firstChild !== el) parent.insertBefore(el, parent.firstChild);
+                 }
+               }
+             }
+           }
         } else if (retryCount < maxRetries) {
           retryCount++;
           // Retry with increasing delays
@@ -3363,7 +3390,13 @@ const addVanillaMindmapNavigation = (mindmapContainer) => {
         });
         
         if (chatItem && chatItem.classList.contains('bookmarked')) {
-          // Do not move items periodically; preserve the current visible order
+          const chatList = chatItem.parentElement;
+          if (chatList && chatList.firstChild !== chatItem) {
+            chatList.insertBefore(chatItem, chatList.firstChild);
+            console.log('Fixed bookmark position for:', chatId);
+          }
+          
+
         }
       });
     } catch (error) {
