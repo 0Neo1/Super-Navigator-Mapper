@@ -785,12 +785,6 @@ const createZeroEkaIconButton = () => {
         
         if (isBookmarked) {
           chatItem.classList.add('bookmarked');
-          
-          // Move bookmarked chat to top
-          const chatList = chatItem.parentElement;
-          if (chatList && chatList.firstChild !== chatItem) {
-            chatList.insertBefore(chatItem, chatList.firstChild);
-          }
         }
         
         // Add hover effect for bookmark mode
@@ -856,34 +850,7 @@ const createZeroEkaIconButton = () => {
               localStorage.setItem('bookmarkedChats', JSON.stringify(bookmarkedChats));
             }
             
-            // Move chat to top of list with robust positioning
-            const chatList = chatItem.parentElement;
-            if (chatList) {
-              // Try to move to top
-              if (chatList.firstChild !== chatItem) {
-                chatList.insertBefore(chatItem, chatList.firstChild);
-                console.log('Chat moved to top:', chatId);
-              } else {
-                console.log('Chat already at top:', chatId);
-              }
-              
-              // Double-check position after a short delay to ensure it stays at top
-              setTimeout(() => {
-                if (chatList.firstChild !== chatItem) {
-                  chatList.insertBefore(chatItem, chatList.firstChild);
-                  console.log('Re-moved chat to top after delay:', chatId);
-                }
-              }, 50);
-            } else {
-              console.error('No parent list found for chat:', chatId);
-            }
-            
-            console.log('Chat bookmarked and moved to top');
-            
-            // Refresh page after bookmarking
-            setTimeout(() => {
-              window.location.reload();
-            }, 500);
+            // Do not reorder immediately on click; keep current visible order stable
           } else {
             // Unbookmark the chat
             chatItem.classList.remove('bookmarked');
@@ -897,32 +864,7 @@ const createZeroEkaIconButton = () => {
             const updatedBookmarks = bookmarkedChats.filter(id => id !== chatId);
             localStorage.setItem('bookmarkedChats', JSON.stringify(updatedBookmarks));
             
-            // Move chat back to its original position (after the last unbookmarked chat)
-            const chatList = chatItem.parentElement;
-            if (chatList) {
-              // Find all unbookmarked chats
-              const unbookmarkedChats = Array.from(chatList.children).filter(child => 
-                !child.classList.contains('bookmarked')
-              );
-              
-              if (unbookmarkedChats.length > 0) {
-                // Insert after the last unbookmarked chat
-                const lastUnbookmarked = unbookmarkedChats[unbookmarkedChats.length - 1];
-                chatList.insertBefore(chatItem, lastUnbookmarked.nextSibling);
-                console.log('Chat moved back to original position after unbookmarking');
-              } else {
-                // If no unbookmarked chats, move to the end
-                chatList.appendChild(chatItem);
-                console.log('Chat moved to end of list after unbookmarking');
-              }
-            }
-            
-            console.log('Chat unbookmarked and moved to original position');
-            
-            // Refresh page after unbookmarking
-            setTimeout(() => {
-              window.location.reload();
-            }, 500);
+            // Do not reorder on unbookmark; allow natural position to remain
           }
         });
       });
@@ -930,6 +872,34 @@ const createZeroEkaIconButton = () => {
       console.log(`Added bookmark mode to ${chatItems.length} chat items`);
     } catch (error) {
       console.error('Error adding bookmark mode to chats:', error);
+    }
+  };
+
+  // Reorder all bookmarked chats so they appear grouped and in the order they were bookmarked
+  const reorderBookmarkedChatsGroup = () => {
+    const bookmarkedIds = JSON.parse(localStorage.getItem('bookmarkedChats') || '[]');
+    if (!Array.isArray(bookmarkedIds) || bookmarkedIds.length === 0) return;
+
+    // Find all chat items in sidebar
+    const chatItems = Array.from(document.querySelectorAll('nav[data-testid="chat-history"] a, nav[data-testid="chat-history"] [role="button"], nav[data-testid="chat-history"] .conversation-item, nav[data-testid="chat-history"] [data-testid="conversation-turn-2"], nav[data-testid="chat-history"] [data-testid="conversation-item"], nav[data-testid="chat-history"] .conversation-turn-2, nav[data-testid="chat-history"] a[href*="/c/"], nav a[href*="/c/"], aside a[href*="/c/"], [data-testid="chat-history"] a, [data-testid="chat-history"] [role="button"]'));
+
+    // Build id → element map
+    const idToEl = new Map();
+    chatItems.forEach((item) => {
+      const id = item.getAttribute('href') || item.getAttribute('data-testid') || item.textContent.trim();
+      if (id) idToEl.set(id, item);
+    });
+
+    // Insert bookmarked items to the top of their respective list in correct order
+    // Iterate from last to first so the earliest bookmarked ends up at the very top
+    for (let i = bookmarkedIds.length - 1; i >= 0; i -= 1) {
+      const id = bookmarkedIds[i];
+      const el = idToEl.get(id);
+      if (!el) continue;
+      el.classList.add('bookmarked');
+      const parent = el.parentElement;
+      if (!parent) continue;
+      if (parent.firstChild !== el) parent.insertBefore(el, parent.firstChild);
     }
   };
 
@@ -3337,44 +3307,20 @@ const addVanillaMindmapNavigation = (mindmapContainer) => {
         console.log(`Checking for sidebar (attempt ${retryCount + 1}/${maxRetries}), found ${chatItems.length} chat items`);
         
         if (chatItems.length > 0) {
-          // Move bookmarked chats to top and add visual indicators
+          // Mark bookmarked chats; do not reorder here. We'll reorder once to stable order.
           bookmarkedChats.forEach(chatId => {
             const chatItem = Array.from(chatItems).find(item => {
               const itemId = item.getAttribute('href') || item.getAttribute('data-testid') || item.textContent.trim();
               return itemId === chatId;
             });
-            
             if (chatItem) {
-              // Add bookmarked class (no visual indicator by default)
               chatItem.classList.add('bookmarked');
-              
-              // Move to top of list with multiple attempts
-              const chatList = chatItem.parentElement;
-              if (chatList) {
-                // Try to move to top
-                if (chatList.firstChild !== chatItem) {
-                  chatList.insertBefore(chatItem, chatList.firstChild);
-                  console.log('Moved bookmarked chat to top:', chatId);
-                } else {
-                  console.log('Chat already at top:', chatId);
-                }
-                
-                // Double-check position after a short delay
-                setTimeout(() => {
-                  if (chatList.firstChild !== chatItem) {
-                    chatList.insertBefore(chatItem, chatList.firstChild);
-                    console.log('Re-moved bookmarked chat to top after delay:', chatId);
-                  }
-                }, 100);
-              } else {
-                console.error('No parent list found for chat:', chatId);
-              }
-              
-
             } else {
               console.warn('Bookmarked chat not found in sidebar:', chatId);
             }
           });
+          // Apply a single stable reorder to preserve the original bookmark sequence (earliest at top)
+          try { reorderBookmarkedChatsGroup(); } catch (err) { console.warn('Reorder on restore failed:', err); }
         } else if (retryCount < maxRetries) {
           retryCount++;
           // Retry with increasing delays
@@ -3411,13 +3357,7 @@ const addVanillaMindmapNavigation = (mindmapContainer) => {
         });
         
         if (chatItem && chatItem.classList.contains('bookmarked')) {
-          const chatList = chatItem.parentElement;
-          if (chatList && chatList.firstChild !== chatItem) {
-            chatList.insertBefore(chatItem, chatList.firstChild);
-            console.log('Fixed bookmark position for:', chatId);
-          }
-          
-
+          // Do not move items periodically; preserve the current visible order
         }
       });
     } catch (error) {
