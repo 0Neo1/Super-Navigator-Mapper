@@ -662,8 +662,29 @@ const createZeroEkaIconButton = () => {
   // Add click functionality for ZeroEka extension button
   zeroekaExtensionButton.addEventListener('click', () => {
     console.log('ZeroEka extension button clicked');
-    // Redirect to Prompt Engine Chrome extension link
-    window.open('https://chromewebstore.google.com/detail/prompt-engine-by-zeroeka/enkgghbjjigjjkodkgbakchhflmkaphj', '_blank');
+    // Fire a page-level event to create a user gesture boundary the target extension can hook
+    try {
+      const evtDoc = new CustomEvent('pe-zeroeka-open', { bubbles: true, composed: true });
+      document.dispatchEvent(evtDoc);
+    } catch (_) {}
+    try {
+      const evtWin = new CustomEvent('pe-zeroeka-open', { bubbles: true, composed: true });
+      window.dispatchEvent(evtWin);
+    } catch (_) {}
+    // Also delegate the open request to background to message the target extension by ID
+    try {
+      chrome.runtime.sendMessage({ type: 'open-prompt-engine' }, (resp) => {
+        console.log('Open Prompt Engine response:', resp);
+        if (!resp || resp.status !== 'installed_opened') {
+          // If not opened, try a direct ping using the last seen extension ID
+          chrome.storage.local.get(['peExtId'], (d) => {
+            const id = d && d.peExtId;
+            if (!id) return;
+            try { chrome.runtime.sendMessage(id, { action: 'openSidePanel' }); } catch (_) {}
+          });
+        }
+      });
+    } catch (_) {}
   });
 
   // Add hover effects for pin/unpin button
@@ -977,12 +998,96 @@ const createZeroEkaIconButton = () => {
     profileIcon.style.transform = 'scale(1)';
   });
 
+  // Create profile popover (dark, compact)
+  function createProfilePopup() {
+    // Remove existing
+    document.getElementById('zeroeka-profile-backdrop')?.remove();
+    document.getElementById('zeroeka-profile-popover')?.remove();
+
+    // Backdrop (click outside to close)
+    const backdrop = document.createElement('div');
+    backdrop.id = 'zeroeka-profile-backdrop';
+    backdrop.style.cssText = `
+      position: fixed; inset: 0; background: transparent; z-index: 2147483646;
+    `;
+    document.body.appendChild(backdrop);
+
+    // Popover container
+    const pop = document.createElement('div');
+    pop.id = 'zeroeka-profile-popover';
+    pop.style.cssText = `
+      position: fixed;
+      right: 80px; /* next to contracted sidebar */
+      bottom: 90px; /* near bottom */
+      width: 280px;
+      max-width: 90vw;
+      background: #1a1a1a;
+      color: #ffffff;
+      border: 1px solid #333;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      padding: 12px;
+      z-index: 2147483647;
+      font-family: ui-sans-serif, -apple-system, system-ui, Segoe UI, Helvetica, Arial, sans-serif;
+    `;
+
+    // Header (email only)
+    const header = document.createElement('div');
+    header.style.cssText = `margin-bottom: 10px;`;
+    const emailEl = document.createElement('div');
+    emailEl.style.cssText = 'font-weight: 600; font-size: 14px; color: #ffffff;';
+    header.appendChild(emailEl);
+
+    // Divider
+    const hr = document.createElement('div');
+    hr.style.cssText = 'height: 1px; background: #2f2f2f; margin: 8px 0;';
+
+    // Row factory
+    const makeRow = (label, iconSvg) => {
+      const row = document.createElement('div');
+      row.style.cssText = `
+        display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; cursor: pointer;
+        color: #e5e5e5;
+      `;
+      row.innerHTML = `${iconSvg}<span style="font-size: 14px;">${label}</span>`;
+      row.addEventListener('mouseenter', ()=>{ row.style.background = '#2a2a2a'; });
+      row.addEventListener('mouseleave', ()=>{ row.style.background = 'transparent'; });
+      return row;
+    };
+
+    const settingsIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#bbb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 3.6 15a1.65 1.65 0 0 0-1.51-1H2a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 3.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 8 3.6a1.65 1.65 0 0 0 1-1.51V2a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 3.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 20.4 8c.36.47.57 1.05.57 1.65S20.76 12 20.4 12.35 19.4 13.53 19.4 15z"/></svg>';
+    const helpIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#bbb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 1 1 5.82 1c0 2-3 2-3 4"/><line x1="12" y1="17" x2="12" y2="17"/></svg>';
+
+    const settingsRow = makeRow('Settings', settingsIcon);
+    const helpRow = makeRow('Help', helpIcon);
+
+    // Simple actions (non-destructive placeholders)
+    settingsRow.addEventListener('click', ()=>{ pop.remove(); backdrop.remove(); });
+    helpRow.addEventListener('click', ()=>{ pop.remove(); backdrop.remove(); });
+
+    pop.appendChild(header);
+    pop.appendChild(hr);
+    pop.appendChild(settingsRow);
+    pop.appendChild(helpRow);
+
+    document.body.appendChild(pop);
+
+    // Load user info
+    chrome.storage.local.get(['firebaseUser'], ({ firebaseUser }) => {
+      const email = firebaseUser?.email || 'Not signed in';
+      emailEl.textContent = email;
+    });
+
+    // Close on outside click / ESC
+    const closeAll = ()=>{ pop.remove(); backdrop.remove(); };
+    backdrop.addEventListener('click', closeAll);
+    document.addEventListener('keydown', function onKey(e){ if(e.key==='Escape'){ closeAll(); document.removeEventListener('keydown', onKey); } });
+  }
+
   // Add click functionality for profile button
   profileButton.addEventListener('click', () => {
     console.log('Profile button clicked');
-    
-    // Send the same message as the original user button
-    chrome.runtime.sendMessage({type: "popup-page"});
+    createProfilePopup();
   });
 
   // Search functionality - moved to global scope
@@ -1679,37 +1784,10 @@ const createZeroEkaIconButton = () => {
     });
   };
 
-  // Add click functionality to toggle sidebar
-  zeroekaButton.addEventListener('click', () => {
-    const floatbar = document.querySelector('.catalogeu-navigation-plugin-floatbar');
-    const panel = floatbar ? floatbar.querySelector('.panel') : null;
-    const main = document.querySelector('main') || document.querySelector('[role="main"]') || document.body;
-    
-    if (floatbar && panel) {
-      const isPanelVisible = panel.style.display === 'flex' || floatbar.classList.contains('show-panel');
-      
-      if (isPanelVisible) {
-        // Hide panel
-        panel.style.display = 'none';
-        floatbar.classList.remove('show-panel');
-        main.style.marginRight = '';
-        main.style.width = '';
-        document.body.style.marginRight = '';
-        contractedSidebar.style.display = 'flex';
-        contractedSidebar.style.right = '0';
-      } else {
-        // Show panel
-        panel.style.display = 'flex';
-        floatbar.classList.add('show-panel');
-        main.style.marginRight = '600px';
-        main.style.width = `calc(100vw - 600px)`;
-        document.body.style.marginRight = '600px';
-        contractedSidebar.style.display = 'none';
-        
-        // Immediately replace existing close button when panel opens
-        setTimeout(replaceExistingCloseButton, 100);
-      }
-    }
+  // Clicking ZeroEka icon: open ZeroEka site only (no sidebar toggle)
+  zeroekaButton.addEventListener('click', (e) => {
+    try { e.stopImmediatePropagation(); } catch (_) {}
+    try { window.open('https://www.zeroeka.com/', '_blank'); } catch (_) {}
   });
 
   // Add to page

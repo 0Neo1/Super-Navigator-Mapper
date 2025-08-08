@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt History</title>
+    <link rel="stylesheet" href="history.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Animated background elements -->
+    <div class="background-elements">
+        <div class="gradient-orb orb-1"></div>
+        <div class="gradient-orb orb-2"></div>
+        <div class="gradient-orb orb-3"></div>
+    </div>
+    
+    <div class="container">
+        <header class="header">
+            <div class="logo-section">
+                <div class="logo-icon">
+                    <img src="logo-ui.jpeg" alt="Prompt Engine Logo" class="logo-image">
+                </div>
+                <div class="logo-text">
+                    <h1>History</h1>
+                    <span class="subtitle">Your prompt generations</span>
+                </div>
+            </div>
+            <div class="header-controls">
+                <button id="clearHistoryBtn" class="icon-button danger" title="Clear All History">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <line x1="10" y1="11" x2="10" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="14" y1="11" x2="14" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <button id="backButton" class="icon-button" title="Back to Main">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <div class="history-section">
+            <div id="historyContainer" class="history-container">
+                <!-- History items will be injected here -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Copy notification -->
+    <div id="copyNotification" class="copy-notification">
+        <span class="notification-icon">✅</span>
+        <span class="notification-text">Copied to clipboard!</span>
+    </div>
+    
+    <script src="history.js"></script>
+</body>
+</html> 

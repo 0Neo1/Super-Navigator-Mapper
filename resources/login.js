@@ -35,7 +35,9 @@
               const userCred = await firebase.auth().signInWithCredential(cred);
               const user = userCred.user;
               const token = await user.getIdToken();
-              chrome.storage.local.set({ firebaseUser: { uid: user.uid, email: user.email }, firebaseIdToken: token }, () => {
+              const displayName = user.displayName || (user.providerData && user.providerData[0]?.displayName) || '';
+              const photoURL = user.photoURL || (user.providerData && user.providerData[0]?.photoURL) || '';
+              chrome.storage.local.set({ firebaseUser: { uid: user.uid, email: user.email, displayName, photoURL }, firebaseIdToken: token }, () => {
                 show('Signed in. Redirecting…', successBox);
                 setTimeout(()=>{ window.location.href = 'https://chatgpt.com/'; }, 600);
               });

@@ -117,6 +117,146 @@
       return true; // keep port open for async response
     }
 
+    // Open/Install Prompt Engine by ZeroEka
+    if (type === 'open-prompt-engine') {
+      const EXT_ID = 'enkgghbjjigjjkodkgbakchhflmkaphj';
+      const STORE_URL = 'https://chromewebstore.google.com/detail/prompt-engine-by-zeroeka/enkgghbjjigjjkodkgbakchhflmkaphj';
+
+      const openStore = () => {
+        chrome.tabs.create({ url: STORE_URL, active: true }).finally(() => {
+          sendResponse({ status: 'store_opened' });
+        });
+      };
+
+      try {
+        if (!chrome.management || !chrome.management.get) {
+          // Fallback: try ping, otherwise open details page (avoid store false positives)
+          try {
+            chrome.runtime.sendMessage(EXT_ID, { action: 'ping' }, (resp) => {
+              if (resp && resp.success) {
+                chrome.runtime.sendMessage(EXT_ID, { action: 'open' });
+                sendResponse({ status: 'installed_opened' });
+              } else {
+                chrome.tabs.create({ url: `chrome://extensions/?id=${EXT_ID}` }).finally(() => {
+                  sendResponse({ status: 'unknown_opened_details' });
+                });
+              }
+            });
+          } catch (_) {
+            chrome.tabs.create({ url: `chrome://extensions/?id=${EXT_ID}` }).finally(() => {
+              sendResponse({ status: 'unknown_opened_details' });
+            });
+          }
+          return true;
+        }
+
+        // Try to trigger for a specific extension instance
+        const tryTriggerForExt = async (ext) => {
+          if (!ext) { openStore(); return; }
+          if (!ext.enabled) {
+            chrome.tabs.create({ url: `chrome://extensions/?id=${ext.id}` }).finally(() => {
+              sendResponse({ status: 'installed_disabled' });
+            });
+            return;
+          }
+          try {
+            // Try multiple action names to maximize compatibility
+            const getActiveTabId = () => new Promise((resolve) => {
+              chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                resolve((tabs && tabs[0] && tabs[0].id) ? tabs[0].id : null);
+              });
+            });
+            const tryOpen = (action, tabId) => new Promise((res) => {
+              try {
+                const payload = tabId ? { action, tabId } : { action };
+                chrome.runtime.sendMessage(ext.id, payload, (resp) => {
+                  if (chrome.runtime.lastError) { res(false); return; }
+                  // Treat ok:true or any response as success, since receiver may not set ok
+                  res(resp === undefined ? true : !!(resp.ok ?? true));
+                });
+              } catch (_) { res(false); }
+            });
+            (async () => {
+              const actions = ['open', 'openSidePanel', 'toggle', 'focus', 'launch'];
+              let ok = false;
+              const tabId = await getActiveTabId();
+              for (const a of actions) { // try sequentially
+                // eslint-disable-next-line no-await-in-loop
+                ok = await tryOpen(a, tabId);
+                if (ok) break;
+              }
+              // Only succeed when the side panel was actually triggered.
+              // Do NOT open any full-page fallbacks to ensure UI stays as side panel only.
+              sendResponse({ status: ok ? 'installed_opened' : 'installed_but_cannot_open' });
+            })();
+          } catch (e) {
+            sendResponse({ status: 'installed_but_cannot_open' });
+          }
+        };
+
+        chrome.management.getAll((list) => {
+          if (chrome.runtime.lastError || !Array.isArray(list)) { openStore(); return; }
+          // Collect all plausible ZeroEka Prompt Engine candidates
+          const candidates = list.filter(x => (
+            x.id === EXT_ID || /zeroeka/i.test(x.name || '') || /prompt\s*engine/i.test(x.name || '')
+          ));
+          if (!candidates.length) { openStore(); return; }
+          // Prefer enabled ones
+          const enabled = candidates.filter(c => c.enabled);
+          const ordered = enabled.length ? enabled : candidates;
+          // Try each candidate until one opens
+          (async () => {
+            for (const ext of ordered) {
+              await new Promise(r => setTimeout(r, 0));
+              const result = await new Promise((resolve) => {
+                const cb = (resp) => resolve(resp && resp.status === 'installed_opened');
+                // Wrap tryTriggerForExt but intercept its sendResponse
+                const original = sendResponse;
+                let resolved = false;
+                const localSend = (payload) => {
+                  if (!resolved) {
+                    resolved = true;
+                    resolve(payload && payload.status === 'installed_opened');
+                  }
+                };
+                // Temporarily call trigger with a local responder
+                (async () => {
+                  try {
+                    // Inline copy of trigger logic with local send
+                    if (!ext.enabled) { localSend({ status: 'installed_disabled' }); return; }
+                    const tryOpen = (action) => new Promise((res) => {
+                      try {
+                        chrome.runtime.sendMessage(ext.id, { action }, (resp2) => {
+                          if (chrome.runtime.lastError) { res(false); return; }
+                          res(resp2 === undefined ? true : !!(resp2.ok ?? true));
+                        });
+                      } catch (_) { res(false); }
+                    });
+                    const actions = ['open', 'openSidePanel', 'toggle', 'focus', 'launch'];
+                    let ok = false;
+                    for (const a of actions) { ok = await tryOpen(a); if (ok) break; }
+                    localSend({ status: ok ? 'installed_opened' : 'installed_but_cannot_open' });
+                  } catch (_) {
+                    localSend({ status: 'installed_but_cannot_open' });
+                  }
+                })();
+              });
+              if (result) {
+                try { chrome.storage.local.set({ peExtId: ext.id }); } catch (_) {}
+                sendResponse({ status: 'installed_opened' });
+                return;
+              }
+            }
+            sendResponse({ status: 'installed_but_cannot_open' });
+          })();
+        });
+        return true; // async
+      } catch (e) {
+        openStore();
+        return true;
+      }
+    }
+
     console.log('Unhandled message type:', type);
     return true;
   });
