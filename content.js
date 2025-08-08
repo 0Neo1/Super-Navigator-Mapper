@@ -2562,13 +2562,14 @@ const renderReactFlowMindmap = (mindmapData, container) => {
   if (typeof React === 'undefined' || typeof ReactDOM === 'undefined' || typeof ReactFlow === 'undefined') {
     console.error('React Flow dependencies not loaded properly');
     container.innerHTML = `
-      <div style="padding: 20px; text-align: center; color: #666;">
+      <div id="rf-error" style="padding: 20px; text-align: center; color: #666;">
         <div style="font-size: 24px; margin-bottom: 20px;">⚠️</div>
         <div style="font-size: 18px; margin-bottom: 10px;">React Flow library not loaded</div>
         <div style="font-size: 14px; margin-bottom: 20px;">Please refresh the page and try again</div>
-        <button onclick="location.reload()" style="background: #10a37f; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Retry</button>
+        <button id="rf-retry" style="background: #10a37f; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Retry</button>
       </div>
     `;
+    try { container.querySelector('#rf-retry')?.addEventListener('click', () => location.reload()); } catch (_) {}
     return;
   }
 
@@ -2675,13 +2676,14 @@ const renderReactFlowMindmap = (mindmapData, container) => {
   } catch (error) {
     console.error('Error rendering React Flow mindmap:', error);
     container.innerHTML = `
-      <div style="padding: 20px; text-align: center; color: #666;">
+      <div id="rf-render-error" style="padding: 20px; text-align: center; color: #666;">
         <div style="font-size: 24px; margin-bottom: 20px;">⚠️</div>
         <div style="font-size: 18px; margin-bottom: 10px;">Error rendering mindmap</div>
         <div style="font-size: 14px; margin-bottom: 20px;">${error.message}</div>
-        <button onclick="location.reload()" style="background: #10a37f; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Retry</button>
+        <button id="rf-render-retry" style="background: #10a37f; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Retry</button>
       </div>
     `;
+    try { container.querySelector('#rf-render-retry')?.addEventListener('click', () => location.reload()); } catch (_) {}
   }
 };
 
