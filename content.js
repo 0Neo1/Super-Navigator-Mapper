@@ -854,18 +854,37 @@ const createZeroEkaIconButton = () => {
             try { reorderBookmarkedChatsGroup(); } catch (err) { console.warn('Reorder failed:', err); }
           } else {
             // Unbookmark the chat
+            const parent = chatItem.parentElement;
+            let insertBeforeNode = null;
+            if (parent) {
+              const siblings = Array.from(parent.children);
+              // Find the first non-bookmarked item other than this one
+              insertBeforeNode = siblings.find(el => el !== chatItem && !el.classList.contains('bookmarked')) || null;
+            }
+
+            // Remove from localStorage first so monitors don't bring it back
+            const bookmarkedChats = JSON.parse(localStorage.getItem('bookmarkedChats') || '[]');
+            const updatedBookmarks = bookmarkedChats.filter(id => id !== chatId);
+            localStorage.setItem('bookmarkedChats', JSON.stringify(updatedBookmarks));
+
+            // Remove bookmarked visuals
             chatItem.classList.remove('bookmarked');
             chatItem.style.border = '';
             chatItem.style.borderRadius = '';
             chatItem.style.cursor = '';
             chatItem.style.transition = '';
-            
-            // Remove from localStorage
-            const bookmarkedChats = JSON.parse(localStorage.getItem('bookmarkedChats') || '[]');
-            const updatedBookmarks = bookmarkedChats.filter(id => id !== chatId);
-            localStorage.setItem('bookmarkedChats', JSON.stringify(updatedBookmarks));
-            
-            // Do not reorder entire list on toggle; only ensure the group stays together
+
+            // Move this item to just after the bookmarked group (start of non-bookmarked region)
+            if (parent) {
+              if (insertBeforeNode) {
+                parent.insertBefore(chatItem, insertBeforeNode);
+              } else {
+                // No non-bookmarked items yet; append to end
+                parent.appendChild(chatItem);
+              }
+            }
+
+            // Keep remaining bookmarks grouped without reshuffling
             try { reorderBookmarkedChatsGroup(); } catch (err) { console.warn('Reorder failed:', err); }
           }
         });
@@ -3389,14 +3408,13 @@ const addVanillaMindmapNavigation = (mindmapContainer) => {
           return itemId === chatId;
         });
         
-        if (chatItem && chatItem.classList.contains('bookmarked')) {
-          const chatList = chatItem.parentElement;
-          if (chatList && chatList.firstChild !== chatItem) {
-            chatList.insertBefore(chatItem, chatList.firstChild);
-            console.log('Fixed bookmark position for:', chatId);
+        if (chatItem) {
+          // Ensure class reflects storage truth
+          if (bookmarkedChats.includes(chatId)) {
+            chatItem.classList.add('bookmarked');
+          } else {
+            chatItem.classList.remove('bookmarked');
           }
-          
-
         }
       });
     } catch (error) {
