@@ -76,7 +76,9 @@
         "resources/login.js",
         "jsmind.js",
         "jsmind.css",
-        "jsmind.draggable-node.js"
+        "jsmind.draggable-node.js",
+        "resources/mindmap.html",
+        "resources/mindmap.js"
       ],
       "matches": [
         "https://chatgpt.com/*",

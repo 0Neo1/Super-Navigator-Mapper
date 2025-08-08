@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;" />
+    <link rel="stylesheet" href="https://unpkg.com/jsmind@0.8.7/style/jsmind.css" />
+    <style>
+      html, body { margin: 0; padding: 0; height: 100%; background: #0b0b0b; }
+      #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+      #jsmind_container { width: 95vw; height: 95vh; background: #f8f9fa; border-radius: 12px; overflow: hidden; }
+      #legend { position: fixed; top: 10px; left: 10px; color: #fff; font: 13px/1.4 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; opacity: .85; }
+    </style>
+  </head>
+  <body>
+    <div id="wrap">
+      <div id="jsmind_container"></div>
+    </div>
+    <div id="legend">Mindmap • jsMind</div>
+    <script src="https://unpkg.com/jsmind@0.8.7/es6/jsmind.js"></script>
+    <script src="https://unpkg.com/jsmind@0.8.7/es6/jsmind.draggable-node.js"></script>
+    <script src="mindmap.js"></script>
+  </body>
+  </html>
+

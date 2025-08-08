@@ -2288,8 +2288,26 @@ const createReactFlowMindmapPopup = (mindmapData, wasVisible = false) => {
     contractedSidebar.style.display = 'none';
   }
 
-  // Load jsMind and render mindmap
-  loadJsMindAndRender(mindmapData, reactFlowContainer);
+  // Open dedicated jsMind page in a child window and pass data (avoids CSP issues)
+  try {
+    const url = chrome.runtime.getURL('resources/mindmap.html');
+    const child = window.open(url, 'jsmind_popup', 'width=1280,height=860');
+    if (child) {
+      const payload = mindmapData.data ? mindmapData : { format: 'node_tree', data: mindmapData };
+      const post = () => { try { child.postMessage({ type: 'mindmap-data', payload }, '*'); } catch(_) {} };
+      setTimeout(post, 300);
+      const iv = setInterval(post, 700);
+      setTimeout(() => clearInterval(iv), 4000);
+      // Listen for navigation requests from child
+      window.addEventListener('message', (ev) => {
+        if (ev?.data && ev.data.type === 'mindmap-navigate' && ev.data.messageId) {
+          try { navigateToMessage(ev.data.messageId); } catch(_) {}
+        }
+      });
+    }
+  } catch (e) {
+    console.error('Failed to open jsMind window:', e);
+  }
 
   // Function to restore sidebar if it was visible before
   const restoreSidebar = () => {
