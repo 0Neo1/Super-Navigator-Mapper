@@ -2411,25 +2411,41 @@ const loadReactFlowAndRender = (mindmapData, container) => {
     await loadScript(`${prefix}/@reactflow/core@11.10.1/dist/umd/index.js`);
   };
 
+  const tryLoadLocalReactFlow = async () => {
+    const css = chrome.runtime.getURL('lib/reactflow/style.css');
+    const reactJs = chrome.runtime.getURL('lib/react/react.production.min.js');
+    const reactDomJs = chrome.runtime.getURL('lib/react-dom/react-dom.production.min.js');
+    const flowJs = chrome.runtime.getURL('lib/reactflow/reactflow.umd.min.js');
+    await loadCSS(css);
+    await loadScript(reactJs);
+    await loadScript(reactDomJs);
+    await loadScript(flowJs);
+  };
+
   (async () => {
+    // Try local packaged libs first (recommended for CSP-safe operation)
+    let loaded = false;
     try {
-      // First attempt: unpkg
-      await tryLoadReactFlow('https://unpkg.com');
-    } catch (e1) {
-      console.warn('unpkg failed, retrying with jsDelivr...', e1);
+      await tryLoadLocalReactFlow();
+      loaded = true;
+      console.log('Loaded React Flow from extension local files');
+    } catch (elocal) {
+      console.warn('Local React Flow not found, trying CDNs...', elocal);
       try {
-        // Second attempt: jsDelivr
-        await tryLoadReactFlow('https://cdn.jsdelivr.net/npm');
-      } catch (e2) {
-        console.error('Failed to load React Flow from both CDNs:', e2);
-        container.innerHTML = `
-          <div style="padding: 20px; text-align: center; color: #666;">
-            <div style="font-size: 24px; margin-bottom: 20px;">⚠️</div>
-            <div style="font-size: 18px; margin-bottom: 10px;">Unable to load React Flow</div>
-            <div style="font-size: 14px; margin-bottom: 20px;">Please check your network/CSP and refresh the page</div>
-          </div>
-        `;
-        return;
+        await tryLoadReactFlow('https://unpkg.com');
+        loaded = true;
+        console.log('Loaded React Flow from unpkg');
+      } catch (e1) {
+        console.warn('unpkg failed, retrying jsDelivr...', e1);
+        try {
+          await tryLoadReactFlow('https://cdn.jsdelivr.net/npm');
+          loaded = true;
+          console.log('Loaded React Flow from jsDelivr');
+        } catch (e2) {
+          console.error('Failed to load React Flow from local and CDNs, falling back to vanilla:', e2);
+          renderVanillaMindmap(mindmapData, container);
+          return;
+        }
       }
     }
     console.log('React Flow dependencies loaded successfully');
