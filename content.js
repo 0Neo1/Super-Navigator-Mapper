@@ -43,26 +43,6 @@
   console.log('Current URL:', location.href);
   console.log('Pathname:', location.pathname);
   
-  // Hide sidebar before showing mindmap
-  const floatbar = document.querySelector('.catalogeu-navigation-plugin-floatbar');
-  const panel = floatbar ? floatbar.querySelector('.panel') : null;
-  const main = document.querySelector('main') || document.querySelector('[role="main"]') || document.body;
-  let wasVisible = false;
-  
-  // Check if sidebar is visible by checking both display style and show-panel class
-  if (panel && (panel.style.display === 'flex' || floatbar.classList.contains('show-panel'))) {
-    wasVisible = true;
-    console.log('Sidebar was visible, hiding it before showing mindmap');
-    // Hide panel and remove page adjustment
-    panel.style.display = 'none';
-    floatbar.classList.remove('show-panel');
-    main.style.marginRight = '';
-    main.style.width = '';
-    document.body.style.marginRight = '';
-  } else {
-    console.log('Sidebar was not visible');
-  }
-  
   // Create mindmap data from the current chat tree
   const e=(t,l)=>t?Array.from(t.children).map((t,a)=>{
     const s=t.children[1]?.firstChild;
@@ -86,14 +66,12 @@
     return;
   }
   
-  // Create and show real-time mind map popup
+  // Open jsMind in a new window/tab only (no overlay popup on main page)
   console.log('Mind map button clicked, data:', t);
   try {
-    createRealTimeMindMap(t);
+    openJsMindWindow(t);
   } catch (error) {
-    console.error('Error creating mind map:', error);
-    // Fallback to regular mind map
-    createReactFlowMindmapPopup(t, wasVisible);
+    console.error('Error opening jsMind window:', error);
   }
 });
   H=e=>{let n=e.__reply;if(!n&&(n=t(e.__ref.deref()).answerArticle,n)){const t=n.querySelector(o.markdown);if(t)return v(e,Array.from(t.children)),e.__reply=n,n.setAttribute(l,"reply"),n}}}})(),document.body.appendChild(r);const R=()=>{t(r,()=>{document.body.appendChild(r),R()},2e3)};return R(),r}}})();window.addEventListener("load",function e(){r=0,h(null),h(),m()?(y(),createZeroEkaIconButton(),(()=>{const floatbar=document.querySelector('.catalogeu-navigation-plugin-floatbar');if(floatbar){const buttons=floatbar.querySelector('.buttons');if(buttons){buttons.style.display='none'}}})(),chrome.runtime.onMessage.addListener((e,t,l)=>{const{type:n,data:s}=e;"logout"===n?location.reload():"error"===n&&("automaticLoginFailure"===s?a(0,lang("automaticLoginFailureTitle"),lang("automaticLoginFailurePrompt")):a(0,lang("operationFailure"),lang(s?.message)||s?.message))})):r<10&&(r++,setTimeout(e,1e3))})})();
@@ -2118,59 +2096,25 @@ const createTreeItem = (node) => {
   return li;
 };
 
-// Enhanced mind map generation with real-time updates
-const createRealTimeMindMap = (mindmapData) => {
-  console.log('Creating real-time mind map with data:', mindmapData);
-  
+// Open jsMind window with given data
+const openJsMindWindow = (mindmapData) => {
   try {
-    // Create mind map popup shell (UI wrapper)
-    const popup = createReactFlowMindmapPopup(mindmapData);
-    
-    // Add real-time update button
-    const updateButton = document.createElement('button');
-    updateButton.innerHTML = '🔄 Update Live';
-    updateButton.style.cssText = `
-      position: absolute;
-      top: 10px;
-      right: 60px;
-      background: rgba(255,255,255,0.2);
-      border: none;
-      color: white;
-      padding: 8px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-      z-index: 1001;
-    `;
-    
-    updateButton.addEventListener('click', () => {
-      // Refresh by re-opening jsMind window with fresh data
-      const freshData = getConversationTreeData(true);
-      if (freshData) {
-        try {
-          const url = chrome.runtime.getURL('resources/mindmap.html');
-          const child = window.open(url, 'jsmind_popup', 'width=1280,height=860');
-          if (child) {
-            const payload = freshData.data ? freshData : { format: 'node_tree', data: freshData };
-            const post = () => { try { child.postMessage({ type: 'mindmap-data', payload }, '*'); } catch(_) {} };
-            setTimeout(post, 300);
-            const iv = setInterval(post, 700);
-            setTimeout(() => clearInterval(iv), 4000);
-          }
-        } catch(_) {}
-      }
-    });
-    
-    // Add the update button to the popup
-    const header = popup.querySelector('.header');
-    if (header) {
-      header.appendChild(updateButton);
+    const url = chrome.runtime.getURL('resources/mindmap.html');
+    const child = window.open(url, 'jsmind_popup', 'width=1280,height=860');
+    if (child) {
+      const payload = mindmapData.data ? mindmapData : { format: 'node_tree', data: mindmapData };
+      const post = () => { try { child.postMessage({ type: 'mindmap-data', payload }, '*'); } catch(_) {} };
+      setTimeout(post, 300);
+      const iv = setInterval(post, 700);
+      setTimeout(() => clearInterval(iv), 4000);
+      window.addEventListener('message', (ev) => {
+        if (ev?.data && ev.data.type === 'mindmap-navigate' && ev.data.messageId) {
+          try { navigateToMessage(ev.data.messageId); } catch(_) {}
+        }
+      });
     }
-    
-    return popup;
-  } catch (error) {
-    console.error('Error creating real-time mind map:', error);
-    return null;
+  } catch (e) {
+    console.error('Failed to open jsMind window:', e);
   }
 };
 
@@ -2489,7 +2433,7 @@ const renderJsMindMindmap = (mindmapData, container) => {
 
   // Clear container
   container.innerHTML = '';
-
+  
   // Create a container div for jsMind
   const jmContainer = document.createElement('div');
   jmContainer.id = 'jsmind_container';
