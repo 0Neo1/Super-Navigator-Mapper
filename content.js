@@ -2212,7 +2212,6 @@ const createReactFlowMindmapPopup = (mindmapData, wasVisible = false) => {
 
   // Create header
   const header = document.createElement('div');
-  header.className = 'header';
   header.style.cssText = `
     background: linear-gradient(135deg, #10a37f 0%, #0e8a6f 100%);
     color: white;
@@ -2353,7 +2352,6 @@ const createReactFlowMindmapPopup = (mindmapData, wasVisible = false) => {
 
   // Add navigation functionality
   addMindmapNavigation(reactFlowContainer);
-  return popup;
 };
 
 // Load React Flow and render the mindmap
@@ -2369,7 +2367,7 @@ const loadReactFlowAndRender = (mindmapData, container) => {
     </div>
   `;
 
-  // Load React Flow from local/remote
+  // Load React Flow from CDN
   const loadScript = (src) => {
     return new Promise((resolve, reject) => {
       console.log('Loading script:', src);
@@ -2385,22 +2383,6 @@ const loadReactFlowAndRender = (mindmapData, container) => {
       };
       document.head.appendChild(script);
     });
-  };
-
-  const renderReactFlowInIframe = (mindmapData, host) => {
-    try {
-      const rfCSS = chrome.runtime.getURL('lib/reactflow/style.css');
-      const reactJs = chrome.runtime.getURL('lib/react/react.production.min.js');
-      const reactDomJs = chrome.runtime.getURL('lib/react-dom/react-dom.production.min.js');
-      const flowJs = chrome.runtime.getURL('lib/reactflow/reactflow.umd.min.js');
-      const iframe = document.createElement('iframe');
-      iframe.style.cssText = 'width:100%;height:100%;border:0;';
-      const dataJson = JSON.stringify(mindmapData).replace(/<\//g,'<\\/');
-      iframe.srcdoc = `<!DOCTYPE html><html><head><meta charset="utf-8"/><link rel="stylesheet" href="${rfCSS}"><style>html,body,#root{height:100%;margin:0}</style></head><body><div id="root"></div><script src="${reactJs}"><\/script><script src="${reactDomJs}"><\/script><script src="${flowJs}"><\/script><script>(function(){var mm=${dataJson};function GC(l){var c=['#10a37f','#e6f7ff','#f6ffed','#fff0f6','#f9f0ff','#fffbe6'];return c[l%c.length]}function GB(l){var c=['#0e8a6f','#91d5ff','#b7eb8f','#ffadd2','#d3adf7','#ffe58f'];return c[l%c.length]}function conv(m){var ns=[],es=[],id=0;function walk(n,p,x,y,l){var nid='n-'+(id++);ns.push({id:nid,position:{x:x,y:y},data:{label:(n.topic||n.title||'Untitled'),level:l,messageId:n.id||null},style:{background:l===0?'#10a37f':GC(l),color:l===0?'#fff':'#000',border:'2px solid '+(l===0?'#0e8a6f':GB(l)),borderRadius:'12px',padding:(l===0?'20px':'15px'),fontSize:(l===0?'18px':'14px'),minWidth:(l===0?'200px':'150px'),maxWidth:'300px',textAlign:'center',boxShadow:'0 4px 12px rgba(0,0,0,.1)',cursor:'pointer'}});if(p){es.push({id:'e-'+p+'-'+nid,source:p,target:nid,type:'smoothstep',style:{stroke:'#666',strokeWidth:2}})}if(n.children&&n.children.length){var cnt=n.children.length,sp=250,start=x-(sp*(cnt-1))/2;for(var i=0;i<cnt;i++){walk(n.children[i],nid,start+sp*i,y+150,l+1)}}}var root=m.data||m;walk(root,null,0,0,0);return {nodes:ns,edges:es}}var data=conv(mm);var el=React.createElement(ReactFlow.ReactFlow,{nodes:data.nodes,edges:data.edges,fitView:true,fitViewOptions:{padding:.2},panOnScroll:true,zoomOnPinch:true,panOnDrag:true,onNodeClick:function(e,n){try{if(n&&n.data&&n.data.messageId){parent.postMessage({type:'mindmap-nav',messageId:n.data.messageId},'*')}}catch(_){}}},[React.createElement(ReactFlow.Controls,{key:'c'}),React.createElement(ReactFlow.MiniMap,{key:'m',nodeColor:function(n){return n.data.level===0?'#10a37f':GC(n.data.level)},nodeStrokeWidth:3,zoomable:true,pannable:true}),React.createElement(ReactFlow.Background,{key:'b',variant:'dots',gap:20,size:1,color:'#ddd'})]);ReactDOM.createRoot(document.getElementById('root')).render(el);} )();<\/script></body></html>`;
-      host.innerHTML='';
-      host.appendChild(iframe);
-      try{window.addEventListener('message',function(ev){if(ev&&ev.data&&ev.data.type==='mindmap-nav'&&ev.data.messageId){try{navigateToMessage(ev.data.messageId)}catch(_){} }})}catch(_){ }
-    } catch(err){ console.error('Iframe render failed:', err); renderVanillaMindmap(mindmapData, host); }
   };
 
   const loadCSS = (href) => {
@@ -2421,54 +2403,23 @@ const loadReactFlowAndRender = (mindmapData, container) => {
     });
   };
 
-  // Helper to try loading from a specific CDN prefix
-  const tryLoadReactFlow = async (prefix) => {
-    await loadCSS(`${prefix}/@reactflow/core@11.10.1/dist/style.css`);
-    await loadScript(`${prefix}/react@18.2.0/umd/react.production.min.js`);
-    await loadScript(`${prefix}/react-dom@18.2.0/umd/react-dom.production.min.js`);
-    await loadScript(`${prefix}/@reactflow/core@11.10.1/dist/umd/index.js`);
-  };
-
-  const tryLoadLocalReactFlow = async () => {
-    const css = chrome.runtime.getURL('lib/reactflow/style.css');
-    const reactJs = chrome.runtime.getURL('lib/react/react.production.min.js');
-    const reactDomJs = chrome.runtime.getURL('lib/react-dom/react-dom.production.min.js');
-    const flowJs = chrome.runtime.getURL('lib/reactflow/reactflow.umd.min.js');
-    await loadCSS(css);
-    await loadScript(reactJs);
-    await loadScript(reactDomJs);
-    await loadScript(flowJs);
-  };
-
-  (async () => {
-    // Try local packaged libs first (recommended for CSP-safe operation)
-    let loaded = false;
-    try {
-      await tryLoadLocalReactFlow();
-      loaded = true;
-      console.log('Loaded React Flow from extension local files');
-    } catch (elocal) {
-      console.warn('Local React Flow not found, trying CDNs...', elocal);
-      try {
-        await tryLoadReactFlow('https://unpkg.com');
-        loaded = true;
-        console.log('Loaded React Flow from unpkg');
-      } catch (e1) {
-        console.warn('unpkg failed, retrying jsDelivr...', e1);
-        try {
-          await tryLoadReactFlow('https://cdn.jsdelivr.net/npm');
-          loaded = true;
-          console.log('Loaded React Flow from jsDelivr');
-        } catch (e2) {
-          console.error('Failed to load React Flow from local and CDNs, rendering via iframe:', e2);
-          renderReactFlowInIframe(mindmapData, container);
-          return;
-        }
-      }
-    }
-    console.log('React Flow dependencies loaded successfully');
-    setTimeout(() => { renderReactFlowMindmap(mindmapData, container); }, 100);
-  })();
+  // Load React Flow dependencies with correct URLs
+  Promise.all([
+    loadCSS('https://unpkg.com/@reactflow/core@11.10.1/dist/style.css'),
+    loadScript('https://unpkg.com/react@18.2.0/umd/react.production.min.js'),
+    loadScript('https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js'),
+    loadScript('https://unpkg.com/@reactflow/core@11.10.1/dist/umd/index.js')
+  ]).then(() => {
+    console.log('All React Flow dependencies loaded successfully');
+    // Add a small delay to ensure everything is properly initialized
+    setTimeout(() => {
+      renderReactFlowMindmap(mindmapData, container);
+    }, 100);
+  }).catch(error => {
+    console.error('Failed to load React Flow:', error);
+    console.log('Falling back to vanilla JavaScript mindmap...');
+    renderVanillaMindmap(mindmapData, container);
+  });
 };
 
 // Convert mindmap data to React Flow format
@@ -2486,10 +2437,10 @@ const convertToReactFlowData = (mindmapData) => {
       type: 'default',
       position: { x, y },
       data: { 
-        label: node.topic || node.title || 'Untitled',
+        label: node.topic || node.title || node.name || node.content || 'Untitled',
         level: level,
-        content: node.topic || node.title || 'Untitled',
-        messageId: node.id || null
+        content: node.topic || node.title || node.name || node.content || 'Untitled',
+        messageId: node.id || node.messageId || undefined
       },
       style: {
         background: level === 0 ? '#10a37f' : getNodeColor(level),
@@ -2538,8 +2489,18 @@ const convertToReactFlowData = (mindmapData) => {
     }
   };
 
-  // Start processing from root
-  const rootNode = mindmapData.data || mindmapData;
+  // Start processing from root. Support multiple input shapes:
+  // 1) { data: { id, topic, children } }
+  // 2) { id, topic, children }
+  // 3) [ { id, topic/content, children? }, ... ]
+  let rootNode;
+  if (mindmapData && mindmapData.data) {
+    rootNode = mindmapData.data;
+  } else if (Array.isArray(mindmapData)) {
+    rootNode = { id: 'root', topic: document.title || 'Conversation', children: mindmapData };
+  } else {
+    rootNode = mindmapData;
+  }
   processNode(rootNode, null, 0, 0, 0);
 
   return { nodes, edges };
@@ -2580,14 +2541,13 @@ const renderReactFlowMindmap = (mindmapData, container) => {
   if (typeof React === 'undefined' || typeof ReactDOM === 'undefined' || typeof ReactFlow === 'undefined') {
     console.error('React Flow dependencies not loaded properly');
     container.innerHTML = `
-      <div id="rf-error" style="padding: 20px; text-align: center; color: #666;">
+      <div style="padding: 20px; text-align: center; color: #666;">
         <div style="font-size: 24px; margin-bottom: 20px;">⚠️</div>
         <div style="font-size: 18px; margin-bottom: 10px;">React Flow library not loaded</div>
         <div style="font-size: 14px; margin-bottom: 20px;">Please refresh the page and try again</div>
-        <button id="rf-retry" style="background: #10a37f; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Retry</button>
+        <button onclick="location.reload()" style="background: #10a37f; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Retry</button>
       </div>
     `;
-    try { container.querySelector('#rf-retry')?.addEventListener('click', () => location.reload()); } catch (_) {}
     return;
   }
 
@@ -2645,6 +2605,7 @@ const renderReactFlowMindmap = (mindmapData, container) => {
       fitViewOptions: { padding: 0.2 },
       panOnScroll: true,
       zoomOnPinch: true,
+      zoomOnScroll: true,
       panOnDrag: true,
       defaultEdgeOptions: {
         type: 'smoothstep',
@@ -2652,11 +2613,13 @@ const renderReactFlowMindmap = (mindmapData, container) => {
       },
       onNodeClick: (event, node) => {
         try {
-          const msgId = node?.data?.messageId;
-          if (msgId) {
-            navigateToMessage(msgId);
+          const messageId = node?.data?.messageId;
+          if (messageId) {
+            navigateToMessage(messageId);
           }
-        } catch (err) { console.warn('Navigation failed:', err); }
+        } catch (err) {
+          console.warn('Navigation on node click failed:', err);
+        }
       },
       onEdgeClick: (event, edge) => {
         console.log('Edge clicked:', edge);
@@ -2694,14 +2657,13 @@ const renderReactFlowMindmap = (mindmapData, container) => {
   } catch (error) {
     console.error('Error rendering React Flow mindmap:', error);
     container.innerHTML = `
-      <div id="rf-render-error" style="padding: 20px; text-align: center; color: #666;">
+      <div style="padding: 20px; text-align: center; color: #666;">
         <div style="font-size: 24px; margin-bottom: 20px;">⚠️</div>
         <div style="font-size: 18px; margin-bottom: 10px;">Error rendering mindmap</div>
         <div style="font-size: 14px; margin-bottom: 20px;">${error.message}</div>
-        <button id="rf-render-retry" style="background: #10a37f; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Retry</button>
+        <button onclick="location.reload()" style="background: #10a37f; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Retry</button>
       </div>
     `;
-    try { container.querySelector('#rf-render-retry')?.addEventListener('click', () => location.reload()); } catch (_) {}
   }
 };
 

@@ -73,10 +73,7 @@
         "images/*",
         "resources/*",
         "resources/firebase/*",
-        "resources/login.js",
-        "lib/react/*",
-        "lib/react-dom/*",
-        "lib/reactflow/*"
+        "resources/login.js"
       ],
       "matches": [
         "https://chatgpt.com/*",
