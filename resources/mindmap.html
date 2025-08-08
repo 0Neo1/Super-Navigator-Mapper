@@ -18,6 +18,17 @@
       #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
       #jsmind_container { width: 95vw; height: 95vh; background: var(--panel); border-radius: 12px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
       #legend { position: fixed; top: 10px; left: 10px; color: var(--text); font: 13px/1.4 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; opacity: .85; }
+      /* Toolbar */
+      #toolbar { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); width: 95vw; max-width: 1400px; height: 44px; display: flex; align-items: center; gap: 8px; background: linear-gradient(180deg, rgba(22,26,29,.95), rgba(22,26,29,.92)); border: 1px solid #22292e; border-radius: 12px; padding: 6px 10px; box-shadow: 0 10px 30px rgba(0,0,0,.45); z-index: 10; }
+      #toolbar .title { color: var(--text); font: 600 13px/1 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; opacity: .9; padding: 0 6px; }
+      #toolbar .spacer { flex: 1; }
+      .btn { appearance: none; border: 1px solid #2c343a; background: #1a1f22; color: var(--text); padding: 6px 10px; border-radius: 8px; font: 600 12px/1 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; cursor: pointer; transition: background .15s ease, border-color .15s ease; }
+      .btn:hover { background: #23292d; border-color: #3a444b; }
+      .btn:active { background: #2a3237; }
+      .btn.icon { width: 34px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+      .btn.danger { background: #2a1a1a; border-color: #3a2424; }
+      .btn.danger:hover { background: #3a2323; border-color: #4a2c2c; }
+      .kbd { color: var(--muted); font: 500 11px/1 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; margin-left: 6px; opacity: .7; }
       /* Dark theme tweaks for jsMind nodes */
       jmnodes.theme-primary jmnode { background-color: #1f2a30; border-color: #2a3a40; color: #e8e8e8; }
       jmnodes.theme-primary jmnode:hover { background-color: #22333a; }
@@ -31,6 +42,15 @@
     </style>
   </head>
   <body>
+    <div id="toolbar">
+      <div class="title">Mindmap</div>
+      <button id="btn-add" class="btn">Add node<span class="kbd">(A)</span></button>
+      <div class="spacer"></div>
+      <button id="btn-zoom-out" class="btn icon" title="Zoom out">−</button>
+      <button id="btn-zoom-in" class="btn icon" title="Zoom in">＋</button>
+      <button id="btn-fullscreen" class="btn icon" title="Toggle fullscreen">⤢</button>
+      <button id="btn-close" class="btn icon danger" title="Close tab">✕</button>
+    </div>
     <div id="wrap">
       <div id="jsmind_container"></div>
     </div>

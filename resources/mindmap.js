@@ -24,8 +24,11 @@
     try {
       const JM = window.jsMind || jsMind;
       const jm = new JM(options);
+      window.__jm = jm;
       jm.show(mind);
       try { if (JM.draggable_node) JM.draggable_node(jm); } catch(_){}
+      // Wire toolbar
+      wireToolbar(jm);
     } catch (e) {
       const c = document.getElementById('jsmind_container');
       if (c) c.innerHTML = '<div style="padding:16px">Failed to initialize jsMind. '+String(e)+'</div>';
@@ -42,6 +45,66 @@
         }
       });
     } catch(_){}
+  }
+
+  function wireToolbar(jm){
+    const container = document.getElementById('jsmind_container');
+    const btnAdd = document.getElementById('btn-add');
+    const btnZoomIn = document.getElementById('btn-zoom-in');
+    const btnZoomOut = document.getElementById('btn-zoom-out');
+    const btnFs = document.getElementById('btn-fullscreen');
+    const btnClose = document.getElementById('btn-close');
+
+    // Zoom helpers map to view.set_zoom
+    function getZoom(){ return jm.view.zoom_current || 1; }
+    function setZoom(z){ jm.view.set_zoom(z); }
+
+    btnZoomIn?.addEventListener('click', ()=>{
+      const step = jm.options.view.zoom?.step || 0.1;
+      const max = jm.options.view.zoom?.max || 2.1;
+      setZoom(Math.min(max, getZoom() + step));
+    });
+    btnZoomOut?.addEventListener('click', ()=>{
+      const step = jm.options.view.zoom?.step || 0.1;
+      const min = jm.options.view.zoom?.min || 0.5;
+      setZoom(Math.max(min, getZoom() - step));
+    });
+
+    // Fullscreen toggle on the main container wrapper
+    btnFs?.addEventListener('click', ()=>{
+      const rootEl = document.documentElement;
+      if (!document.fullscreenElement) {
+        (rootEl.requestFullscreen && rootEl.requestFullscreen())
+          || (rootEl.webkitRequestFullscreen && rootEl.webkitRequestFullscreen());
+      } else {
+        (document.exitFullscreen && document.exitFullscreen())
+          || (document.webkitExitFullscreen && document.webkitExitFullscreen());
+      }
+    });
+
+    // Close tab
+    btnClose?.addEventListener('click', ()=>{ window.close(); });
+
+    // Add node: add as a child of selected or root
+    btnAdd?.addEventListener('click', ()=> addNode(jm));
+    document.addEventListener('keydown', (e)=>{
+      if (e.key === 'a' || e.key === 'A') { e.preventDefault(); addNode(jm); }
+      if ((e.metaKey || e.ctrlKey) && (e.key === '+' || e.key === '=')) { e.preventDefault(); btnZoomIn?.click(); }
+      if ((e.metaKey || e.ctrlKey) && (e.key === '-' )) { e.preventDefault(); btnZoomOut?.click(); }
+      if (e.key === 'Escape') { e.preventDefault(); btnClose?.click(); }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') { e.preventDefault(); btnFs?.click(); }
+    });
+
+    function addNode(jm){
+      try {
+        const parent = jm.get_selected_node() || jm.get_root();
+        if (!parent) return;
+        const id = 'extra-' + Date.now();
+        const topic = 'New node';
+        jm.add_node(parent, id, topic);
+        jm.select_node(id);
+      } catch(_){ /* noop */ }
+    }
   }
 
   // If opener posted data before we loaded
