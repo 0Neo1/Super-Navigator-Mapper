@@ -869,6 +869,9 @@ const createZeroEkaIconButton = () => {
             
             // Do not reorder entire list on toggle; only ensure the group stays together
             try { reorderBookmarkedChatsGroup(); } catch (err) { console.warn('Reorder failed:', err); }
+
+            // Refresh the page to reflect changes consistently
+            try { setTimeout(() => window.location.reload(), 300); } catch (_) {}
           } else {
             // Unbookmark the chat
             const parent = itemEl.parentElement;
@@ -907,6 +910,9 @@ const createZeroEkaIconButton = () => {
 
             // Keep remaining bookmarks grouped without reshuffling
             try { reorderBookmarkedChatsGroup(); } catch (err) { console.warn('Reorder failed:', err); }
+
+            // Refresh the page to reflect changes consistently
+            try { setTimeout(() => window.location.reload(), 300); } catch (_) {}
           }
         });
       });
