@@ -2123,7 +2123,7 @@ const createRealTimeMindMap = (mindmapData) => {
   console.log('Creating real-time mind map with data:', mindmapData);
   
   try {
-    // Create mind map popup with real-time capabilities
+    // Create mind map popup shell (UI wrapper)
     const popup = createReactFlowMindmapPopup(mindmapData);
     
     // Add real-time update button
@@ -2144,15 +2144,20 @@ const createRealTimeMindMap = (mindmapData) => {
     `;
     
     updateButton.addEventListener('click', () => {
-      // Get fresh conversation data
+      // Refresh by re-opening jsMind window with fresh data
       const freshData = getConversationTreeData(true);
       if (freshData) {
-        // Update the mind map with new data
-        const container = document.getElementById('reactflow-container');
-        if (container) {
-          loadReactFlowAndRender(freshData, container);
-          console.log('Mind map updated with fresh conversation data');
-        }
+        try {
+          const url = chrome.runtime.getURL('resources/mindmap.html');
+          const child = window.open(url, 'jsmind_popup', 'width=1280,height=860');
+          if (child) {
+            const payload = freshData.data ? freshData : { format: 'node_tree', data: freshData };
+            const post = () => { try { child.postMessage({ type: 'mindmap-data', payload }, '*'); } catch(_) {} };
+            setTimeout(post, 300);
+            const iv = setInterval(post, 700);
+            setTimeout(() => clearInterval(iv), 4000);
+          }
+        } catch(_) {}
       }
     });
     
@@ -2165,8 +2170,7 @@ const createRealTimeMindMap = (mindmapData) => {
     return popup;
   } catch (error) {
     console.error('Error creating real-time mind map:', error);
-    // Fallback to regular mind map
-    return createReactFlowMindmapPopup(mindmapData);
+    return null;
   }
 };
 
