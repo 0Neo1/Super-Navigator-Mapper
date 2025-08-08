@@ -2437,9 +2437,10 @@ const convertToReactFlowData = (mindmapData) => {
       type: 'default',
       position: { x, y },
       data: { 
-        label: node.topic || node.title || 'Untitled',
+        label: node.topic || node.title || node.content || 'Untitled',
         level: level,
-        content: node.topic || node.title || 'Untitled'
+        content: node.topic || node.title || node.content || 'Untitled',
+        messageId: node.id || null
       },
       style: {
         background: level === 0 ? '#10a37f' : getNodeColor(level),
@@ -2596,9 +2597,17 @@ const renderReactFlowMindmap = (mindmapData, container) => {
         type: 'smoothstep',
         style: { stroke: '#666', strokeWidth: 2 }
       },
+      panOnScroll: true,
+      zoomOnPinch: true,
+      panOnDrag: true,
+      selectionOnDrag: true,
       onNodeClick: (event, node) => {
-        console.log('Node clicked:', node);
-        // Add node click interactions here
+        try {
+          const id = node?.data?.messageId;
+          if (id) {
+            navigateToMessage(id);
+          }
+        } catch (_) {}
       },
       onEdgeClick: (event, edge) => {
         console.log('Edge clicked:', edge);
