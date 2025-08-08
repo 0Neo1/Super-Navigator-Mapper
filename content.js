@@ -2403,23 +2403,38 @@ const loadReactFlowAndRender = (mindmapData, container) => {
     });
   };
 
-  // Load React Flow dependencies with correct URLs
-  Promise.all([
-    loadCSS('https://unpkg.com/@reactflow/core@11.10.1/dist/style.css'),
-    loadScript('https://unpkg.com/react@18.2.0/umd/react.production.min.js'),
-    loadScript('https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js'),
-    loadScript('https://unpkg.com/@reactflow/core@11.10.1/dist/umd/index.js')
-  ]).then(() => {
-    console.log('All React Flow dependencies loaded successfully');
-    // Add a small delay to ensure everything is properly initialized
-    setTimeout(() => {
-      renderReactFlowMindmap(mindmapData, container);
-    }, 100);
-  }).catch(error => {
-    console.error('Failed to load React Flow:', error);
-    console.log('Falling back to vanilla JavaScript mindmap...');
-    renderVanillaMindmap(mindmapData, container);
-  });
+  // Helper to try loading from a specific CDN prefix
+  const tryLoadReactFlow = async (prefix) => {
+    await loadCSS(`${prefix}/@reactflow/core@11.10.1/dist/style.css`);
+    await loadScript(`${prefix}/react@18.2.0/umd/react.production.min.js`);
+    await loadScript(`${prefix}/react-dom@18.2.0/umd/react-dom.production.min.js`);
+    await loadScript(`${prefix}/@reactflow/core@11.10.1/dist/umd/index.js`);
+  };
+
+  (async () => {
+    try {
+      // First attempt: unpkg
+      await tryLoadReactFlow('https://unpkg.com');
+    } catch (e1) {
+      console.warn('unpkg failed, retrying with jsDelivr...', e1);
+      try {
+        // Second attempt: jsDelivr
+        await tryLoadReactFlow('https://cdn.jsdelivr.net/npm');
+      } catch (e2) {
+        console.error('Failed to load React Flow from both CDNs:', e2);
+        container.innerHTML = `
+          <div style="padding: 20px; text-align: center; color: #666;">
+            <div style="font-size: 24px; margin-bottom: 20px;">⚠️</div>
+            <div style="font-size: 18px; margin-bottom: 10px;">Unable to load React Flow</div>
+            <div style="font-size: 14px; margin-bottom: 20px;">Please check your network/CSP and refresh the page</div>
+          </div>
+        `;
+        return;
+      }
+    }
+    console.log('React Flow dependencies loaded successfully');
+    setTimeout(() => { renderReactFlowMindmap(mindmapData, container); }, 100);
+  })();
 };
 
 // Convert mindmap data to React Flow format
@@ -2437,9 +2452,9 @@ const convertToReactFlowData = (mindmapData) => {
       type: 'default',
       position: { x, y },
       data: { 
-        label: node.topic || node.title || node.content || 'Untitled',
+        label: node.topic || node.title || 'Untitled',
         level: level,
-        content: node.topic || node.title || node.content || 'Untitled',
+        content: node.topic || node.title || 'Untitled',
         messageId: node.id || null
       },
       style: {
@@ -2593,21 +2608,20 @@ const renderReactFlowMindmap = (mindmapData, container) => {
       edges: edges,
       fitView: true,
       fitViewOptions: { padding: 0.2 },
+      panOnScroll: true,
+      zoomOnPinch: true,
+      panOnDrag: true,
       defaultEdgeOptions: {
         type: 'smoothstep',
         style: { stroke: '#666', strokeWidth: 2 }
       },
-      panOnScroll: true,
-      zoomOnPinch: true,
-      panOnDrag: true,
-      selectionOnDrag: true,
       onNodeClick: (event, node) => {
         try {
-          const id = node?.data?.messageId;
-          if (id) {
-            navigateToMessage(id);
+          const msgId = node?.data?.messageId;
+          if (msgId) {
+            navigateToMessage(msgId);
           }
-        } catch (_) {}
+        } catch (err) { console.warn('Navigation failed:', err); }
       },
       onEdgeClick: (event, edge) => {
         console.log('Edge clicked:', edge);
