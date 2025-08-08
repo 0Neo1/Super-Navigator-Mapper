@@ -5,10 +5,29 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;" />
     <link rel="stylesheet" href="../jsmind.css" />
     <style>
-      html, body { margin: 0; padding: 0; height: 100%; background: #0b0b0b; }
+      :root {
+        color-scheme: dark;
+        --bg: #0b0b0b;
+        --panel: #111315;
+        --panel-2: #161a1d;
+        --text: #e8e8e8;
+        --muted: #a0a0a0;
+        --accent: #10a37f;
+      }
+      html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); }
       #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
-      #jsmind_container { width: 95vw; height: 95vh; background: #f8f9fa; border-radius: 12px; overflow: hidden; }
-      #legend { position: fixed; top: 10px; left: 10px; color: #fff; font: 13px/1.4 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; opacity: .85; }
+      #jsmind_container { width: 95vw; height: 95vh; background: var(--panel); border-radius: 12px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+      #legend { position: fixed; top: 10px; left: 10px; color: var(--text); font: 13px/1.4 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; opacity: .85; }
+      /* Dark theme tweaks for jsMind nodes */
+      jmnodes.theme-primary jmnode { background-color: #1f2a30; border-color: #2a3a40; color: #e8e8e8; }
+      jmnodes.theme-primary jmnode:hover { background-color: #22333a; }
+      jmnodes.theme-primary jmnode.selected { background-color: var(--accent); color: #fff; }
+      jmexpander { border-color: #3a3f44; }
+      jmexpander:hover { border-color: #5a6168; }
+      /* Default nodes if no theme class applied */
+      jmnode { background-color: #1c1f22; color: #e8e8e8; box-shadow: 0 4px 16px rgba(0,0,0,.45); }
+      jmnode:hover { background-color: #1f2327; }
+      .jsmind-inner { background: var(--panel-2) !important; }
     </style>
   </head>
   <body>
