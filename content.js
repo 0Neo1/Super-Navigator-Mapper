@@ -2212,6 +2212,7 @@ const createReactFlowMindmapPopup = (mindmapData, wasVisible = false) => {
 
   // Create header
   const header = document.createElement('div');
+  header.className = 'header';
   header.style.cssText = `
     background: linear-gradient(135deg, #10a37f 0%, #0e8a6f 100%);
     color: white;
@@ -2352,6 +2353,7 @@ const createReactFlowMindmapPopup = (mindmapData, wasVisible = false) => {
 
   // Add navigation functionality
   addMindmapNavigation(reactFlowContainer);
+  return popup;
 };
 
 // Load React Flow and render the mindmap
