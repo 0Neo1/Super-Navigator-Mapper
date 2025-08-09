@@ -212,17 +212,36 @@ const createZeroEkaIconButton = () => {
   function placeMenuPanel() {
     const r = menuButton.getBoundingClientRect();
     const top = Math.max(8, Math.min(window.innerHeight - 8 - menuPanel.offsetHeight, r.top + window.scrollY));
-    const left = Math.max(8, r.left + window.scrollX - 240);
     menuPanel.style.top = `${top}px`;
-    menuPanel.style.left = `${left}px`;
+    menuPanel.style.left = 'auto';
+    menuPanel.style.right = '80px'; // position beside contracted sidebar
   }
-  function showMenu() { placeMenuPanel(); menuPanel.style.display = 'block'; }
-  function hideMenu() { menuPanel.style.display = 'none'; }
+  function showMenu() {
+    placeMenuPanel();
+    menuPanel.style.display = 'block';
+    menuOpen = true;
+    scheduleAutoHide();
+  }
+  function hideMenu() { menuPanel.style.display = 'none'; menuOpen = false; clearAutoHide(); }
   let menuOpen = false;
+  let hoverPanel = false;
+  let hoverButton = false;
+  let hideTimer = null;
+  function clearAutoHide(){ if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; } }
+  function scheduleAutoHide(){
+    clearAutoHide();
+    hideTimer = setTimeout(() => {
+      if (!hoverPanel && !hoverButton && menuOpen) hideMenu();
+    }, 2000);
+  }
   menuButton.addEventListener('click', (ev) => {
     ev.stopPropagation();
-    if (menuOpen) { hideMenu(); menuOpen = false; } else { showMenu(); menuOpen = true; }
+    if (menuOpen) { hideMenu(); } else { showMenu(); }
   });
+  menuButton.addEventListener('mouseenter', () => { hoverButton = true; clearAutoHide(); });
+  menuButton.addEventListener('mouseleave', () => { hoverButton = false; if (menuOpen) scheduleAutoHide(); });
+  menuPanel.addEventListener('mouseenter', () => { hoverPanel = true; clearAutoHide(); });
+  menuPanel.addEventListener('mouseleave', () => { hoverPanel = false; if (menuOpen) scheduleAutoHide(); });
   document.addEventListener('click', (ev) => {
     if (!menuOpen) return;
     if (!menuPanel.contains(ev.target) && ev.target !== menuButton) { hideMenu(); menuOpen = false; }
