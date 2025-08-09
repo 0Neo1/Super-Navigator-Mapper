@@ -8,7 +8,8 @@
   
   // Update selectors based on platform
   const o=Object.freeze({
-    article: isGemini ? "message-content" : "article",
+    // For Gemini, use a generic tag selector to satisfy tagName-based checks in observers
+    article: isGemini ? "div" : "article",
     main: isGemini ? "main" : "main#main",
     markdown: isGemini ? ".model-response-text" : ".markdown",
     threadId:"thread",
@@ -18,9 +19,9 @@
     // For Gemini, do not require a message-id attribute (it doesn't exist)
     message: isGemini ? "" : "[data-message-id]",
     authorAttr: isGemini ? "data-message-author" : "data-message-author-role",
-    author: isGemini ? "div[data-message-author]" : "div[data-message-author-role]",
-    assistant: isGemini ? 'div[data-message-author="model"]' : 'div[data-message-author-role="assistant"]',
-    user: isGemini ? 'div[data-message-author="user"]' : 'div[data-message-author-role="user"]',
+    author: isGemini ? "[data-message-author]" : "div[data-message-author-role]",
+    assistant: isGemini ? '[data-message-author="model"]' : 'div[data-message-author-role="assistant"]',
+    user: isGemini ? '[data-message-author="user"]' : 'div[data-message-author-role="user"]',
     sidebarHeader:"#sidebar-header",
     headerId:"page-header",
     header:'[role="presentation"] > #page-header',
@@ -285,10 +286,11 @@ const createZeroEkaIconButton = () => {
       const msgs = (typeof getAllConversationMessages === 'function') ? getAllConversationMessages() : [];
       if (!msgs || msgs.length === 0) return;
       ul.innerHTML = '';
-      msgs.forEach(({ element, author, content }) => {
+      msgs.forEach(({ id, element, author, content }) => {
         const li = document.createElement('li');
         try { li.__ref = new WeakRef(element); } catch (_) {}
         li.classList.add('leaf');
+        if (id) li.setAttribute('data-message-id', id);
         const label = `${author === 'user' ? 'User' : 'Assistant'}: ${(content || '').trim()}`;
         li.setAttribute('title', label.slice(0, 300));
         const iEl = document.createElement('i');
@@ -482,7 +484,7 @@ const createZeroEkaIconButton = () => {
         // Immediately replace existing close button when panel opens
         setTimeout(replaceExistingCloseButton, 100);
         // Populate Gemini tree if empty
-        setTimeout(ensureGeminiTreePopulated, 150);
+        setTimeout(ensureGeminiTreePopulated, 350);
       }
     }
   });
