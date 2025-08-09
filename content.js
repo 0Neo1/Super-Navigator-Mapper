@@ -2062,7 +2062,7 @@ const createZeroEkaIconButton = () => {
       ['marginRight', 'paddingRight'].forEach((prop) => {
         try { main && (main.style[prop] = ''); } catch(_){}
         try { document.body && (document.body.style[prop] = ''); } catch(_){}
-        try { nextInner && (nextInner.style[prop] = ''); } catch(_){}
+        // keep nextInner untouched
         try { nextRoot && (nextRoot.style[prop] = ''); } catch(_){}
         try { root && (root.style[prop] = ''); } catch(_){}
       });
@@ -2071,11 +2071,11 @@ const createZeroEkaIconButton = () => {
       // Prefer padding-right so layout reflows without clipping scrollbars
       const w = `${px}px`;
       clearReserve();
+      // Apply only to the outer wrappers to avoid cumulative inner padding
       try { root && root.style.setProperty('padding-right', w, 'important'); } catch(_){}
       try { document.body && document.body.style.setProperty('padding-right', w, 'important'); } catch(_){}
       try { nextRoot && nextRoot.style.setProperty('padding-right', w, 'important'); } catch(_){}
-      try { nextInner && nextInner.style.setProperty('padding-right', w, 'important'); } catch(_){}
-      try { main && main.style.setProperty('padding-right', w, 'important'); } catch(_){}
+      // Do not apply to nextInner and main to prevent duplicate inner gaps
     };
 
     if (isPanelVisible) {
