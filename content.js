@@ -2062,24 +2062,16 @@ const createZeroEkaIconButton = () => {
       try { document.body.style.removeProperty('padding-right'); } catch(_){}
       try { nextRoot && nextRoot.style.removeProperty('padding-right'); } catch(_){}
       try { nextInner && nextInner.style.removeProperty('padding-right'); } catch(_){}
-      try { nextInner && nextInner.style.removeProperty('box-sizing'); } catch(_){}
       try { main && main.style.removeProperty('padding-right'); } catch(_){}
-      try { main && main.style.removeProperty('box-sizing'); } catch(_){}
-      try { main && main.style.removeProperty('margin-right'); } catch(_){}
-      try { main && main.style.removeProperty('width'); } catch(_){}
-      try { document.body.style.removeProperty('margin-right'); } catch(_){}
     };
     const applyReserve = (px) => {
       const w = `${px}px`;
-      // Reserve exactly the sidebar/panel width only on main; avoid extra global paddings to prevent double gaps
-      try { main && main.style.setProperty('box-sizing', 'border-box', 'important'); } catch(_){}
-      try { main && main.style.setProperty('margin-right', w, 'important'); } catch(_){}
-      try { main && main.style.setProperty('width', `calc(100vw - ${w})`, 'important'); } catch(_){}
-      try { document.body.style.removeProperty('padding-right'); } catch(_){}
-      try { document.body.style.removeProperty('margin-right'); } catch(_){}
-      try { root.style.removeProperty('padding-right'); } catch(_){}
-      try { nextRoot && nextRoot.style.removeProperty('padding-right'); } catch(_){}
-      try { nextInner && nextInner.style.removeProperty('padding-right'); } catch(_){}
+      // Use padding-right to keep content clear of the right UI; apply consistently to wrappers
+      try { root.style.setProperty('padding-right', w, 'important'); } catch(_){}
+      try { document.body.style.setProperty('padding-right', w, 'important'); } catch(_){}
+      try { nextRoot && nextRoot.style.setProperty('padding-right', w, 'important'); } catch(_){}
+      try { nextInner && nextInner.style.setProperty('padding-right', w, 'important'); } catch(_){}
+      try { main && main.style.setProperty('padding-right', w, 'important'); } catch(_){}
     };
 
     if (isPanelVisible) {
@@ -2099,7 +2091,8 @@ const createZeroEkaIconButton = () => {
       const rect = contractedSidebar.getBoundingClientRect();
       // Slightly reduce reserved width (~50% of visual gap) so content sits closer but not under the bar
       const rawW = rect && rect.width ? rect.width : (contractedSidebar.offsetWidth || 80);
-      const contractedWidth = Math.max(48, Math.round(rawW * 0.5));
+      // Reserve at least the full visual width to prevent overlap
+      const contractedWidth = Math.max(48, Math.ceil(rawW));
       applyReserve(contractedWidth);
       console.log('Showing contracted sidebar and reserving space:', contractedWidth);
     }
