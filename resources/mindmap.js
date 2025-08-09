@@ -82,6 +82,7 @@
     const btnZoomOut = document.getElementById('btn-zoom-out');
     const btnFs = document.getElementById('btn-fullscreen');
     const btnClose = document.getElementById('btn-close');
+    const btnDownload = document.getElementById('btn-download');
 
     // Zoom helpers map to view.set_zoom
     function getZoom(){ return jm.view.zoom_current || 1; }
@@ -112,6 +113,23 @@
 
     // Close tab
     btnClose?.addEventListener('click', ()=>{ window.close(); });
+
+    // Download PNG using screenshot plugin
+    btnDownload?.addEventListener('click', ()=>{
+      try {
+        // Ensure plugin exists
+        if (jm && jm.shoot) {
+          jm.shoot();
+        } else if (jm && jm.screenshot && typeof jm.screenshot.shoot === 'function') {
+          jm.screenshot.shoot();
+        } else {
+          alert('Download not available.');
+        }
+      } catch (e) {
+        console.error('Download failed', e);
+        alert('Failed to download mind map.');
+      }
+    });
 
     // Add node: add as a child of selected or root
     btnAdd?.addEventListener('click', ()=> addNode(jm));
