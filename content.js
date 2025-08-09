@@ -377,61 +377,29 @@ const createZeroEkaIconButton = () => {
     }
   }
 
-  function toggleEmbeddedMindmap() {
-    const existing = document.getElementById('embedded-mindmap-panel');
-    if (existing) { existing.remove(); return; }
-    const panel = document.createElement('div');
-    panel.id = 'embedded-mindmap-panel';
-    panel.style.cssText = `
-      position: fixed;
-      top: 72px;
-      right: 72px;
-      width: 480px;
-      height: 70vh;
-      background: #111315;
-      border: 1px solid #22292e;
-      border-radius: 12px;
-      box-shadow: 0 20px 60px rgba(0,0,0,.5);
-      z-index: 2147483647;
-      overflow: hidden;
-    `;
-    const closeBtn = document.createElement('button');
-    closeBtn.textContent = '✕';
-    closeBtn.style.cssText = `
-      position: absolute; top: 6px; right: 8px; z-index: 2;
-      background: #2a2a2a; color: #eee; border: 1px solid #3a3a3a; border-radius: 6px;
-      width: 28px; height: 28px; cursor: pointer; font-weight: 700;
-    `;
-    closeBtn.addEventListener('click', () => panel.remove());
-    const iframe = document.createElement('iframe');
-    iframe.src = chrome.runtime.getURL('resources/mindmap.html') + '?embed=1';
-    iframe.style.cssText = 'border:0; width: 100%; height: 100%; background: transparent;';
-    panel.appendChild(iframe);
-    panel.appendChild(closeBtn);
-    document.body.appendChild(panel);
-
+  function openEmbeddedMindmapNewTab() {
     const payload = buildEmbeddedMindmapData();
     if (!payload || !payload.data || !payload.data.children || payload.data.children.length === 0) {
-      console.warn('No data for embedded mindmap');
+      console.warn('No data for mindmap');
       return;
     }
-    const post = () => { try { iframe.contentWindow.postMessage({ type: 'mindmap-data', payload }, '*'); } catch(_){} };
-    iframe.addEventListener('load', () => {
-      setTimeout(post, 100);
-      const iv = setInterval(post, 500);
-      setTimeout(() => clearInterval(iv), 4000);
-    });
-
-    // Navigation from embedded mindmap back to page
-    const onMsg = (ev) => {
-      if (ev?.data && ev.data.type === 'mindmap-navigate' && ev.data.messageId) {
-        try { navigateToMessage(ev.data.messageId); } catch(_) {}
-      }
-    };
-    window.addEventListener('message', onMsg, false);
+    try {
+      openJsMindWindow(payload);
+    } catch (e) {
+      try {
+        const url = chrome.runtime.getURL('resources/mindmap.html');
+        const child = window.open(url, 'jsmind_popup', 'width=1280,height=860');
+        if (child) {
+          const post = () => { try { child.postMessage({ type: 'mindmap-data', payload }, '*'); } catch(_){} };
+          setTimeout(post, 300);
+          const iv = setInterval(post, 700);
+          setTimeout(() => clearInterval(iv), 4000);
+        }
+      } catch(_){}
+    }
   }
 
-  embeddedMindmapButton.addEventListener('click', toggleEmbeddedMindmap);
+  embeddedMindmapButton.addEventListener('click', openEmbeddedMindmapNewTab);
 
   // Create PDF Export button below Tree-Mindmap button
   const pdfExportButton = document.createElement('div');
