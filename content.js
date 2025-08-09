@@ -174,7 +174,19 @@ const createZeroEkaIconButton = () => {
   menuButton.textContent = '⋮';
   menuButton.addEventListener('mouseenter', () => { menuButton.style.background = '#2a2a2a'; menuButton.style.transform = 'scale(1.02)'; });
   menuButton.addEventListener('mouseleave', () => { menuButton.style.background = '#1a1a1a'; menuButton.style.transform = 'scale(1)'; });
-  topButtonsContainer.appendChild(menuButton);
+  // Move the menu button to bottom area (below the Prompt Engine / ZeroEka extension button)
+  // Create bottom container if not exists
+  let bottomButtonsContainer = contractedSidebar.querySelector('#zeroeka-bottom-buttons');
+  if (!bottomButtonsContainer) {
+    bottomButtonsContainer = document.createElement('div');
+    bottomButtonsContainer.id = 'zeroeka-bottom-buttons';
+    bottomButtonsContainer.style.cssText = `
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+    `;
+    // place at end of sidebar
+    contractedSidebar.appendChild(bottomButtonsContainer);
+  }
+  bottomButtonsContainer.appendChild(menuButton);
 
   // Popup menu panel
   const menuPanel = document.createElement('div');
