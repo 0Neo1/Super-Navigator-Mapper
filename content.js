@@ -152,6 +152,144 @@ const createZeroEkaIconButton = () => {
   zeroekaButton.appendChild(zeroekaIcon);
   topButtonsContainer.appendChild(zeroekaButton);
 
+  // Add 3-dots menu (kebab) just below ZeroEka button
+  const menuButton = document.createElement('div');
+  menuButton.id = 'contracted-menu-button';
+  menuButton.style.cssText = `
+    width: 48px;
+    height: 48px;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-top: 12px;
+    transition: all 0.3s ease;
+    color: #e5e7eb;
+    font-size: 20px;
+    font-weight: 700;
+  `;
+  menuButton.textContent = '⋮';
+  menuButton.addEventListener('mouseenter', () => { menuButton.style.background = '#2a2a2a'; menuButton.style.transform = 'scale(1.02)'; });
+  menuButton.addEventListener('mouseleave', () => { menuButton.style.background = '#1a1a1a'; menuButton.style.transform = 'scale(1)'; });
+  topButtonsContainer.appendChild(menuButton);
+
+  // Popup menu panel
+  const menuPanel = document.createElement('div');
+  menuPanel.id = 'contracted-menu-panel';
+  menuPanel.style.cssText = `
+    position: fixed;
+    display: none;
+    min-width: 220px;
+    background: #111315;
+    border: 1px solid #22292e;
+    border-radius: 10px;
+    box-shadow: 0 14px 40px rgba(0,0,0,.5);
+    padding: 8px;
+    z-index: 2147483646;
+  `;
+  const mkItem = (label) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = label;
+    b.style.cssText = `
+      width: 100%; text-align: left; color: #e8e8e8; background: #171b1f; border: 1px solid #2b3238;
+      border-radius: 8px; padding: 10px 12px; margin: 6px 0; cursor: pointer; font: 600 13px/1 sans-serif;
+    `;
+    b.addEventListener('mouseenter', () => { b.style.background = '#1e2428'; });
+    b.addEventListener('mouseleave', () => { b.style.background = '#171b1f'; });
+    return b;
+  };
+  const itemToggleWidth = mkItem('Toggle chat width');
+  const itemToggleHeader = mkItem('Hide/Show header');
+  const itemToggleFooter = mkItem('Hide/Show footer');
+  const itemFullscreen  = mkItem('Selected full screen');
+  menuPanel.appendChild(itemToggleWidth);
+  menuPanel.appendChild(itemToggleHeader);
+  menuPanel.appendChild(itemToggleFooter);
+  menuPanel.appendChild(itemFullscreen);
+  document.body.appendChild(menuPanel);
+
+  function placeMenuPanel() {
+    const r = menuButton.getBoundingClientRect();
+    const top = Math.max(8, Math.min(window.innerHeight - 8 - menuPanel.offsetHeight, r.top + window.scrollY));
+    const left = Math.max(8, r.left + window.scrollX - 240);
+    menuPanel.style.top = `${top}px`;
+    menuPanel.style.left = `${left}px`;
+  }
+  function showMenu() { placeMenuPanel(); menuPanel.style.display = 'block'; }
+  function hideMenu() { menuPanel.style.display = 'none'; }
+  let menuOpen = false;
+  menuButton.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    if (menuOpen) { hideMenu(); menuOpen = false; } else { showMenu(); menuOpen = true; }
+  });
+  document.addEventListener('click', (ev) => {
+    if (!menuOpen) return;
+    if (!menuPanel.contains(ev.target) && ev.target !== menuButton) { hideMenu(); menuOpen = false; }
+  }, true);
+
+  // Helpers for actions
+  function getMainEl() {
+    return document.querySelector('main') || document.querySelector('[role="main"]') || document.body;
+  }
+  function getHeaderEl() {
+    return document.getElementById('page-header') || document.querySelector('[role="presentation"] > #page-header') || document.querySelector('header');
+  }
+  function getFooterEl() {
+    return document.getElementById('thread-bottom-container') || document.querySelector('[role="presentation"] > #thread-bottom-container') || document.querySelector('footer');
+  }
+
+  // Action: Toggle chat width
+  itemToggleWidth.addEventListener('click', () => {
+    const main = getMainEl();
+    if (!main) return;
+    const isNarrow = main.dataset.zeroekaNarrow === '1';
+    if (isNarrow) {
+      delete main.dataset.zeroekaNarrow;
+      main.style.marginRight = '';
+      main.style.width = '';
+      document.body.style.marginRight = '';
+    } else {
+      main.dataset.zeroekaNarrow = '1';
+      main.style.marginRight = '600px';
+      main.style.width = 'calc(100vw - 600px)';
+      document.body.style.marginRight = '600px';
+    }
+    hideMenu(); menuOpen = false;
+  });
+
+  // Action: Hide/Show header
+  itemToggleHeader.addEventListener('click', () => {
+    const header = getHeaderEl();
+    if (!header) return;
+    const hidden = header.style.display === 'none';
+    header.style.display = hidden ? '' : 'none';
+    hideMenu(); menuOpen = false;
+  });
+
+  // Action: Hide/Show footer
+  itemToggleFooter.addEventListener('click', () => {
+    const footer = getFooterEl();
+    if (!footer) return;
+    const hidden = footer.style.display === 'none';
+    footer.style.display = hidden ? '' : 'none';
+    hideMenu(); menuOpen = false;
+  });
+
+  // Action: Selected full screen (toggle)
+  itemFullscreen.addEventListener('click', () => {
+    const rootEl = document.documentElement;
+    if (!document.fullscreenElement) {
+      (rootEl.requestFullscreen && rootEl.requestFullscreen()) || (rootEl.webkitRequestFullscreen && rootEl.webkitRequestFullscreen());
+    } else {
+      (document.exitFullscreen && document.exitFullscreen()) || (document.webkitExitFullscreen && document.webkitExitFullscreen());
+    }
+    hideMenu(); menuOpen = false;
+  });
+
   // Add hover effects
   zeroekaButton.addEventListener('mouseenter', () => {
     zeroekaButton.style.background = '#2a2a2a';
