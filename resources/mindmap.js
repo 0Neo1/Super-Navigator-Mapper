@@ -74,7 +74,7 @@
   function wireToolbar(jm){
     const container = document.getElementById('jsmind_container');
     const btnAdd = document.getElementById('btn-add');
-    const btnEdit = document.getElementById('btn-edit');
+    const btnEdit = null; // removed from UI, keep keyboard support
     const btnDelete = document.getElementById('btn-delete');
     const btnZoomIn = document.getElementById('btn-zoom-in');
     const btnZoomOut = document.getElementById('btn-zoom-out');
@@ -116,19 +116,7 @@
     // Edit/Delete modes
     function pulse(btn){ try{ btn?.classList.add('active'); setTimeout(()=>btn?.classList.remove('active'), 300); }catch(_){} }
 
-    btnEdit?.addEventListener('click', ()=>{
-      const target = jm.get_selected_node() || jm.get_root();
-      if (target) {
-        pulse(btnEdit);
-        try { jm.enable_edit && jm.enable_edit(); } catch(_){ }
-        jm.select_node(target.id);
-        // Ensure a short delay so selection applies before entering edit
-        setTimeout(()=>{ try { jm.begin_edit(target.id); } catch(_){ } }, 0);
-        setMode(null);
-      } else {
-        setMode(window.__jm_mode === 'edit' ? null : 'edit');
-      }
-    });
+    // Edit button removed; editing available via keyboard (E) or click mode
     btnDelete?.addEventListener('click', ()=>{
       const target = jm.get_selected_node();
       if (target && !target.isroot) {
@@ -188,7 +176,7 @@
     function setMode(mode){
       window.__jm_mode = mode;
       // visual states
-      if (btnEdit) btnEdit.classList.toggle('active', mode === 'edit');
+      // No UI edit button anymore
       if (btnDelete) btnDelete.classList.toggle('active', mode === 'delete');
     }
   }
