@@ -12,7 +12,7 @@
         hmargin: 100,
         vmargin: 80,
         line_width: 2,
-        line_color: '#555',
+        line_color: '#fff',
         line_style: 'curved',
         draggable: true,
         enable_device_pixel_ratio: true,
