@@ -174,19 +174,7 @@ const createZeroEkaIconButton = () => {
   menuButton.textContent = '⋮';
   menuButton.addEventListener('mouseenter', () => { menuButton.style.background = '#2a2a2a'; menuButton.style.transform = 'scale(1.02)'; });
   menuButton.addEventListener('mouseleave', () => { menuButton.style.background = '#1a1a1a'; menuButton.style.transform = 'scale(1)'; });
-  // Move the menu button to bottom area (below the Prompt Engine / ZeroEka extension button)
-  // Create bottom container if not exists
-  let bottomButtonsContainer = contractedSidebar.querySelector('#zeroeka-bottom-buttons');
-  if (!bottomButtonsContainer) {
-    bottomButtonsContainer = document.createElement('div');
-    bottomButtonsContainer.id = 'zeroeka-bottom-buttons';
-    bottomButtonsContainer.style.cssText = `
-      display: flex; flex-direction: column; align-items: center; gap: 12px;
-    `;
-    // place at end of sidebar
-    contractedSidebar.appendChild(bottomButtonsContainer);
-  }
-  bottomButtonsContainer.appendChild(menuButton);
+  // append later below the ZeroEka extension button
 
   // Popup menu panel
   const menuPanel = document.createElement('div');
@@ -864,6 +852,8 @@ const createZeroEkaIconButton = () => {
 
   zeroekaExtensionButton.appendChild(zeroekaExtensionImage);
   topButtonsContainer.appendChild(zeroekaExtensionButton);
+  // Place the 3-dots menu just below the ZeroEka extension button
+  topButtonsContainer.appendChild(menuButton);
 
   // Add hover effects for ZeroEka extension button
   zeroekaExtensionButton.addEventListener('mouseenter', () => {
