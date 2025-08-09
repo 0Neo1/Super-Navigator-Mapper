@@ -17,9 +17,6 @@
       html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); }
       #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
       #jsmind_container { width: 95vw; height: 95vh; background: var(--panel); border-radius: 12px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
-      /* improve readability inside nodes */
-      jmnode { font-size: 16px; line-height: 1.25; }
-      jmnodes.theme-primary jmnode { border: 1px solid #2a3a40; }
       #legend { position: fixed; top: 10px; left: 10px; color: var(--text); font: 13px/1.4 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; opacity: .85; }
       /* Toolbar */
       #toolbar { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); width: 95vw; max-width: 1400px; height: 52px; display: flex; align-items: center; gap: 10px; background: linear-gradient(180deg, rgba(22,26,29,.95), rgba(22,26,29,.92)); border: 1px solid #22292e; border-radius: 12px; padding: 8px 12px; box-shadow: 0 10px 30px rgba(0,0,0,.45); z-index: 10; }
@@ -31,6 +28,8 @@
       .btn.icon { width: 38px; height: 36px; display: inline-flex; align-items: center; justify-content: center; padding: 0; font-size: 16px; }
       .btn.danger { background: #2a1a1a; border-color: #3a2424; }
       .btn.danger:hover { background: #3a2323; border-color: #4a2c2c; }
+      .btn.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(16,163,127,.25) inset; background: #1c2622; }
+      .btn.danger.active { border-color: #a33; box-shadow: 0 0 0 2px rgba(200,64,64,.25) inset; background: #382121; }
       .kbd { color: var(--muted); font: 600 12px/1 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; margin-left: 8px; opacity: .75; }
       /* Dark theme tweaks for jsMind nodes */
       jmnodes.theme-primary jmnode { background-color: #1f2a30; border-color: #2a3a40; color: #e8e8e8; }
@@ -48,6 +47,8 @@
     <div id="toolbar">
       <div class="title">Mindmap</div>
       <button id="btn-add" class="btn">Add node<span class="kbd">(A)</span></button>
+      <button id="btn-edit" class="btn" title="Edit a node">Edit node<span class="kbd">(E)</span></button>
+      <button id="btn-delete" class="btn danger" title="Delete a node">Delete<span class="kbd">(Select)</span></button>
       <div class="spacer"></div>
       <button id="btn-zoom-out" class="btn icon" title="Zoom out">−</button>
       <button id="btn-zoom-in" class="btn icon" title="Zoom in">＋</button>

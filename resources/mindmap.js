@@ -9,146 +9,23 @@
       support_html: true,
       view: {
         engine: 'canvas',
-        hmargin: 160,
-        vmargin: 120,
+        hmargin: 100,
+        vmargin: 80,
         line_width: 2,
-        line_color: '#6a7a85',
+        line_color: '#555',
         line_style: 'curved',
         draggable: true,
         enable_device_pixel_ratio: true,
         zoom: { min: 0.5, max: 2.1, step: 0.1 },
       },
-      layout: { hspace: 80, vspace: 36, pspace: 22, cousin_space: 24 },
+      layout: { hspace: 40, vspace: 20, pspace: 18, cousin_space: 10 },
       shortcut: { enable: true },
     };
     try {
       const JM = window.jsMind || jsMind;
-      // Custom line renderer: smooth curves with arrowheads for clarity
-      options.view.custom_line_render = function(payload){
-        try {
-          const { ctx, start_point: s, end_point: e } = payload;
-          const color = options.view.line_color || '#6a7a85';
-          ctx.save();
-          ctx.strokeStyle = color;
-          ctx.fillStyle = color;
-          ctx.lineWidth = options.view.line_width || 2;
-          // Bezier control points for a pleasant curve
-          const dx = e.x - s.x;
-          const cp1x = s.x + dx * 0.3;
-          const cp1y = s.y;
-          const cp2x = s.x + dx * 0.7;
-          const cp2y = e.y;
-          ctx.beginPath();
-          ctx.moveTo(s.x, s.y);
-          ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, e.x, e.y);
-          ctx.stroke();
-          // Arrowhead at end
-          const angle = Math.atan2(e.y - s.y, e.x - s.x);
-          const len = 10; const spread = Math.PI / 8;
-          ctx.beginPath();
-          ctx.moveTo(e.x, e.y);
-          ctx.lineTo(e.x - len * Math.cos(angle - spread), e.y - len * Math.sin(angle - spread));
-          ctx.lineTo(e.x - len * Math.cos(angle + spread), e.y - len * Math.sin(angle + spread));
-          ctx.closePath();
-          ctx.fill();
-          ctx.restore();
-        } catch(_) {}
-      };
-
-      // Inject 3-dot kebab menu into each node without disrupting layout
-      options.view.custom_node_render = function(jmObj, el, nodeData){
-        try {
-          // Render topic content (mirror default behavior)
-          if (jmObj?.options?.support_html) {
-            el.innerHTML = nodeData.topic || '';
-          } else {
-            el.textContent = nodeData.topic || '';
-          }
-
-          // Avoid duplicate elements on re-render
-          if (!el.querySelector('.jm-kebab')) {
-            el.style.position = 'relative';
-
-            // Reserve small space on the left so the dots don't cover text
-            try {
-              const cs = getComputedStyle(el);
-              const pl = parseInt(cs.paddingLeft || '0', 10) || 0;
-              if (pl < 26) el.style.paddingLeft = (pl + 20) + 'px';
-            } catch(_){}
-
-            const dot = document.createElement('button');
-            dot.className = 'jm-kebab';
-            dot.type = 'button';
-            dot.textContent = '⋮';
-            Object.assign(dot.style, {
-              position: 'absolute', left: '6px', top: '6px', width: '18px', height: '18px',
-              lineHeight: '16px', border: '0', background: 'transparent', color: '#aab0b6',
-              cursor: 'pointer', padding: '0', userSelect: 'none', fontWeight: '700', zIndex: '21'
-            });
-
-            const menu = document.createElement('div');
-            menu.className = 'jm-menu';
-            Object.assign(menu.style, {
-              position: 'absolute', left: '-2px', top: '28px', minWidth: '180px',
-              background: '#121518', border: '1px solid #2a3136', borderRadius: '10px',
-              boxShadow: '0 10px 30px rgba(0,0,0,.5)', padding: '6px', display: 'none', zIndex: '22'
-            });
-
-            function addBtn(label, onClick){
-              const b = document.createElement('button');
-              b.type = 'button';
-              b.textContent = label;
-              Object.assign(b.style, {
-                width: '100%', textAlign: 'left', border: '1px solid #2b3238',
-                background: '#171b1f', color: '#e6e8ea', borderRadius: '8px',
-                padding: '9px 10px', margin: '4px 0', cursor: 'pointer',
-                font: '600 12px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif'
-              });
-              b.addEventListener('mouseover', ()=>{ b.style.background = '#1e2428'; });
-              b.addEventListener('mouseout', ()=>{ b.style.background = '#171b1f'; });
-              b.addEventListener('click', (ev)=>{ ev.stopPropagation(); ev.preventDefault(); onClick(); hide(); });
-              menu.appendChild(b);
-              return b;
-            }
-
-            function show(){ menu.style.display = 'block'; document.addEventListener('click', onDoc, true); }
-            function hide(){ menu.style.display = 'none'; document.removeEventListener('click', onDoc, true); }
-            function onDoc(e){ if (!menu.contains(e.target) && e.target !== dot) hide(); }
-
-            const nodeId = nodeData.id;
-            addBtn('Edit Node', ()=>{
-              try { jmObj.enable_edit && jmObj.enable_edit(); } catch(_){ }
-              jmObj.select_node(nodeId);
-              try { jmObj.begin_edit(nodeId); } catch(_){ }
-            });
-            addBtn('Add Child Node', ()=>{
-              const id = 'extra-' + Date.now();
-              try { jmObj.enable_edit && jmObj.enable_edit(); } catch(_){ }
-              const parent = jmObj.get_node(nodeId);
-              jmObj.add_node(parent, id, 'New node');
-              jmObj.select_node(id);
-            });
-            addBtn('Delete Node', ()=>{
-              const node = jmObj.get_node(nodeId);
-              if (node && !node.isroot) {
-                try { jmObj.enable_edit && jmObj.enable_edit(); } catch(_){ }
-                jmObj.select_node(nodeId);
-                jmObj.remove_node(node);
-              }
-            });
-
-            dot.addEventListener('click', (ev)=>{ ev.stopPropagation(); ev.preventDefault(); menu.style.display === 'none' ? show() : hide(); });
-            dot.addEventListener('mouseenter', ()=>{ dot.style.color = '#d2d7dc'; });
-            dot.addEventListener('mouseleave', ()=>{ dot.style.color = '#aab0b6'; });
-
-            el.appendChild(dot);
-            el.appendChild(menu);
-          }
-        } catch(_){ }
-        return true; // handled
-      };
       const jm = new JM(options);
       window.__jm = jm;
+      window.__jm_mode = null; // null | 'edit' | 'delete'
       jm.show(mind);
       try { if (JM.draggable_node) JM.draggable_node(jm); } catch(_){}
       // Wire toolbar
@@ -164,16 +41,41 @@
         const el = e.target.closest('jmnode');
         if (!el) return;
         const nodeId = el.getAttribute('nodeid');
-        if (nodeId && window.opener) {
+        if (!nodeId) return;
+        const mode = window.__jm_mode;
+        if (mode === 'edit') {
+          e.preventDefault(); e.stopPropagation();
+          try { jm.enable_edit && jm.enable_edit(); } catch(_){ }
+          jm.select_node(nodeId);
+          try { jm.begin_edit(nodeId); } catch(_){ }
+          // exit mode after entering edit
+          setMode(null);
+          return;
+        }
+        if (mode === 'delete') {
+          e.preventDefault(); e.stopPropagation();
+          const node = jm.get_node(nodeId);
+          if (node && !node.isroot) {
+            try { jm.enable_edit && jm.enable_edit(); } catch(_){ }
+            jm.select_node(nodeId);
+            try { jm.remove_node(node); } catch(_){ }
+          }
+          setMode(null);
+          return;
+        }
+        // default behavior: notify opener for navigation
+        if (window.opener) {
           window.opener.postMessage({ type: 'mindmap-navigate', messageId: nodeId }, '*');
         }
       });
-    } catch(_){}
+    } catch(_){ }
   }
 
   function wireToolbar(jm){
     const container = document.getElementById('jsmind_container');
     const btnAdd = document.getElementById('btn-add');
+    const btnEdit = document.getElementById('btn-edit');
+    const btnDelete = document.getElementById('btn-delete');
     const btnZoomIn = document.getElementById('btn-zoom-in');
     const btnZoomOut = document.getElementById('btn-zoom-out');
     const btnFs = document.getElementById('btn-fullscreen');
@@ -211,8 +113,17 @@
 
     // Add node: add as a child of selected or root
     btnAdd?.addEventListener('click', ()=> addNode(jm));
+    // Edit/Delete modes
+    btnEdit?.addEventListener('click', ()=>{
+      setMode(window.__jm_mode === 'edit' ? null : 'edit');
+    });
+    btnDelete?.addEventListener('click', ()=>{
+      setMode(window.__jm_mode === 'delete' ? null : 'delete');
+    });
     document.addEventListener('keydown', (e)=>{
       if (e.key === 'a' || e.key === 'A') { e.preventDefault(); addNode(jm); }
+      if (e.key === 'e' || e.key === 'E') { e.preventDefault(); setMode(window.__jm_mode === 'edit' ? null : 'edit'); }
+      if (e.key === 'Delete') { e.preventDefault(); setMode(window.__jm_mode === 'delete' ? null : 'delete'); }
       if ((e.metaKey || e.ctrlKey) && (e.key === '+' || e.key === '=')) { e.preventDefault(); btnZoomIn?.click(); }
       if ((e.metaKey || e.ctrlKey) && (e.key === '-' )) { e.preventDefault(); btnZoomOut?.click(); }
       if (e.key === 'Escape') { e.preventDefault(); btnClose?.click(); }
@@ -230,6 +141,13 @@
         jm.add_node(parent, id, topic);
         jm.select_node(id);
       } catch(_){ /* noop */ }
+    }
+
+    function setMode(mode){
+      window.__jm_mode = mode;
+      // visual states
+      if (btnEdit) btnEdit.classList.toggle('active', mode === 'edit');
+      if (btnDelete) btnDelete.classList.toggle('active', mode === 'delete');
     }
   }
 
