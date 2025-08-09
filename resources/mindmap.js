@@ -23,20 +23,21 @@
     };
     try {
       const JM = window.jsMind || jsMind;
-      // Custom render to inject 3-dot menu on each node
+      // Inject 3-dot kebab menu into each node without disrupting layout
       options.view.custom_node_render = function(jmObj, el, nodeData){
         try {
-          // Render topic content (replicates default behavior)
+          // Render topic content (mirror default behavior)
           if (jmObj?.options?.support_html) {
             el.innerHTML = nodeData.topic || '';
           } else {
             el.textContent = nodeData.topic || '';
           }
 
-          // Avoid duplicates on re-render
+          // Avoid duplicate elements on re-render
           if (!el.querySelector('.jm-kebab')) {
             el.style.position = 'relative';
-            // leave space for the kebab inside the node
+
+            // Reserve small space on the left so the dots don't cover text
             try {
               const cs = getComputedStyle(el);
               const pl = parseInt(cs.paddingLeft || '0', 10) || 0;
@@ -50,7 +51,7 @@
             Object.assign(dot.style, {
               position: 'absolute', left: '6px', top: '6px', width: '18px', height: '18px',
               lineHeight: '16px', border: '0', background: 'transparent', color: '#aab0b6',
-              cursor: 'pointer', padding: '0', userSelect: 'none', fontWeight: '700',
+              cursor: 'pointer', padding: '0', userSelect: 'none', fontWeight: '700', zIndex: '21'
             });
 
             const menu = document.createElement('div');
@@ -58,7 +59,7 @@
             Object.assign(menu.style, {
               position: 'absolute', left: '-2px', top: '28px', minWidth: '180px',
               background: '#121518', border: '1px solid #2a3136', borderRadius: '10px',
-              boxShadow: '0 10px 30px rgba(0,0,0,.5)', padding: '6px', display: 'none', zIndex: '20',
+              boxShadow: '0 10px 30px rgba(0,0,0,.5)', padding: '6px', display: 'none', zIndex: '22'
             });
 
             function addBtn(label, onClick){
@@ -69,7 +70,7 @@
                 width: '100%', textAlign: 'left', border: '1px solid #2b3238',
                 background: '#171b1f', color: '#e6e8ea', borderRadius: '8px',
                 padding: '9px 10px', margin: '4px 0', cursor: 'pointer',
-                font: '600 12px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
+                font: '600 12px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif'
               });
               b.addEventListener('mouseover', ()=>{ b.style.background = '#1e2428'; });
               b.addEventListener('mouseout', ()=>{ b.style.background = '#171b1f'; });
@@ -112,9 +113,8 @@
             el.appendChild(menu);
           }
         } catch(_){ }
-        return true; // we handled content and extras
+        return true; // handled
       };
-
       const jm = new JM(options);
       window.__jm = jm;
       jm.show(mind);
