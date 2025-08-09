@@ -312,6 +312,127 @@ const createZeroEkaIconButton = () => {
     }
   });
 
+  // Embedded Mindmap button (above PDF)
+  const embeddedMindmapButton = document.createElement('div');
+  embeddedMindmapButton.id = 'embedded-mindmap-button';
+  embeddedMindmapButton.style.cssText = `
+    width: 48px;
+    height: 48px;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-top: 12px;
+    transition: all 0.3s ease;
+  `;
+  const embeddedMindmapIcon = document.createElement('div');
+  embeddedMindmapIcon.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 24px; height: 24px; color: #fff;">
+      <circle cx="12" cy="6" r="3"/>
+      <circle cx="6" cy="18" r="3"/>
+      <circle cx="18" cy="18" r="3"/>
+      <path d="M12 9v3M9 12l-2 4M15 12l2 4"/>
+    </svg>
+  `;
+  embeddedMindmapIcon.style.cssText = `
+    display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;
+  `;
+  embeddedMindmapButton.appendChild(embeddedMindmapIcon);
+  topButtonsContainer.appendChild(embeddedMindmapButton);
+
+  embeddedMindmapButton.addEventListener('mouseenter', () => {
+    embeddedMindmapButton.style.background = '#2a2a2a';
+    embeddedMindmapIcon.style.transform = 'scale(1.1)';
+  });
+  embeddedMindmapButton.addEventListener('mouseleave', () => {
+    embeddedMindmapButton.style.background = '#1a1a1a';
+    embeddedMindmapIcon.style.transform = 'scale(1)';
+  });
+
+  function buildEmbeddedMindmapData() {
+    try {
+      const treeUl = document.querySelector('.catalogeu-navigation-plugin-floatbar .panel ul');
+      const walk = (ul, prefix) => {
+        if (!ul) return [];
+        return Array.from(ul.children).map((li, idx) => {
+          const labelDiv = li.children?.[1];
+          let topic = (labelDiv?.textContent || '').trim();
+          const id = `${prefix}_${idx+1}`;
+          const childrenUl = li.children?.[2];
+          return { id, topic, children: walk(childrenUl, id) };
+        });
+      };
+      const data = {
+        meta: { name: 'mind map', author: 'Chat Tree', version: '1.0' },
+        format: 'node_tree',
+        data: { id: 'root', topic: document.title, children: walk(treeUl, 'root') }
+      };
+      return data;
+    } catch (err) {
+      console.warn('Failed to build embedded mindmap data:', err);
+      return null;
+    }
+  }
+
+  function toggleEmbeddedMindmap() {
+    const existing = document.getElementById('embedded-mindmap-panel');
+    if (existing) { existing.remove(); return; }
+    const panel = document.createElement('div');
+    panel.id = 'embedded-mindmap-panel';
+    panel.style.cssText = `
+      position: fixed;
+      top: 72px;
+      right: 72px;
+      width: 480px;
+      height: 70vh;
+      background: #111315;
+      border: 1px solid #22292e;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+      z-index: 2147483647;
+      overflow: hidden;
+    `;
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕';
+    closeBtn.style.cssText = `
+      position: absolute; top: 6px; right: 8px; z-index: 2;
+      background: #2a2a2a; color: #eee; border: 1px solid #3a3a3a; border-radius: 6px;
+      width: 28px; height: 28px; cursor: pointer; font-weight: 700;
+    `;
+    closeBtn.addEventListener('click', () => panel.remove());
+    const iframe = document.createElement('iframe');
+    iframe.src = chrome.runtime.getURL('resources/mindmap.html') + '?embed=1';
+    iframe.style.cssText = 'border:0; width: 100%; height: 100%; background: transparent;';
+    panel.appendChild(iframe);
+    panel.appendChild(closeBtn);
+    document.body.appendChild(panel);
+
+    const payload = buildEmbeddedMindmapData();
+    if (!payload || !payload.data || !payload.data.children || payload.data.children.length === 0) {
+      console.warn('No data for embedded mindmap');
+      return;
+    }
+    const post = () => { try { iframe.contentWindow.postMessage({ type: 'mindmap-data', payload }, '*'); } catch(_){} };
+    iframe.addEventListener('load', () => {
+      setTimeout(post, 100);
+      const iv = setInterval(post, 500);
+      setTimeout(() => clearInterval(iv), 4000);
+    });
+
+    // Navigation from embedded mindmap back to page
+    const onMsg = (ev) => {
+      if (ev?.data && ev.data.type === 'mindmap-navigate' && ev.data.messageId) {
+        try { navigateToMessage(ev.data.messageId); } catch(_) {}
+      }
+    };
+    window.addEventListener('message', onMsg, false);
+  }
+
+  embeddedMindmapButton.addEventListener('click', toggleEmbeddedMindmap);
+
   // Create PDF Export button below Tree-Mindmap button
   const pdfExportButton = document.createElement('div');
   pdfExportButton.id = 'pdf-export-button';
