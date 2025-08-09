@@ -27,6 +27,7 @@
       window.__jm = jm;
       window.__jm_mode = null; // null | 'edit' | 'delete'
       jm.show(mind);
+      try { applyLevelColors(jm); } catch(_){}
       try { if (JM.draggable_node) JM.draggable_node(jm); } catch(_){}
       // Wire toolbar
       wireToolbar(jm);
@@ -59,6 +60,7 @@
             try { jm.enable_edit && jm.enable_edit(); } catch(_){ }
             jm.select_node(nodeId);
             try { jm.remove_node(node); } catch(_){ }
+            try { applyLevelColors(jm); } catch(_){}
           }
           setMode(null);
           return;
@@ -170,6 +172,7 @@
         if (!jm.get_editable || !jm.get_editable()) { try { jm.enable_edit && jm.enable_edit(); } catch(_){}}
         jm.add_node(parent, id, topic);
         jm.select_node(id);
+        try { applyLevelColors(jm); } catch(_){}
       } catch(_){ /* noop */ }
     }
 
@@ -178,6 +181,29 @@
       // visual states
       // No UI edit button anymore
       if (btnDelete) btnDelete.classList.toggle('active', mode === 'delete');
+    }
+  }
+
+  function applyLevelColors(jm){
+    const palette = [
+      { bg: '#10a37f', fg: '#ffffff' }, // depth 0 root - green
+      { bg: '#2b6cb0', fg: '#ffffff' }, // depth 1 - blue
+      { bg: '#2f855a', fg: '#ffffff' }, // depth 2 - green/teal
+      { bg: '#d53f8c', fg: '#ffffff' }, // depth 3 - pink
+      { bg: '#6b46c1', fg: '#ffffff' }, // depth 4 - purple
+      { bg: '#b7791f', fg: '#1a1300' }, // depth 5 - yellow/brown
+    ];
+    const root = jm.get_root();
+    if (!root) return;
+    const queue = [{ node: root, depth: 0 }];
+    while (queue.length) {
+      const { node, depth } = queue.shift();
+      const color = palette[depth % palette.length];
+      try { jm.set_node_color(node.id, color.bg, color.fg); } catch(_){}
+      const children = node.children || [];
+      for (let i = 0; i < children.length; i++) {
+        queue.push({ node: children[i], depth: depth + 1 });
+      }
     }
   }
 
