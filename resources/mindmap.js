@@ -114,16 +114,56 @@
     // Add node: add as a child of selected or root
     btnAdd?.addEventListener('click', ()=> addNode(jm));
     // Edit/Delete modes
+    function pulse(btn){ try{ btn?.classList.add('active'); setTimeout(()=>btn?.classList.remove('active'), 300); }catch(_){} }
+
     btnEdit?.addEventListener('click', ()=>{
-      setMode(window.__jm_mode === 'edit' ? null : 'edit');
+      const target = jm.get_selected_node() || jm.get_root();
+      if (target) {
+        pulse(btnEdit);
+        try { jm.enable_edit && jm.enable_edit(); } catch(_){ }
+        jm.select_node(target.id);
+        try { jm.begin_edit(target.id); } catch(_){ }
+        setMode(null);
+      } else {
+        setMode(window.__jm_mode === 'edit' ? null : 'edit');
+      }
     });
     btnDelete?.addEventListener('click', ()=>{
-      setMode(window.__jm_mode === 'delete' ? null : 'delete');
+      const target = jm.get_selected_node();
+      if (target && !target.isroot) {
+        pulse(btnDelete);
+        try { jm.enable_edit && jm.enable_edit(); } catch(_){ }
+        try { jm.remove_node(target); } catch(_){ }
+        setMode(null);
+      } else {
+        // if nothing selected or root selected, enter delete mode for pick
+        setMode(window.__jm_mode === 'delete' ? null : 'delete');
+      }
     });
     document.addEventListener('keydown', (e)=>{
       if (e.key === 'a' || e.key === 'A') { e.preventDefault(); addNode(jm); }
-      if (e.key === 'e' || e.key === 'E') { e.preventDefault(); setMode(window.__jm_mode === 'edit' ? null : 'edit'); }
-      if (e.key === 'Delete') { e.preventDefault(); setMode(window.__jm_mode === 'delete' ? null : 'delete'); }
+      if (e.key === 'e' || e.key === 'E') {
+        e.preventDefault();
+        const target = jm.get_selected_node() || jm.get_root();
+        if (target) {
+          try { jm.enable_edit && jm.enable_edit(); } catch(_){ }
+          jm.select_node(target.id); try { jm.begin_edit(target.id); } catch(_){ }
+          setMode(null);
+        } else {
+          setMode(window.__jm_mode === 'edit' ? null : 'edit');
+        }
+      }
+      if (e.key === 'Delete') {
+        e.preventDefault();
+        const target = jm.get_selected_node();
+        if (target && !target.isroot) {
+          try { jm.enable_edit && jm.enable_edit(); } catch(_){ }
+          try { jm.remove_node(target); } catch(_){ }
+          setMode(null);
+        } else {
+          setMode(window.__jm_mode === 'delete' ? null : 'delete');
+        }
+      }
       if ((e.metaKey || e.ctrlKey) && (e.key === '+' || e.key === '=')) { e.preventDefault(); btnZoomIn?.click(); }
       if ((e.metaKey || e.ctrlKey) && (e.key === '-' )) { e.preventDefault(); btnZoomOut?.click(); }
       if (e.key === 'Escape') { e.preventDefault(); btnClose?.click(); }
