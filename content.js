@@ -283,8 +283,33 @@ const createZeroEkaIconButton = () => {
       const ul = document.querySelector('.catalogeu-navigation-plugin-floatbar .panel ul');
       if (!ul) return;
       if (ul.querySelector('li')) return; // already has items
-      const msgs = (typeof getAllConversationMessages === 'function') ? getAllConversationMessages() : [];
-      if (!msgs || msgs.length === 0) return;
+      let msgs = (typeof getAllConversationMessages === 'function') ? getAllConversationMessages() : [];
+      // If Gemini renders lazy, retry briefly
+      if (!msgs || msgs.length === 0) {
+        setTimeout(() => {
+          try {
+            const again = (typeof getAllConversationMessages === 'function') ? getAllConversationMessages() : [];
+            if (again && again.length) {
+              ul.innerHTML = '';
+              again.forEach(({ id, element, author, content }) => {
+                const li = document.createElement('li');
+                try { li.__ref = new WeakRef(element); } catch (_) {}
+                li.classList.add('leaf');
+                if (id) li.setAttribute('data-message-id', id);
+                const label = `${author === 'user' ? 'User' : 'Assistant'}: ${(content || '').trim()}`;
+                li.setAttribute('title', label.slice(0, 300));
+                const iEl = document.createElement('i');
+                const divEl = document.createElement('div');
+                divEl.textContent = label.length > 300 ? (label.slice(0, 300) + '…') : label;
+                li.appendChild(iEl);
+                li.appendChild(divEl);
+                ul.appendChild(li);
+              });
+            }
+          } catch(_){}
+        }, 500);
+        return;
+      }
       ul.innerHTML = '';
       msgs.forEach(({ id, element, author, content }) => {
         const li = document.createElement('li');
@@ -2919,23 +2944,17 @@ const updateTextSize = (container, size) => {
   function getAllConversationMessages() {
     try {
       if (isGemini) {
-        const nodes = Array.from(document.querySelectorAll('div[data-message-author]'));
+        const scope = document.querySelector('main, [role="main"], body') || document;
+        const nodes = Array.from(scope.querySelectorAll('[data-message-author]'));
         if (!window.__geminiIdMap) window.__geminiIdMap = new Map();
-        // clear and rebuild map to keep indices stable for current DOM
         window.__geminiIdMap.clear();
         const results = [];
         let idx = 0;
         for (const el of nodes) {
           const role = el.getAttribute('data-message-author') || 'unknown';
-          let text = '';
-          if (role === 'model') {
-            const txtEl = el.querySelector('.model-response-text');
-            text = (txtEl?.innerText || el.innerText || el.textContent || '').trim();
-          } else {
-            text = (el.innerText || el.textContent || '').trim();
-          }
+          const text = (el.innerText || el.textContent || '').trim();
           const id = `g_${idx}`;
-          window.__geminiIdMap.set(id, el);
+          try { window.__geminiIdMap.set(id, el); } catch(_){ }
           results.push({ id, author: role === 'model' ? 'assistant' : role, content: text, element: el, index: idx });
           idx += 1;
         }
