@@ -2042,6 +2042,9 @@ const createZeroEkaIconButton = () => {
     const floatbar = document.querySelector('.catalogeu-navigation-plugin-floatbar');
     const panel = floatbar ? floatbar.querySelector('.panel') : null;
     const main = document.querySelector('main') || document.querySelector('[role="main"]') || document.body;
+    const root = document.documentElement;
+    const nextRoot = document.querySelector('#__next');
+    const nextInner = document.querySelector('#__next > div');
     
     const isPanelVisible = panel && (panel.style.display === 'flex' || floatbar.classList.contains('show-panel'));
     
@@ -2053,22 +2056,48 @@ const createZeroEkaIconButton = () => {
       isPanelVisible: isPanelVisible
     });
     
+    // Helpers to reserve/clear right space so content never gets covered
+    const clearReserve = () => {
+      try { root.style.removeProperty('padding-right'); } catch(_){}
+      try { document.body.style.removeProperty('padding-right'); } catch(_){}
+      try { nextRoot && nextRoot.style.removeProperty('padding-right'); } catch(_){}
+      try { nextInner && nextInner.style.removeProperty('padding-right'); } catch(_){}
+      try { nextInner && nextInner.style.removeProperty('box-sizing'); } catch(_){}
+      try { main && main.style.removeProperty('padding-right'); } catch(_){}
+      try { main && main.style.removeProperty('box-sizing'); } catch(_){}
+      try { main && main.style.removeProperty('margin-right'); } catch(_){}
+      try { main && main.style.removeProperty('width'); } catch(_){}
+      try { document.body.style.removeProperty('margin-right'); } catch(_){}
+    };
+    const applyReserve = (px) => {
+      const w = `${px}px`;
+      try { root.style.setProperty('padding-right', w, 'important'); } catch(_){}
+      try { document.body.style.setProperty('padding-right', w, 'important'); } catch(_){}
+      try { nextRoot && nextRoot.style.setProperty('padding-right', w, 'important'); } catch(_){}
+      try { nextInner && nextInner.style.setProperty('padding-right', w, 'important'); } catch(_){}
+      try { nextInner && nextInner.style.setProperty('box-sizing', 'border-box', 'important'); } catch(_){}
+      try { main && main.style.setProperty('padding-right', w, 'important'); } catch(_){}
+      try { main && main.style.setProperty('box-sizing', 'border-box', 'important'); } catch(_){}
+      try { main && main.style.setProperty('margin-right', w, 'important'); } catch(_){}
+      try { main && main.style.setProperty('width', `calc(100vw - ${w})`, 'important'); } catch(_){}
+      try { document.body.style.setProperty('margin-right', w, 'important'); } catch(_){}
+    };
+
     if (isPanelVisible) {
       // Expanded sidebar is visible - hide contracted sidebar
       contractedSidebar.style.display = 'none';
+      // Clear any reserved right space
+      clearReserve();
       console.log('Hiding contracted sidebar');
     } else {
       // Expanded sidebar is hidden - show contracted sidebar and reduce main width to fit it
       contractedSidebar.style.display = 'flex';
       contractedSidebar.style.right = '0';
 
-      const contractedWidth = (contractedSidebar && contractedSidebar.offsetWidth) ? contractedSidebar.offsetWidth : 80; // fallback ~80px
-      if (main) {
-        main.style.marginRight = `${contractedWidth}px`;
-        main.style.width = `calc(100vw - ${contractedWidth}px)`;
-      }
-      document.body.style.marginRight = `${contractedWidth}px`;
-      console.log('Showing contracted sidebar and reducing main page width by', contractedWidth);
+      const rect = contractedSidebar.getBoundingClientRect();
+      const contractedWidth = rect && rect.width ? Math.ceil(rect.width) : (contractedSidebar.offsetWidth || 80);
+      applyReserve(contractedWidth);
+      console.log('Showing contracted sidebar and reserving space:', contractedWidth);
     }
   };
 
