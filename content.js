@@ -2090,9 +2090,8 @@ const createZeroEkaIconButton = () => {
 
       const rect = contractedSidebar.getBoundingClientRect();
       let contractedWidth = rect && rect.width ? Math.ceil(rect.width) : (contractedSidebar.offsetWidth || 80);
-      contractedWidth = Math.max(40, Math.round(contractedWidth * 0.5)); // reduce gap by ~50%
       applyReserve(contractedWidth);
-      console.log('Showing contracted sidebar and reserving reduced space:', contractedWidth);
+      console.log('Showing contracted sidebar and reserving exact space:', contractedWidth);
     }
   };
 
