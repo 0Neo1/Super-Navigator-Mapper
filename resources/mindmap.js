@@ -47,7 +47,7 @@
           e.preventDefault(); e.stopPropagation();
           try { jm.enable_edit && jm.enable_edit(); } catch(_){ }
           jm.select_node(nodeId);
-          try { jm.begin_edit(nodeId); } catch(_){ }
+          setTimeout(()=>{ try { jm.begin_edit(nodeId); } catch(_){ } }, 0);
           // exit mode after entering edit
           setMode(null);
           return;
@@ -122,7 +122,8 @@
         pulse(btnEdit);
         try { jm.enable_edit && jm.enable_edit(); } catch(_){ }
         jm.select_node(target.id);
-        try { jm.begin_edit(target.id); } catch(_){ }
+        // Ensure a short delay so selection applies before entering edit
+        setTimeout(()=>{ try { jm.begin_edit(target.id); } catch(_){ } }, 0);
         setMode(null);
       } else {
         setMode(window.__jm_mode === 'edit' ? null : 'edit');
@@ -147,7 +148,8 @@
         const target = jm.get_selected_node() || jm.get_root();
         if (target) {
           try { jm.enable_edit && jm.enable_edit(); } catch(_){ }
-          jm.select_node(target.id); try { jm.begin_edit(target.id); } catch(_){ }
+          jm.select_node(target.id);
+          setTimeout(()=>{ try { jm.begin_edit(target.id); } catch(_){ } }, 0);
           setMode(null);
         } else {
           setMode(window.__jm_mode === 'edit' ? null : 'edit');
