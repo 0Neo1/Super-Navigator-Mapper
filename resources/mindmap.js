@@ -23,6 +23,103 @@
     };
     try {
       const JM = window.jsMind || jsMind;
+      // Inject custom node renderer to add 3-dot menu
+      options.view.custom_node_render = function(jmObj, el, nodeData){
+        try {
+          // let jsMind render default first
+        } catch(_){ }
+        // Add action anchor container
+        try {
+          el.style.position = 'relative';
+          const dot = document.createElement('button');
+          dot.className = 'jm-kebab';
+          dot.type = 'button';
+          dot.textContent = '⋮';
+          dot.style.position = 'absolute';
+          dot.style.left = '-18px';
+          dot.style.top = '8px';
+          dot.style.width = '16px';
+          dot.style.height = '20px';
+          dot.style.lineHeight = '16px';
+          dot.style.border = '0';
+          dot.style.background = 'transparent';
+          dot.style.color = '#aab0b6';
+          dot.style.cursor = 'pointer';
+          dot.style.padding = '0';
+          dot.style.userSelect = 'none';
+          dot.addEventListener('mouseenter', ()=>{ dot.style.color = '#d2d7dc'; });
+          dot.addEventListener('mouseleave', ()=>{ dot.style.color = '#aab0b6'; });
+
+          // Popup menu
+          const menu = document.createElement('div');
+          menu.className = 'jm-menu';
+          menu.style.position = 'absolute';
+          menu.style.left = '-6px';
+          menu.style.top = '28px';
+          menu.style.minWidth = '160px';
+          menu.style.background = '#121518';
+          menu.style.border = '1px solid #2a3136';
+          menu.style.borderRadius = '10px';
+          menu.style.boxShadow = '0 10px 30px rgba(0,0,0,.5)';
+          menu.style.padding = '6px';
+          menu.style.display = 'none';
+          menu.style.zIndex = '20';
+
+          function addBtn(label, handler){
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.textContent = label;
+            b.style.width = '100%';
+            b.style.textAlign = 'left';
+            b.style.border = '1px solid #2b3238';
+            b.style.background = '#171b1f';
+            b.style.color = '#e6e8ea';
+            b.style.borderRadius = '8px';
+            b.style.padding = '8px 10px';
+            b.style.margin = '4px 0';
+            b.style.cursor = 'pointer';
+            b.style.font = '600 12px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+            b.addEventListener('mouseover', ()=>{ b.style.background = '#1e2428'; });
+            b.addEventListener('mouseout', ()=>{ b.style.background = '#171b1f'; });
+            b.addEventListener('click', (ev)=>{ ev.stopPropagation(); ev.preventDefault(); handler(); hide(); });
+            menu.appendChild(b);
+            return b;
+          }
+
+          function show(){ menu.style.display = 'block'; document.addEventListener('click', onDoc, true); }
+          function hide(){ menu.style.display = 'none'; document.removeEventListener('click', onDoc, true); }
+          function onDoc(e){ if (!menu.contains(e.target) && e.target !== dot) hide(); }
+
+          // Button actions
+          const nodeId = nodeData.id;
+          addBtn('Edit Node', ()=>{
+            try { jmObj.enable_edit && jmObj.enable_edit(); } catch(_){ }
+            jmObj.select_node(nodeId);
+            try { jmObj.begin_edit(nodeId); } catch(_){ }
+          });
+          addBtn('Add Child Node', ()=>{
+            const id = 'extra-' + Date.now();
+            try { jmObj.enable_edit && jmObj.enable_edit(); } catch(_){ }
+            const parent = jmObj.get_node(nodeId);
+            jmObj.add_node(parent, id, 'New node');
+            jmObj.select_node(id);
+          });
+          addBtn('Delete Node', ()=>{
+            const node = jmObj.get_node(nodeId);
+            if (node && !node.isroot) {
+              try { jmObj.enable_edit && jmObj.enable_edit(); } catch(_){ }
+              jmObj.select_node(nodeId);
+              jmObj.remove_node(node);
+            }
+          });
+
+          dot.addEventListener('click', (ev)=>{ ev.stopPropagation(); ev.preventDefault(); menu.style.display === 'none' ? show() : hide(); });
+          el.appendChild(dot);
+          el.appendChild(menu);
+        } catch(_){ }
+        return true; // mark as handled
+      };
+
       const jm = new JM(options);
       window.__jm = jm;
       jm.show(mind);
