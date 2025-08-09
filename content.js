@@ -2058,29 +2058,24 @@ const createZeroEkaIconButton = () => {
     
     // Helpers to reserve/clear right space so content never gets covered
     const clearReserve = () => {
-      try { root.style.removeProperty('padding-right'); } catch(_){}
-      try { document.body.style.removeProperty('padding-right'); } catch(_){}
-      try { nextRoot && nextRoot.style.removeProperty('padding-right'); } catch(_){}
-      try { nextInner && nextInner.style.removeProperty('padding-right'); } catch(_){}
-      try { nextInner && nextInner.style.removeProperty('box-sizing'); } catch(_){}
-      try { main && main.style.removeProperty('padding-right'); } catch(_){}
-      try { main && main.style.removeProperty('box-sizing'); } catch(_){}
       try { main && main.style.removeProperty('margin-right'); } catch(_){}
       try { main && main.style.removeProperty('width'); } catch(_){}
+      try { main && main.style.removeProperty('box-sizing'); } catch(_){}
+      try { nextInner && nextInner.style.removeProperty('margin-right'); } catch(_){}
+      try { nextInner && nextInner.style.removeProperty('width'); } catch(_){}
+      try { nextInner && nextInner.style.removeProperty('box-sizing'); } catch(_){}
       try { document.body.style.removeProperty('margin-right'); } catch(_){}
     };
     const applyReserve = (px) => {
-      const w = `${px}px`;
-      try { root.style.setProperty('padding-right', w, 'important'); } catch(_){}
-      try { document.body.style.setProperty('padding-right', w, 'important'); } catch(_){}
-      try { nextRoot && nextRoot.style.setProperty('padding-right', w, 'important'); } catch(_){}
-      try { nextInner && nextInner.style.setProperty('padding-right', w, 'important'); } catch(_){}
-      try { nextInner && nextInner.style.setProperty('box-sizing', 'border-box', 'important'); } catch(_){}
-      try { main && main.style.setProperty('padding-right', w, 'important'); } catch(_){}
+      // Reduce visual gap ~75% by only reserving the panel width plus a tiny gutter
+      const gutter = Math.max(4, Math.round(px * 0.05));
+      const reserve = px + gutter;
+      const w = `${reserve}px`;
       try { main && main.style.setProperty('box-sizing', 'border-box', 'important'); } catch(_){}
       try { main && main.style.setProperty('margin-right', w, 'important'); } catch(_){}
       try { main && main.style.setProperty('width', `calc(100vw - ${w})`, 'important'); } catch(_){}
-      try { document.body.style.setProperty('margin-right', w, 'important'); } catch(_){}
+      // Also nudge body for elements positioned against the right edge
+      try { document.body.style.setProperty('margin-right', `${gutter}px`, 'important'); } catch(_){}
     };
 
     if (isPanelVisible) {
