@@ -3,7 +3,7 @@
   function init(mind) {
     const options = {
       container: 'jsmind_container',
-      editable: false,
+      editable: true,
       theme: 'primary',
       mode: 'full',
       support_html: true,
@@ -101,6 +101,8 @@
         if (!parent) return;
         const id = 'extra-' + Date.now();
         const topic = 'New node';
+        // ensure editable true for add
+        if (!jm.get_editable || !jm.get_editable()) { try { jm.enable_edit && jm.enable_edit(); } catch(_){}}
         jm.add_node(parent, id, topic);
         jm.select_node(id);
       } catch(_){ /* noop */ }
