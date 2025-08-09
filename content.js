@@ -2084,11 +2084,12 @@ const createZeroEkaIconButton = () => {
     };
 
     if (isPanelVisible) {
-      // Expanded sidebar is visible - hide contracted sidebar
+      // Expanded sidebar is visible - hide contracted sidebar and reserve space for panel
       contractedSidebar.style.display = 'none';
-      // Clear any reserved right space
-      clearReserve();
-      console.log('Hiding contracted sidebar');
+      const prect = panel.getBoundingClientRect();
+      const panelWidth = prect && prect.width ? Math.ceil(prect.width) : 600;
+      applyReserve(panelWidth);
+      console.log('Expanded panel visible; reserving space:', panelWidth);
     } else {
       // Expanded sidebar is hidden - show contracted sidebar and reduce main width to fit it
       contractedSidebar.style.display = 'flex';
