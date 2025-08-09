@@ -275,6 +275,34 @@ const createZeroEkaIconButton = () => {
     return document.getElementById('thread-bottom-container') || document.querySelector('[role="presentation"] > #thread-bottom-container') || document.querySelector('footer');
   }
 
+  // Populate the left panel tree from Gemini messages when available
+  function ensureGeminiTreePopulated() {
+    try {
+      if (!isGemini) return;
+      const ul = document.querySelector('.catalogeu-navigation-plugin-floatbar .panel ul');
+      if (!ul) return;
+      if (ul.querySelector('li')) return; // already has items
+      const msgs = (typeof getAllConversationMessages === 'function') ? getAllConversationMessages() : [];
+      if (!msgs || msgs.length === 0) return;
+      ul.innerHTML = '';
+      msgs.forEach(({ element, author, content }) => {
+        const li = document.createElement('li');
+        try { li.__ref = new WeakRef(element); } catch (_) {}
+        li.classList.add('leaf');
+        const label = `${author === 'user' ? 'User' : 'Assistant'}: ${(content || '').trim()}`;
+        li.setAttribute('title', label.slice(0, 300));
+        const iEl = document.createElement('i');
+        const divEl = document.createElement('div');
+        divEl.textContent = label.length > 300 ? (label.slice(0, 300) + '…') : label;
+        li.appendChild(iEl);
+        li.appendChild(divEl);
+        ul.appendChild(li);
+      });
+    } catch (err) {
+      console.warn('ensureGeminiTreePopulated error:', err);
+    }
+  }
+
   // Removed Toggle chat width action
 
   // Action: Hide/Show header
@@ -453,6 +481,8 @@ const createZeroEkaIconButton = () => {
         
         // Immediately replace existing close button when panel opens
         setTimeout(replaceExistingCloseButton, 100);
+        // Populate Gemini tree if empty
+        setTimeout(ensureGeminiTreePopulated, 150);
       }
     }
   });
