@@ -112,6 +112,29 @@ const createZeroEkaIconButton = () => {
     padding: 16px 8px;
   `;
 
+  // Ensure main content accounts for the contracted sidebar width
+  function applyContractedSpacing() {
+    try {
+      const main = document.querySelector('main') || document.querySelector('[role="main"]') || document.body;
+      const floatbar = document.querySelector('.catalogeu-navigation-plugin-floatbar');
+      const panel = floatbar ? floatbar.querySelector('.panel') : null;
+      const isPanelVisible = panel && (panel.style.display === 'flex' || floatbar.classList.contains('show-panel'));
+      if (isPanelVisible) return; // expanded panel manages its own margins (600px)
+      const isContractedVisible = contractedSidebar && getComputedStyle(contractedSidebar).display !== 'none';
+      if (!main) return;
+      if (isContractedVisible) {
+        const w = Math.ceil(contractedSidebar.getBoundingClientRect().width || 64);
+        main.style.marginRight = `${w}px`;
+        main.style.width = `calc(100vw - ${w}px)`;
+        document.body.style.marginRight = `${w}px`;
+      } else {
+        main.style.marginRight = '';
+        main.style.width = '';
+        document.body.style.marginRight = '';
+      }
+    } catch (_) {}
+  }
+
   // Create container for top buttons
   const topButtonsContainer = document.createElement('div');
   topButtonsContainer.style.cssText = `
@@ -423,9 +446,8 @@ const createZeroEkaIconButton = () => {
         // Hide panel
         panel.style.display = 'none';
         floatbar.classList.remove('show-panel');
-        main.style.marginRight = '';
-        main.style.width = '';
-        document.body.style.marginRight = '';
+        // Re-apply contracted spacing
+        applyContractedSpacing();
         contractedSidebar.style.display = 'flex';
         contractedSidebar.style.right = '0';
       } else {
@@ -1221,6 +1243,13 @@ const createZeroEkaIconButton = () => {
   // Add top buttons container and profile button to contracted sidebar
   contractedSidebar.appendChild(topButtonsContainer);
   contractedSidebar.appendChild(profileButton);
+  // Initial spacing for contracted sidebar
+  applyContractedSpacing();
+
+  // Keep spacing in sync on resize and visibility changes
+  window.addEventListener('resize', () => { applyContractedSpacing(); });
+  const obs = new MutationObserver(() => { applyContractedSpacing(); });
+  obs.observe(contractedSidebar, { attributes: true, attributeFilter: ['style', 'class'] });
 
   // Add hover effects for profile button
   profileButton.addEventListener('mouseenter', () => {
