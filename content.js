@@ -2058,20 +2058,24 @@ const createZeroEkaIconButton = () => {
     
     // Helpers to reserve/clear right space so content never gets covered
     const clearReserve = () => {
-      try { main && main.style.removeProperty('margin-right'); } catch(_){}
-      try { main && main.style.removeProperty('width'); } catch(_){}
-      try { document.body.style.removeProperty('margin-right'); } catch(_){}
-      try { nextInner && nextInner.style.removeProperty('margin-right'); } catch(_){}
-      try { nextRoot && nextRoot.style.removeProperty('margin-right'); } catch(_){}
-      try { root && root.style.removeProperty('margin-right'); } catch(_){}
+      // remove both margin-right and padding-right from likely wrappers
+      ['marginRight', 'paddingRight'].forEach((prop) => {
+        try { main && (main.style[prop] = ''); } catch(_){}
+        try { document.body && (document.body.style[prop] = ''); } catch(_){}
+        try { nextInner && (nextInner.style[prop] = ''); } catch(_){}
+        try { nextRoot && (nextRoot.style[prop] = ''); } catch(_){}
+        try { root && (root.style[prop] = ''); } catch(_){}
+      });
     };
     const applyReserve = (px) => {
-      // Reserve exactly the overlay width using margin-right only (avoid double padding/width shrink)
+      // Prefer padding-right so layout reflows without clipping scrollbars
       const w = `${px}px`;
       clearReserve();
-      try { main && main.style.setProperty('margin-right', w, 'important'); } catch(_){}
-      try { nextInner && nextInner.style.setProperty('margin-right', w, 'important'); } catch(_){}
-      try { document.body.style.setProperty('margin-right', w, 'important'); } catch(_){}
+      try { root && root.style.setProperty('padding-right', w, 'important'); } catch(_){}
+      try { document.body && document.body.style.setProperty('padding-right', w, 'important'); } catch(_){}
+      try { nextRoot && nextRoot.style.setProperty('padding-right', w, 'important'); } catch(_){}
+      try { nextInner && nextInner.style.setProperty('padding-right', w, 'important'); } catch(_){}
+      try { main && main.style.setProperty('padding-right', w, 'important'); } catch(_){}
     };
 
     if (isPanelVisible) {
