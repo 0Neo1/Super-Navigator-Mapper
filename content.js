@@ -205,7 +205,7 @@ const createZeroEkaIconButton = () => {
   const itemToggleWidth = mkItem('Toggle chat width');
   const itemToggleHeader = mkItem('Hide/Show header');
   const itemToggleFooter = mkItem('Hide/Show footer');
-  const itemFullscreen  = mkItem('Selected full screen');
+  const itemFullscreen  = mkItem('Full screen of the selection area');
   menuPanel.appendChild(itemToggleWidth);
   menuPanel.appendChild(itemToggleHeader);
   menuPanel.appendChild(itemToggleFooter);
@@ -279,13 +279,22 @@ const createZeroEkaIconButton = () => {
     hideMenu(); menuOpen = false;
   });
 
-  // Action: Selected full screen (toggle)
+  // Action: Full screen of the selection area (same behavior as footer full screen)
   itemFullscreen.addEventListener('click', () => {
-    const rootEl = document.documentElement;
-    if (!document.fullscreenElement) {
-      (rootEl.requestFullscreen && rootEl.requestFullscreen()) || (rootEl.webkitRequestFullscreen && rootEl.webkitRequestFullscreen());
-    } else {
-      (document.exitFullscreen && document.exitFullscreen()) || (document.webkitExitFullscreen && document.webkitExitFullscreen());
+    try {
+      if (typeof window.fullScreenFn !== 'undefined' && window.fullScreenFn.toFullscreen) {
+        window.fullScreenFn.toFullscreen();
+      } else {
+        // Fallback to browser fullscreen
+        const rootEl = document.documentElement;
+        if (!document.fullscreenElement) {
+          (rootEl.requestFullscreen && rootEl.requestFullscreen()) || (rootEl.webkitRequestFullscreen && rootEl.webkitRequestFullscreen());
+        } else {
+          (document.exitFullscreen && document.exitFullscreen()) || (document.webkitExitFullscreen && document.webkitExitFullscreen());
+        }
+      }
+    } catch (error) {
+      console.error('Fullscreen action failed:', error);
     }
     hideMenu(); menuOpen = false;
   });
