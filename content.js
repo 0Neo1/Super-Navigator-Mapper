@@ -2058,29 +2058,29 @@ const createZeroEkaIconButton = () => {
     
     // Helpers to reserve/clear right space so content never gets covered
     const clearReserve = () => {
-      try { root.style.removeProperty('padding-right'); } catch(_){}
-      try { document.body.style.removeProperty('padding-right'); } catch(_){}
-      try { nextRoot && nextRoot.style.removeProperty('padding-right'); } catch(_){}
-      try { nextInner && nextInner.style.removeProperty('padding-right'); } catch(_){}
-      try { main && main.style.removeProperty('padding-right'); } catch(_){}
+      try { main && main.style.removeProperty('margin-right'); } catch(_){}
+      try { main && main.style.removeProperty('width'); } catch(_){}
+      try { document.body.style.removeProperty('margin-right'); } catch(_){}
+      try { nextInner && nextInner.style.removeProperty('margin-right'); } catch(_){}
+      try { nextRoot && nextRoot.style.removeProperty('margin-right'); } catch(_){}
+      try { root && root.style.removeProperty('margin-right'); } catch(_){}
     };
     const applyReserve = (px) => {
+      // Reserve exactly the overlay width using margin-right only (avoid double padding/width shrink)
       const w = `${px}px`;
-      // Use padding-right to keep content clear of the right UI; apply consistently to wrappers
-      try { root.style.setProperty('padding-right', w, 'important'); } catch(_){}
-      try { document.body.style.setProperty('padding-right', w, 'important'); } catch(_){}
-      try { nextRoot && nextRoot.style.setProperty('padding-right', w, 'important'); } catch(_){}
-      try { nextInner && nextInner.style.setProperty('padding-right', w, 'important'); } catch(_){}
-      try { main && main.style.setProperty('padding-right', w, 'important'); } catch(_){}
+      clearReserve();
+      try { main && main.style.setProperty('margin-right', w, 'important'); } catch(_){}
+      try { nextInner && nextInner.style.setProperty('margin-right', w, 'important'); } catch(_){}
+      try { document.body.style.setProperty('margin-right', w, 'important'); } catch(_){}
     };
 
     if (isPanelVisible) {
       // Expanded sidebar is visible - hide contracted sidebar and reserve space for panel
       contractedSidebar.style.display = 'none';
       const prect = panel.getBoundingClientRect();
-      const rawPW = prect && prect.width ? prect.width : 600;
-      // For expanded panel, reserve exactly its width (no reduction) so nothing overlaps
-      const panelWidth = Math.ceil(rawPW);
+      let panelWidth = prect && prect.width ? Math.ceil(prect.width) : 600;
+      // Ensure we do not overshoot, but do not shrink expanded panel reservation
+      panelWidth = Math.max(300, panelWidth);
       applyReserve(panelWidth);
       console.log('Expanded panel visible; reserving space:', panelWidth);
     } else {
@@ -2089,12 +2089,10 @@ const createZeroEkaIconButton = () => {
       contractedSidebar.style.right = '0';
 
       const rect = contractedSidebar.getBoundingClientRect();
-      // Slightly reduce reserved width (~50% of visual gap) so content sits closer but not under the bar
-      const rawW = rect && rect.width ? rect.width : (contractedSidebar.offsetWidth || 80);
-      // Reserve at least the full visual width to prevent overlap
-      const contractedWidth = Math.max(48, Math.ceil(rawW));
+      let contractedWidth = rect && rect.width ? Math.ceil(rect.width) : (contractedSidebar.offsetWidth || 80);
+      contractedWidth = Math.max(40, Math.round(contractedWidth * 0.5)); // reduce gap by ~50%
       applyReserve(contractedWidth);
-      console.log('Showing contracted sidebar and reserving space:', contractedWidth);
+      console.log('Showing contracted sidebar and reserving reduced space:', contractedWidth);
     }
   };
 
