@@ -189,14 +189,17 @@ const createZeroEkaIconButton = () => {
     box-shadow: 0 14px 40px rgba(0,0,0,.5);
     padding: 8px;
     z-index: 2147483646;
+    flex-wrap: wrap;
+    gap: 8px;
   `;
   const mkItem = (label) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.textContent = label;
     b.style.cssText = `
-      width: 100%; text-align: left; color: #e8e8e8; background: #171b1f; border: 1px solid #2b3238;
-      border-radius: 8px; padding: 10px 12px; margin: 6px 0; cursor: pointer; font: 600 13px/1 sans-serif;
+      display: inline-flex; align-items: center; justify-content: center; min-width: 110px; width: auto;
+      text-align: center; color: #e8e8e8; background: #171b1f; border: 1px solid #2b3238;
+      border-radius: 6px; padding: 6px 8px; margin: 4px; cursor: pointer; font: 600 12px/1 sans-serif;
     `;
     b.addEventListener('mouseenter', () => { b.style.background = '#1e2428'; });
     b.addEventListener('mouseleave', () => { b.style.background = '#171b1f'; });
@@ -218,7 +221,7 @@ const createZeroEkaIconButton = () => {
   }
   function showMenu() {
     placeMenuPanel();
-    menuPanel.style.display = 'block';
+    menuPanel.style.display = 'flex';
     menuOpen = true;
     scheduleAutoHide();
   }
