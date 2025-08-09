@@ -15,7 +15,8 @@
     floatbar:".catalogeu-navigation-plugin-floatbar",
     messagePlaceholderRequest: isGemini ? '[data-placeholder="true"]' : '[data-message-id^="placeholder-request-"]',
     messageAttr: isGemini ? "data-message-id" : "data-message-id",
-    message: isGemini ? "[data-message-id]" : "[data-message-id]",
+    // For Gemini, do not require a message-id attribute (it doesn't exist)
+    message: isGemini ? "" : "[data-message-id]",
     authorAttr: isGemini ? "data-message-author" : "data-message-author-role",
     author: isGemini ? "div[data-message-author]" : "div[data-message-author-role]",
     assistant: isGemini ? 'div[data-message-author="model"]' : 'div[data-message-author-role="assistant"]',
@@ -61,6 +62,19 @@
   console.log('Mindmap data structure:', t);
   console.log('Number of root children:', t.data.children.length);
   
+  if (t.data.children.length === 0) {
+    // Fallback for Gemini or when tree panel is empty
+    try {
+      const msgs = (typeof getAllConversationMessages === 'function') ? getAllConversationMessages() : [];
+      if (msgs.length > 0) {
+        t.data.children = msgs.map(({ id, author, content }) => ({
+          id: id || ('m_' + Math.random().toString(36).slice(2)),
+          topic: `${author}: ${(content || '').slice(0, 120)}${(content && content.length > 120) ? '…' : ''}`,
+          children: []
+        }));
+      }
+    } catch(_){ }
+  }
   if (t.data.children.length === 0) {
     console.warn('No chat messages found to create mindmap');
     return;
@@ -659,17 +673,22 @@ const createZeroEkaIconButton = () => {
             <hr>
         `);
 
-        // Extract conversation messages
-        const messages = document.querySelectorAll('[data-message-id]');
-        messages.forEach((message, index) => {
-          const messageId = message.getAttribute('data-message-id');
-          const author = message.getAttribute('data-message-author-role') || 'unknown';
-          const content = message.textContent.trim();
-          
+        // Extract conversation messages (ChatGPT + Gemini)
+        const convForPdf = (typeof getAllConversationMessages === 'function') ? getAllConversationMessages() : [];
+        const fallbackList = convForPdf.length > 0 ? [] : Array.from(document.querySelectorAll('[data-message-id], div[data-message-author]')).map((el, i) => ({
+          id: el.getAttribute('data-message-id') || `alt_${i}`,
+          author: el.getAttribute('data-message-author-role') || (el.getAttribute('data-message-author') === 'model' ? 'assistant' : el.getAttribute('data-message-author') || 'unknown'),
+          content: (el.innerText || el.textContent || '').trim(),
+          element: el,
+          index: i
+        }));
+        const list = convForPdf.length > 0 ? convForPdf : fallbackList;
+        list.forEach(({ author, content }, index) => {
+          const role = author === 'user' ? 'User' : 'Assistant';
           iframeDoc.write(`
             <div class="conversation-item ${author === 'user' ? 'user-message' : 'assistant-message'}">
-              <div class="message-header">${author === 'user' ? 'User' : 'Assistant'} (Message ${index + 1})</div>
-              <div class="message-content">${content}</div>
+              <div class="message-header">${role} (Message ${index + 1})</div>
+              <div class="message-content">${(content || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
             </div>
           `);
         });
@@ -970,7 +989,55 @@ const createZeroEkaIconButton = () => {
   // Function to add bookmark mode to ChatGPT sidebar chats
   const addPinButtonsToChats = () => {
     try {
-      // Find ChatGPT sidebar chat items with more specific selectors (only left sidebar)
+      if (typeof isGemini !== 'undefined' && isGemini) {
+        // Gemini: operate on in-page message elements
+        const msgs = (typeof getAllConversationMessages === 'function') ? getAllConversationMessages() : [];
+        const stored = JSON.parse(localStorage.getItem('bookmarkedGeminiMsgs') || '[]');
+        const idSet = new Set(stored);
+        msgs.forEach(({ id, element }) => {
+          if (!element) return;
+          if (!element.classList.contains('bookmark-mode-enabled')) {
+            element.classList.add('bookmark-mode-enabled');
+          }
+          // Reflect persisted state
+          if (idSet.has(id)) {
+            element.classList.add('bookmarked');
+          }
+          element.addEventListener('mouseenter', () => {
+            if (window.bookmarkModeActive) {
+              element.style.outline = '2px solid #3bb910';
+              element.style.outlineOffset = '2px';
+              element.style.cursor = 'pointer';
+            }
+          });
+          element.addEventListener('mouseleave', () => {
+            if (window.bookmarkModeActive) {
+              element.style.outline = '';
+              element.style.outlineOffset = '';
+              element.style.cursor = '';
+            }
+          });
+          element.addEventListener('click', (evt) => {
+            if (!window.bookmarkModeActive) return;
+            evt.preventDefault();
+            evt.stopPropagation();
+            const list = new Set(JSON.parse(localStorage.getItem('bookmarkedGeminiMsgs') || '[]'));
+            const already = element.classList.contains('bookmarked');
+            if (!already) {
+              element.classList.add('bookmarked');
+              list.add(id);
+            } else {
+              element.classList.remove('bookmarked');
+              list.delete(id);
+            }
+            localStorage.setItem('bookmarkedGeminiMsgs', JSON.stringify(Array.from(list)));
+            try { setTimeout(() => window.location.reload(), 300); } catch(_) {}
+          });
+        });
+        console.log(`Added bookmark mode to ${msgs.length} Gemini messages`);
+        return;
+      }
+      // ChatGPT: Find sidebar chat items with specific selectors
       const chatItems = document.querySelectorAll('nav[data-testid="chat-history"] a, nav[data-testid="chat-history"] [role="button"], nav[data-testid="chat-history"] .conversation-item, nav[data-testid="chat-history"] [data-testid="conversation-turn-2"], nav[data-testid="chat-history"] [data-testid="conversation-item"], nav[data-testid="chat-history"] .conversation-turn-2, nav[data-testid="chat-history"] a[href*="/c/"], nav a[href*="/c/"], aside a[href*="/c/"], [data-testid="chat-history"] a, [data-testid="chat-history"] [role="button"]');
       
       chatItems.forEach((chatItem, index) => {
@@ -1172,14 +1239,16 @@ const createZeroEkaIconButton = () => {
   const removePinButtonsFromChats = () => {
     try {
       // Remove bookmark mode from all chats
-      const chatItems = document.querySelectorAll('.bookmark-mode-enabled');
-      chatItems.forEach(chatItem => {
-        chatItem.classList.remove('bookmark-mode-enabled');
-        chatItem.style.border = '';
-        chatItem.style.borderRadius = '';
-        chatItem.style.cursor = '';
+      const all = document.querySelectorAll('.bookmark-mode-enabled');
+      all.forEach(el => {
+        el.classList.remove('bookmark-mode-enabled');
+        el.style.border = '';
+        el.style.borderRadius = '';
+        el.style.cursor = '';
+        el.style.outline = '';
+        el.style.outlineOffset = '';
       });
-      console.log(`Removed bookmark mode from ${chatItems.length} chat items`);
+      console.log(`Removed bookmark mode from ${all.length} elements`);
     } catch (error) {
       console.error('Error removing bookmark mode from chats:', error);
     }
@@ -1534,9 +1603,9 @@ const createZeroEkaIconButton = () => {
         // Clear previous results
         resultsContainer.innerHTML = '';
 
-        // Search in conversation content
-        const messages = document.querySelectorAll('[data-message-id]');
-        console.log('Found messages:', messages.length);
+        // Search in conversation content (ChatGPT + Gemini)
+        const conv = getAllConversationMessages();
+        console.log('Found messages:', conv.length);
         const results = [];
 
       // Enhanced search with partial matching and priority scoring
@@ -1656,23 +1725,19 @@ const createZeroEkaIconButton = () => {
         return matches;
       };
       
-      // If no messages found, try alternative selectors
-      if (messages.length === 0) {
-        console.log('No messages with data-message-id found, trying alternative selectors');
-        const alternativeMessages = document.querySelectorAll('.markdown, .prose, [role="article"], .message, .conversation-item, [role="presentation"] > div');
-        console.log('Alternative messages found:', alternativeMessages.length);
-        
+      // Use unified list for all platforms; fallback if empty
+      if (conv.length === 0) {
+        console.log('No messages found via unified accessor, trying alt selectors');
+        const alternativeMessages = document.querySelectorAll('.markdown, .prose, [role="article"], .message, .conversation-item, [role="presentation"] > div, div[data-message-author]');
         alternativeMessages.forEach((message, index) => {
           const content = message.textContent || '';
-          const messageMatches = searchInContent(content, query, `alt-${index}`, 'unknown', index, message);
+          const role = message.getAttribute && (message.getAttribute('data-message-author') || message.getAttribute('data-message-author-role'));
+          const messageMatches = searchInContent(content, query, `alt-${index}`, role || 'unknown', index, message);
           results.push(...messageMatches);
         });
       } else {
-        messages.forEach((message, index) => {
-          const content = message.textContent || '';
-          const messageId = message.getAttribute('data-message-id');
-          const author = message.getAttribute('data-message-author-role') || 'unknown';
-          const messageMatches = searchInContent(content, query, messageId, author, index, message);
+        conv.forEach(({ id, author, content, element, index }) => {
+          const messageMatches = searchInContent(content || '', query, id, author || 'unknown', index, element);
           results.push(...messageMatches);
         });
       }
@@ -1802,11 +1867,12 @@ const createZeroEkaIconButton = () => {
             console.log('Trying direct DOM navigation');
             
             // First, try to use the stored element if available
-            let targetMessage = result.element;
+            let targetMessage = result.element || getMessageElementById(result.messageId);
             
             // If no stored element, try to find the message element directly
             if (!targetMessage) {
-              targetMessage = document.querySelector(`[data-message-id="${result.messageId}"]`);
+              // Try platform-specific lookup
+              targetMessage = getMessageElementById(result.messageId) || document.querySelector(`[data-message-id="${result.messageId}"]`);
             }
             
             // If still not found, try alternative selectors
@@ -2816,6 +2882,69 @@ const updateTextSize = (container, size) => {
 (function() {
 
   
+  // Unified message accessors for ChatGPT and Gemini
+  // Returns array of { id, author, content, element, index }
+  function getAllConversationMessages() {
+    try {
+      if (isGemini) {
+        const nodes = Array.from(document.querySelectorAll('div[data-message-author]'));
+        if (!window.__geminiIdMap) window.__geminiIdMap = new Map();
+        // clear and rebuild map to keep indices stable for current DOM
+        window.__geminiIdMap.clear();
+        const results = [];
+        let idx = 0;
+        for (const el of nodes) {
+          const role = el.getAttribute('data-message-author') || 'unknown';
+          let text = '';
+          if (role === 'model') {
+            const txtEl = el.querySelector('.model-response-text');
+            text = (txtEl?.innerText || el.innerText || el.textContent || '').trim();
+          } else {
+            text = (el.innerText || el.textContent || '').trim();
+          }
+          const id = `g_${idx}`;
+          window.__geminiIdMap.set(id, el);
+          results.push({ id, author: role === 'model' ? 'assistant' : role, content: text, element: el, index: idx });
+          idx += 1;
+        }
+        return results;
+      }
+      // ChatGPT
+      const nodes = Array.from(document.querySelectorAll('[data-message-id]'));
+      return nodes.map((el, index) => ({
+        id: el.getAttribute('data-message-id') || `c_${index}`,
+        author: el.getAttribute('data-message-author-role') || 'unknown',
+        content: (el.innerText || el.textContent || '').trim(),
+        element: el,
+        index
+      }));
+    } catch (err) {
+      console.warn('getAllConversationMessages error:', err);
+      return [];
+    }
+  }
+
+  function getMessageElementById(messageId) {
+    try {
+      if (!messageId) return null;
+      if (isGemini) {
+        // Prefer the synthetic id map
+        const map = window.__geminiIdMap;
+        if (map && map.has(messageId)) return map.get(messageId);
+        // Fallback: best-effort by index
+        if (/^g_\d+$/.test(messageId)) {
+          const idx = parseInt(messageId.split('_')[1], 10);
+          const list = Array.from(document.querySelectorAll('div[data-message-author]'));
+          return list[idx] || null;
+        }
+      }
+      return document.querySelector(`[data-message-id="${messageId}"]`);
+    } catch (err) {
+      console.warn('getMessageElementById error:', err);
+      return null;
+    }
+  }
+
   // Function to get conversation tree data
   function getConversationTreeData(deep = false) {
     try {
@@ -2831,8 +2960,8 @@ const updateTextSize = (container, size) => {
         }
       }
       
-      // If no floatbar or empty panel, try to extract from ChatGPT page structure
-      console.log('Extracting from ChatGPT page structure');
+      // If no floatbar or empty panel, try to extract from page structure (ChatGPT or Gemini)
+      console.log('Extracting from page structure');
       return extractTreeDataFromChatGPT(deep);
     } catch (error) {
       console.error('Error extracting tree data:', error);
@@ -2870,27 +2999,15 @@ const updateTextSize = (container, size) => {
   }
   
   function extractTreeDataFromChatGPT(deep = false) {
-    // Extract conversation structure from ChatGPT page
-    const messages = document.querySelectorAll('[data-message-id]');
+    // Extract conversation structure from current page (works for ChatGPT and Gemini)
+    const msgs = getAllConversationMessages();
     const treeData = [];
-    
-    console.log('Found', messages.length, 'messages on ChatGPT page');
-    
-    messages.forEach((message, index) => {
-      const messageId = message.getAttribute('data-message-id');
-      const author = message.getAttribute('data-message-author-role') || 'unknown';
-      const content = message.textContent.trim().substring(0, 100) + '...';
-      
-      console.log('Processing message', index, 'with ID:', messageId, 'author:', author);
-      
-      treeData.push({
-        id: messageId,
-        content: `${author}: ${content}`,
-        children: []
-      });
+    console.log('Found', msgs.length, 'messages on page');
+    msgs.forEach(({ id, author, content }, index) => {
+      const snippet = (content || '').trim().substring(0, 100) + (content && content.length > 100 ? '...' : '');
+      treeData.push({ id, content: `${author}: ${snippet}`, children: [] });
     });
-    
-    console.log('Extracted', treeData.length, 'messages from ChatGPT page');
+    console.log('Extracted', treeData.length, 'messages from page');
     return treeData;
   }
   
@@ -2903,8 +3020,8 @@ const updateTextSize = (container, size) => {
     try {
       console.log('Attempting to navigate to message:', messageId);
       
-      // First try to find the message by data-message-id
-      let messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
+      // First try to find the message by id (synthetic for Gemini, attribute for ChatGPT)
+      let messageElement = getMessageElementById(messageId);
       console.log('Direct search result:', messageElement);
       
       // If not found, try to find it in the floating window's tree structure
@@ -2926,17 +3043,14 @@ const updateTextSize = (container, size) => {
         }
       }
       
-      // If still not found, try to find by partial match
+      // If still not found, try to find by partial match among known messages
       if (!messageElement) {
-        const allMessages = document.querySelectorAll('[data-message-id]');
-        console.log('Total messages on page:', allMessages.length);
-        for (let msg of allMessages) {
-          const msgId = msg.getAttribute('data-message-id');
-          if (msgId && (msgId.includes(messageId) || messageId.includes(msgId))) {
-            messageElement = msg;
-            console.log('Found via partial match:', messageElement);
-            break;
-          }
+        const all = getAllConversationMessages();
+        console.log('Total messages on page:', all.length);
+        const hit = all.find(m => m.id && (m.id.includes(messageId) || messageId.includes(m.id)));
+        if (hit) {
+          messageElement = hit.element;
+          console.log('Found via partial match:', messageElement);
         }
       }
       
