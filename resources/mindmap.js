@@ -188,7 +188,7 @@
     const palette = [
       { bg: '#10a37f', fg: '#ffffff' }, // depth 0 root - green
       { bg: '#2b6cb0', fg: '#ffffff' }, // depth 1 - blue
-      { bg: '#2f855a', fg: '#ffffff' }, // depth 2 - green/teal
+      { bg: '#fecaca', fg: '#3a0d0d' }, // depth 2 - light red
       { bg: '#d53f8c', fg: '#ffffff' }, // depth 3 - pink
       { bg: '#6b46c1', fg: '#ffffff' }, // depth 4 - purple
       { bg: '#b7791f', fg: '#1a1300' }, // depth 5 - yellow/brown
