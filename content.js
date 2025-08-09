@@ -1304,6 +1304,15 @@ const createZeroEkaIconButton = () => {
 
     document.body.appendChild(pop);
 
+    // Auto-hide after 2s if not hovered
+    let hover = false;
+    let timer = null;
+    function clearAuto(){ if (timer) { clearTimeout(timer); timer = null; } }
+    function schedule(){ clearAuto(); timer = setTimeout(()=>{ if (!hover) closeAll(); }, 2000); }
+    pop.addEventListener('mouseenter', ()=>{ hover = true; clearAuto(); });
+    pop.addEventListener('mouseleave', ()=>{ hover = false; schedule(); });
+    schedule();
+
     // Load user info
     chrome.storage.local.get(['firebaseUser'], ({ firebaseUser }) => {
       const email = firebaseUser?.email || 'Not signed in';
@@ -1311,7 +1320,7 @@ const createZeroEkaIconButton = () => {
     });
 
     // Close on outside click / ESC
-    const closeAll = ()=>{ pop.remove(); backdrop.remove(); };
+    const closeAll = ()=>{ clearAuto(); pop.remove(); backdrop.remove(); };
     backdrop.addEventListener('click', closeAll);
     document.addEventListener('keydown', function onKey(e){ if(e.key==='Escape'){ closeAll(); document.removeEventListener('keydown', onKey); } });
   }
