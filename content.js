@@ -202,10 +202,8 @@ const createZeroEkaIconButton = () => {
     b.addEventListener('mouseleave', () => { b.style.background = '#171b1f'; });
     return b;
   };
-  const itemToggleWidth = mkItem('Toggle chat width');
   const itemToggleHeader = mkItem('Hide/Show header');
   const itemToggleFooter = mkItem('Hide/Show footer');
-  menuPanel.appendChild(itemToggleWidth);
   menuPanel.appendChild(itemToggleHeader);
   menuPanel.appendChild(itemToggleFooter);
   // Removed fullscreen option per request
@@ -241,24 +239,7 @@ const createZeroEkaIconButton = () => {
     return document.getElementById('thread-bottom-container') || document.querySelector('[role="presentation"] > #thread-bottom-container') || document.querySelector('footer');
   }
 
-  // Action: Toggle chat width
-  itemToggleWidth.addEventListener('click', () => {
-    const main = getMainEl();
-    if (!main) return;
-    const isNarrow = main.dataset.zeroekaNarrow === '1';
-    if (isNarrow) {
-      delete main.dataset.zeroekaNarrow;
-      main.style.marginRight = '';
-      main.style.width = '';
-      document.body.style.marginRight = '';
-    } else {
-      main.dataset.zeroekaNarrow = '1';
-      main.style.marginRight = '600px';
-      main.style.width = 'calc(100vw - 600px)';
-      document.body.style.marginRight = '600px';
-    }
-    hideMenu(); menuOpen = false;
-  });
+  // Removed Toggle chat width action
 
   // Action: Hide/Show header
   itemToggleHeader.addEventListener('click', () => {
