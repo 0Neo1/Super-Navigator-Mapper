@@ -8,8 +8,8 @@
   
   // Update selectors based on platform
   const o=Object.freeze({
-    // For Gemini, use a generic tag selector to satisfy tagName-based checks in observers
-    article: isGemini ? "div" : "article",
+    // Keep article for ChatGPT; for Gemini we will not rely on this for tree parsing
+    article: isGemini ? "article" : "article",
     main: isGemini ? "main" : "main#main",
     markdown: isGemini ? ".model-response-text" : ".markdown",
     threadId:"thread",
@@ -282,7 +282,7 @@ const createZeroEkaIconButton = () => {
       if (!isGemini) return;
       const ul = document.querySelector('.catalogeu-navigation-plugin-floatbar .panel ul');
       if (!ul) return;
-      if (ul.querySelector('li')) return; // already has items
+      // always reconcile counts so we fill if empty or fewer than messages
       let msgs = (typeof getAllConversationMessages === 'function') ? getAllConversationMessages() : [];
       // If Gemini renders lazy, retry briefly
       if (!msgs || msgs.length === 0) {
@@ -310,6 +310,8 @@ const createZeroEkaIconButton = () => {
         }, 500);
         return;
       }
+      const currentCount = ul.querySelectorAll('li').length;
+      if (currentCount >= msgs.length) return;
       ul.innerHTML = '';
       msgs.forEach(({ id, element, author, content }) => {
         const li = document.createElement('li');
@@ -328,6 +330,29 @@ const createZeroEkaIconButton = () => {
     } catch (err) {
       console.warn('ensureGeminiTreePopulated error:', err);
     }
+  }
+
+  // Continuously ensure Gemini tree is populated while panel is visible
+  function startGeminiTreeMonitor() {
+    try {
+      if (!isGemini) return;
+      if (window.__geminiTreeIv) return; // already running
+      window.__geminiTreeIv = setInterval(() => {
+        try {
+          const floatbar = document.querySelector('.catalogeu-navigation-plugin-floatbar');
+          const panel = floatbar ? floatbar.querySelector('.panel') : null;
+          const isOpen = !!(panel && (panel.style.display === 'flex' || floatbar.classList.contains('show-panel')));
+          if (!isOpen) return;
+          const ul = panel ? panel.querySelector('ul') : null;
+          if (!ul) return;
+          const liCount = ul.querySelectorAll('li').length;
+          const msgs = (typeof getAllConversationMessages === 'function') ? getAllConversationMessages() : [];
+          if (msgs.length && liCount < msgs.length) {
+            ensureGeminiTreePopulated();
+          }
+        } catch(_){}
+      }, 1200);
+    } catch(_){}
   }
 
   // Removed Toggle chat width action
@@ -508,8 +533,8 @@ const createZeroEkaIconButton = () => {
         
         // Immediately replace existing close button when panel opens
         setTimeout(replaceExistingCloseButton, 100);
-        // Populate Gemini tree if empty
-        setTimeout(ensureGeminiTreePopulated, 350);
+        // Populate Gemini tree if empty and start monitor
+        setTimeout(() => { ensureGeminiTreePopulated(); startGeminiTreeMonitor(); }, 600);
       }
     }
   });
@@ -2945,20 +2970,56 @@ const updateTextSize = (container, size) => {
     try {
       if (isGemini) {
         const scope = document.querySelector('main, [role="main"], body') || document;
-        const nodes = Array.from(scope.querySelectorAll('[data-message-author]'));
         if (!window.__geminiIdMap) window.__geminiIdMap = new Map();
         window.__geminiIdMap.clear();
+
+        // Primary path: explicit author attribute nodes
+        let nodes = Array.from(scope.querySelectorAll('[data-message-author]'));
+
+        // Fallback path: heuristic using assistant text blocks if no explicit nodes
         const results = [];
-        let idx = 0;
-        for (const el of nodes) {
-          const role = el.getAttribute('data-message-author') || 'unknown';
+        const seen = new Set();
+        const pushEntry = (author, el) => {
+          if (!el || seen.has(el)) return;
           const text = (el.innerText || el.textContent || '').trim();
-          const id = `g_${idx}`;
-          try { window.__geminiIdMap.set(id, el); } catch(_){ }
-          results.push({ id, author: role === 'model' ? 'assistant' : role, content: text, element: el, index: idx });
-          idx += 1;
+          if (!text) return;
+          seen.add(el);
+          results.push({ author, element: el, content: text });
+        };
+
+        if (!nodes.length) {
+          const assistantNodes = Array.from(scope.querySelectorAll('.model-response-text'));
+          assistantNodes.forEach((aEl) => {
+            pushEntry('assistant', aEl);
+            // Try to find the nearest non-empty previous sibling as user message
+            let cont = aEl.closest('*');
+            let prev = cont;
+            for (let hop = 0; hop < 6; hop += 1) {
+              prev = prev ? prev.previousElementSibling : null;
+              if (!prev) break;
+              if (prev.querySelector && prev.querySelector('.model-response-text')) continue;
+              const txt = (prev.innerText || prev.textContent || '').trim();
+              if (txt && txt.length > 0) { pushEntry('user', prev); break; }
+            }
+          });
+        } else {
+          // Build from explicit nodes
+          nodes.forEach((el) => {
+            const role = el.getAttribute('data-message-author') || 'unknown';
+            const author = role === 'model' ? 'assistant' : role;
+            pushEntry(author, el);
+          });
         }
-        return results;
+
+        // Sort results by DOM order (top position), then map IDs
+        const withPos = results.map((r) => ({ ...r, __top: r.element.getBoundingClientRect ? r.element.getBoundingClientRect().top : 0 }));
+        withPos.sort((a, b) => a.__top - b.__top);
+        const final = withPos.map((r, index) => {
+          const id = `g_${index}`;
+          try { window.__geminiIdMap.set(id, r.element); } catch(_){ }
+          return { id, author: r.author, content: r.content, element: r.element, index };
+        });
+        return final;
       }
       // ChatGPT
       const nodes = Array.from(document.querySelectorAll('[data-message-id]'));
