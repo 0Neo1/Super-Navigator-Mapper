@@ -9,20 +9,52 @@
       support_html: true,
       view: {
         engine: 'canvas',
-        hmargin: 100,
-        vmargin: 80,
+        hmargin: 160,
+        vmargin: 120,
         line_width: 2,
-        line_color: '#555',
+        line_color: '#6a7a85',
         line_style: 'curved',
         draggable: true,
         enable_device_pixel_ratio: true,
         zoom: { min: 0.5, max: 2.1, step: 0.1 },
       },
-      layout: { hspace: 40, vspace: 20, pspace: 18, cousin_space: 10 },
+      layout: { hspace: 80, vspace: 36, pspace: 22, cousin_space: 24 },
       shortcut: { enable: true },
     };
     try {
       const JM = window.jsMind || jsMind;
+      // Custom line renderer: smooth curves with arrowheads for clarity
+      options.view.custom_line_render = function(payload){
+        try {
+          const { ctx, start_point: s, end_point: e } = payload;
+          const color = options.view.line_color || '#6a7a85';
+          ctx.save();
+          ctx.strokeStyle = color;
+          ctx.fillStyle = color;
+          ctx.lineWidth = options.view.line_width || 2;
+          // Bezier control points for a pleasant curve
+          const dx = e.x - s.x;
+          const cp1x = s.x + dx * 0.3;
+          const cp1y = s.y;
+          const cp2x = s.x + dx * 0.7;
+          const cp2y = e.y;
+          ctx.beginPath();
+          ctx.moveTo(s.x, s.y);
+          ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, e.x, e.y);
+          ctx.stroke();
+          // Arrowhead at end
+          const angle = Math.atan2(e.y - s.y, e.x - s.x);
+          const len = 10; const spread = Math.PI / 8;
+          ctx.beginPath();
+          ctx.moveTo(e.x, e.y);
+          ctx.lineTo(e.x - len * Math.cos(angle - spread), e.y - len * Math.sin(angle - spread));
+          ctx.lineTo(e.x - len * Math.cos(angle + spread), e.y - len * Math.sin(angle + spread));
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        } catch(_) {}
+      };
+
       // Inject 3-dot kebab menu into each node without disrupting layout
       options.view.custom_node_render = function(jmObj, el, nodeData){
         try {
