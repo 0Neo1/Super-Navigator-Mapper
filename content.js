@@ -8,20 +8,18 @@
   
   // Update selectors based on platform
   const o=Object.freeze({
-    // Keep article for ChatGPT; for Gemini we will not rely on this for tree parsing
-    article: isGemini ? "article" : "article",
+    article: isGemini ? "message-content" : "article",
     main: isGemini ? "main" : "main#main",
     markdown: isGemini ? ".model-response-text" : ".markdown",
     threadId:"thread",
     floatbar:".catalogeu-navigation-plugin-floatbar",
     messagePlaceholderRequest: isGemini ? '[data-placeholder="true"]' : '[data-message-id^="placeholder-request-"]',
     messageAttr: isGemini ? "data-message-id" : "data-message-id",
-    // For Gemini, do not require a message-id attribute (it doesn't exist)
-    message: isGemini ? "" : "[data-message-id]",
+    message: isGemini ? "[data-message-id]" : "[data-message-id]",
     authorAttr: isGemini ? "data-message-author" : "data-message-author-role",
-    author: isGemini ? "[data-message-author]" : "div[data-message-author-role]",
-    assistant: isGemini ? '[data-message-author="model"]' : 'div[data-message-author-role="assistant"]',
-    user: isGemini ? '[data-message-author="user"]' : 'div[data-message-author-role="user"]',
+    author: isGemini ? "div[data-message-author]" : "div[data-message-author-role]",
+    assistant: isGemini ? 'div[data-message-author="model"]' : 'div[data-message-author-role="assistant"]',
+    user: isGemini ? 'div[data-message-author="user"]' : 'div[data-message-author-role="user"]',
     sidebarHeader:"#sidebar-header",
     headerId:"page-header",
     header:'[role="presentation"] > #page-header',
@@ -63,19 +61,6 @@
   console.log('Mindmap data structure:', t);
   console.log('Number of root children:', t.data.children.length);
   
-  if (t.data.children.length === 0) {
-    // Fallback for Gemini or when tree panel is empty
-    try {
-      const msgs = (typeof getAllConversationMessages === 'function') ? getAllConversationMessages() : [];
-      if (msgs.length > 0) {
-        t.data.children = msgs.map(({ id, author, content }) => ({
-          id: id || ('m_' + Math.random().toString(36).slice(2)),
-          topic: `${author}: ${(content || '').slice(0, 120)}${(content && content.length > 120) ? '…' : ''}`,
-          children: []
-        }));
-      }
-    } catch(_){ }
-  }
   if (t.data.children.length === 0) {
     console.warn('No chat messages found to create mindmap');
     return;
@@ -276,85 +261,6 @@ const createZeroEkaIconButton = () => {
     return document.getElementById('thread-bottom-container') || document.querySelector('[role="presentation"] > #thread-bottom-container') || document.querySelector('footer');
   }
 
-  // Populate the left panel tree from Gemini messages when available
-  function ensureGeminiTreePopulated() {
-    try {
-      if (!isGemini) return;
-      const ul = document.querySelector('.catalogeu-navigation-plugin-floatbar .panel ul');
-      if (!ul) return;
-      // always reconcile counts so we fill if empty or fewer than messages
-      let msgs = (typeof getAllConversationMessages === 'function') ? getAllConversationMessages() : [];
-      // If Gemini renders lazy, retry briefly
-      if (!msgs || msgs.length === 0) {
-        setTimeout(() => {
-          try {
-            const again = (typeof getAllConversationMessages === 'function') ? getAllConversationMessages() : [];
-            if (again && again.length) {
-              ul.innerHTML = '';
-              again.forEach(({ id, element, author, content }) => {
-                const li = document.createElement('li');
-                try { li.__ref = new WeakRef(element); } catch (_) {}
-                li.classList.add('leaf');
-                if (id) li.setAttribute('data-message-id', id);
-                const label = `${author === 'user' ? 'User' : 'Assistant'}: ${(content || '').trim()}`;
-                li.setAttribute('title', label.slice(0, 300));
-                const iEl = document.createElement('i');
-                const divEl = document.createElement('div');
-                divEl.textContent = label.length > 300 ? (label.slice(0, 300) + '…') : label;
-                li.appendChild(iEl);
-                li.appendChild(divEl);
-                ul.appendChild(li);
-              });
-            }
-          } catch(_){}
-        }, 500);
-        return;
-      }
-      const currentCount = ul.querySelectorAll('li').length;
-      if (currentCount >= msgs.length) return;
-      ul.innerHTML = '';
-      msgs.forEach(({ id, element, author, content }) => {
-        const li = document.createElement('li');
-        try { li.__ref = new WeakRef(element); } catch (_) {}
-        li.classList.add('leaf');
-        if (id) li.setAttribute('data-message-id', id);
-        const label = `${author === 'user' ? 'User' : 'Assistant'}: ${(content || '').trim()}`;
-        li.setAttribute('title', label.slice(0, 300));
-        const iEl = document.createElement('i');
-        const divEl = document.createElement('div');
-        divEl.textContent = label.length > 300 ? (label.slice(0, 300) + '…') : label;
-        li.appendChild(iEl);
-        li.appendChild(divEl);
-        ul.appendChild(li);
-      });
-    } catch (err) {
-      console.warn('ensureGeminiTreePopulated error:', err);
-    }
-  }
-
-  // Continuously ensure Gemini tree is populated while panel is visible
-  function startGeminiTreeMonitor() {
-    try {
-      if (!isGemini) return;
-      if (window.__geminiTreeIv) return; // already running
-      window.__geminiTreeIv = setInterval(() => {
-        try {
-          const floatbar = document.querySelector('.catalogeu-navigation-plugin-floatbar');
-          const panel = floatbar ? floatbar.querySelector('.panel') : null;
-          const isOpen = !!(panel && (panel.style.display === 'flex' || floatbar.classList.contains('show-panel')));
-          if (!isOpen) return;
-          const ul = panel ? panel.querySelector('ul') : null;
-          if (!ul) return;
-          const liCount = ul.querySelectorAll('li').length;
-          const msgs = (typeof getAllConversationMessages === 'function') ? getAllConversationMessages() : [];
-          if (msgs.length && liCount < msgs.length) {
-            ensureGeminiTreePopulated();
-          }
-        } catch(_){}
-      }, 1200);
-    } catch(_){}
-  }
-
   // Removed Toggle chat width action
 
   // Action: Hide/Show header
@@ -533,8 +439,8 @@ const createZeroEkaIconButton = () => {
         
         // Immediately replace existing close button when panel opens
         setTimeout(replaceExistingCloseButton, 100);
-        // Populate Gemini tree if empty and start monitor
-        setTimeout(() => { ensureGeminiTreePopulated(); startGeminiTreeMonitor(); }, 600);
+        // Force Gemini tree rebuild on open
+        try { if (isGemini && typeof window.__rebuildGeminiTree === 'function') setTimeout(window.__rebuildGeminiTree, 150); } catch(_) {}
       }
     }
   });
@@ -755,22 +661,17 @@ const createZeroEkaIconButton = () => {
             <hr>
         `);
 
-        // Extract conversation messages (ChatGPT + Gemini)
-        const convForPdf = (typeof getAllConversationMessages === 'function') ? getAllConversationMessages() : [];
-        const fallbackList = convForPdf.length > 0 ? [] : Array.from(document.querySelectorAll('[data-message-id], div[data-message-author]')).map((el, i) => ({
-          id: el.getAttribute('data-message-id') || `alt_${i}`,
-          author: el.getAttribute('data-message-author-role') || (el.getAttribute('data-message-author') === 'model' ? 'assistant' : el.getAttribute('data-message-author') || 'unknown'),
-          content: (el.innerText || el.textContent || '').trim(),
-          element: el,
-          index: i
-        }));
-        const list = convForPdf.length > 0 ? convForPdf : fallbackList;
-        list.forEach(({ author, content }, index) => {
-          const role = author === 'user' ? 'User' : 'Assistant';
+        // Extract conversation messages
+        const messages = document.querySelectorAll('[data-message-id]');
+        messages.forEach((message, index) => {
+          const messageId = message.getAttribute('data-message-id');
+          const author = message.getAttribute('data-message-author-role') || 'unknown';
+          const content = message.textContent.trim();
+          
           iframeDoc.write(`
             <div class="conversation-item ${author === 'user' ? 'user-message' : 'assistant-message'}">
-              <div class="message-header">${role} (Message ${index + 1})</div>
-              <div class="message-content">${(content || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+              <div class="message-header">${author === 'user' ? 'User' : 'Assistant'} (Message ${index + 1})</div>
+              <div class="message-content">${content}</div>
             </div>
           `);
         });
@@ -1071,55 +972,7 @@ const createZeroEkaIconButton = () => {
   // Function to add bookmark mode to ChatGPT sidebar chats
   const addPinButtonsToChats = () => {
     try {
-      if (typeof isGemini !== 'undefined' && isGemini) {
-        // Gemini: operate on in-page message elements
-        const msgs = (typeof getAllConversationMessages === 'function') ? getAllConversationMessages() : [];
-        const stored = JSON.parse(localStorage.getItem('bookmarkedGeminiMsgs') || '[]');
-        const idSet = new Set(stored);
-        msgs.forEach(({ id, element }) => {
-          if (!element) return;
-          if (!element.classList.contains('bookmark-mode-enabled')) {
-            element.classList.add('bookmark-mode-enabled');
-          }
-          // Reflect persisted state
-          if (idSet.has(id)) {
-            element.classList.add('bookmarked');
-          }
-          element.addEventListener('mouseenter', () => {
-            if (window.bookmarkModeActive) {
-              element.style.outline = '2px solid #3bb910';
-              element.style.outlineOffset = '2px';
-              element.style.cursor = 'pointer';
-            }
-          });
-          element.addEventListener('mouseleave', () => {
-            if (window.bookmarkModeActive) {
-              element.style.outline = '';
-              element.style.outlineOffset = '';
-              element.style.cursor = '';
-            }
-          });
-          element.addEventListener('click', (evt) => {
-            if (!window.bookmarkModeActive) return;
-            evt.preventDefault();
-            evt.stopPropagation();
-            const list = new Set(JSON.parse(localStorage.getItem('bookmarkedGeminiMsgs') || '[]'));
-            const already = element.classList.contains('bookmarked');
-            if (!already) {
-              element.classList.add('bookmarked');
-              list.add(id);
-            } else {
-              element.classList.remove('bookmarked');
-              list.delete(id);
-            }
-            localStorage.setItem('bookmarkedGeminiMsgs', JSON.stringify(Array.from(list)));
-            try { setTimeout(() => window.location.reload(), 300); } catch(_) {}
-          });
-        });
-        console.log(`Added bookmark mode to ${msgs.length} Gemini messages`);
-        return;
-      }
-      // ChatGPT: Find sidebar chat items with specific selectors
+      // Find ChatGPT sidebar chat items with more specific selectors (only left sidebar)
       const chatItems = document.querySelectorAll('nav[data-testid="chat-history"] a, nav[data-testid="chat-history"] [role="button"], nav[data-testid="chat-history"] .conversation-item, nav[data-testid="chat-history"] [data-testid="conversation-turn-2"], nav[data-testid="chat-history"] [data-testid="conversation-item"], nav[data-testid="chat-history"] .conversation-turn-2, nav[data-testid="chat-history"] a[href*="/c/"], nav a[href*="/c/"], aside a[href*="/c/"], [data-testid="chat-history"] a, [data-testid="chat-history"] [role="button"]');
       
       chatItems.forEach((chatItem, index) => {
@@ -1321,16 +1174,14 @@ const createZeroEkaIconButton = () => {
   const removePinButtonsFromChats = () => {
     try {
       // Remove bookmark mode from all chats
-      const all = document.querySelectorAll('.bookmark-mode-enabled');
-      all.forEach(el => {
-        el.classList.remove('bookmark-mode-enabled');
-        el.style.border = '';
-        el.style.borderRadius = '';
-        el.style.cursor = '';
-        el.style.outline = '';
-        el.style.outlineOffset = '';
+      const chatItems = document.querySelectorAll('.bookmark-mode-enabled');
+      chatItems.forEach(chatItem => {
+        chatItem.classList.remove('bookmark-mode-enabled');
+        chatItem.style.border = '';
+        chatItem.style.borderRadius = '';
+        chatItem.style.cursor = '';
       });
-      console.log(`Removed bookmark mode from ${all.length} elements`);
+      console.log(`Removed bookmark mode from ${chatItems.length} chat items`);
     } catch (error) {
       console.error('Error removing bookmark mode from chats:', error);
     }
@@ -1685,9 +1536,9 @@ const createZeroEkaIconButton = () => {
         // Clear previous results
         resultsContainer.innerHTML = '';
 
-        // Search in conversation content (ChatGPT + Gemini)
-        const conv = getAllConversationMessages();
-        console.log('Found messages:', conv.length);
+        // Search in conversation content
+        const messages = document.querySelectorAll('[data-message-id]');
+        console.log('Found messages:', messages.length);
         const results = [];
 
       // Enhanced search with partial matching and priority scoring
@@ -1807,19 +1658,23 @@ const createZeroEkaIconButton = () => {
         return matches;
       };
       
-      // Use unified list for all platforms; fallback if empty
-      if (conv.length === 0) {
-        console.log('No messages found via unified accessor, trying alt selectors');
-        const alternativeMessages = document.querySelectorAll('.markdown, .prose, [role="article"], .message, .conversation-item, [role="presentation"] > div, div[data-message-author]');
+      // If no messages found, try alternative selectors
+      if (messages.length === 0) {
+        console.log('No messages with data-message-id found, trying alternative selectors');
+        const alternativeMessages = document.querySelectorAll('.markdown, .prose, [role="article"], .message, .conversation-item, [role="presentation"] > div');
+        console.log('Alternative messages found:', alternativeMessages.length);
+        
         alternativeMessages.forEach((message, index) => {
           const content = message.textContent || '';
-          const role = message.getAttribute && (message.getAttribute('data-message-author') || message.getAttribute('data-message-author-role'));
-          const messageMatches = searchInContent(content, query, `alt-${index}`, role || 'unknown', index, message);
+          const messageMatches = searchInContent(content, query, `alt-${index}`, 'unknown', index, message);
           results.push(...messageMatches);
         });
       } else {
-        conv.forEach(({ id, author, content, element, index }) => {
-          const messageMatches = searchInContent(content || '', query, id, author || 'unknown', index, element);
+        messages.forEach((message, index) => {
+          const content = message.textContent || '';
+          const messageId = message.getAttribute('data-message-id');
+          const author = message.getAttribute('data-message-author-role') || 'unknown';
+          const messageMatches = searchInContent(content, query, messageId, author, index, message);
           results.push(...messageMatches);
         });
       }
@@ -1949,12 +1804,11 @@ const createZeroEkaIconButton = () => {
             console.log('Trying direct DOM navigation');
             
             // First, try to use the stored element if available
-            let targetMessage = result.element || getMessageElementById(result.messageId);
+            let targetMessage = result.element;
             
             // If no stored element, try to find the message element directly
             if (!targetMessage) {
-              // Try platform-specific lookup
-              targetMessage = getMessageElementById(result.messageId) || document.querySelector(`[data-message-id="${result.messageId}"]`);
+              targetMessage = document.querySelector(`[data-message-id="${result.messageId}"]`);
             }
             
             // If still not found, try alternative selectors
@@ -2185,6 +2039,83 @@ const createZeroEkaIconButton = () => {
   // Add to page
   document.body.appendChild(contractedSidebar);
 
+  // Ensure ChatGPT tree shows user -> assistant -> subnodes structure
+  const isOnChatGPT = (location.hostname || '').includes('chatgpt.com');
+  const enforceAssistantChildStructure = () => {
+    if (!isOnChatGPT) return;
+    try {
+      const ul = document.querySelector('.catalogeu-navigation-plugin-floatbar .panel ul');
+      if (!ul) return;
+      const userLis = Array.from(ul.children || []).filter(el => el && el.tagName === 'LI');
+      userLis.forEach((userLi) => {
+        try {
+          // The original builder stores the live assistant article on __reply
+          const answerArticle = userLi.__reply || null;
+          if (!answerArticle || !answerArticle.querySelector) return;
+
+          // Ensure a <ul> exists under the user li
+          let userUl = userLi.querySelector(':scope > ul');
+          if (!userUl) {
+            userUl = document.createElement('ul');
+            userLi.appendChild(userUl);
+            userLi.classList.remove('leaf');
+          }
+
+          // Find or create the assistant reply li under the user li
+          let replyLi = Array.from(userUl.children || []).find(li => li && li.__ref && li.__ref.deref && li.__ref.deref() === answerArticle);
+          if (!replyLi) {
+            replyLi = document.createElement('li');
+            replyLi.classList.add('leaf');
+            try { replyLi.__ref = new WeakRef(answerArticle); } catch (_) {}
+            replyLi.setAttribute('data-role', 'assistant-reply');
+            const md = answerArticle.querySelector('.markdown');
+            const preview = ((md ? md.textContent : answerArticle.textContent) || '').trim().replace(/\s+/g, ' ').slice(0, 220);
+            replyLi.setAttribute('title', preview);
+            const iEl = document.createElement('i');
+            const labelDiv = document.createElement('div');
+            labelDiv.innerHTML = preview;
+            replyLi.appendChild(iEl);
+            replyLi.appendChild(labelDiv);
+            // Insert reply node as first child
+            userUl.insertBefore(replyLi, userUl.firstChild);
+          }
+
+          // Ensure all existing subnodes become children of reply li (maintain order)
+          let replyUl = replyLi.querySelector(':scope > ul');
+          if (!replyUl) {
+            replyUl = document.createElement('ul');
+            replyLi.appendChild(replyUl);
+            replyLi.classList.remove('leaf');
+          }
+          const toMove = Array.from(userUl.children || []).filter(li => li !== replyLi);
+          if (toMove.length) {
+            toMove.forEach(li => replyUl.appendChild(li));
+          }
+        } catch (_) {}
+      });
+    } catch (err) {
+      console.warn('assistant-structure enforcement failed', err);
+    }
+  };
+
+  const startAssistantTreeObserver = () => {
+    if (!isOnChatGPT) return;
+    try {
+      const ul = document.querySelector('.catalogeu-navigation-plugin-floatbar .panel ul');
+      if (!ul) return;
+      if (window.__assistantTreeMO) return;
+      const mo = new MutationObserver(() => {
+        enforceAssistantChildStructure();
+      });
+      mo.observe(ul, { childList: true, subtree: true });
+      window.__assistantTreeMO = mo;
+      enforceAssistantChildStructure();
+    } catch (_) {}
+  };
+
+  // Try to attach observer a bit later (after panel/UL exists)
+  setTimeout(startAssistantTreeObserver, 800);
+
   // Position the contracted sidebar when sidebar is open/closed
   const updateSidebarPosition = () => {
     const floatbar = document.querySelector('.catalogeu-navigation-plugin-floatbar');
@@ -2235,6 +2166,8 @@ const createZeroEkaIconButton = () => {
       panelWidth = Math.max(300, panelWidth);
       applyReserve(panelWidth);
       console.log('Expanded panel visible; reserving space:', panelWidth);
+      // Ensure ChatGPT tree nesting when panel is open
+      setTimeout(() => { try { startAssistantTreeObserver(); } catch(_) {} }, 150);
     } else {
       // Expanded sidebar is hidden - show contracted sidebar and reduce main width to fit it
       contractedSidebar.style.display = 'flex';
@@ -2964,99 +2897,6 @@ const updateTextSize = (container, size) => {
 (function() {
 
   
-  // Unified message accessors for ChatGPT and Gemini
-  // Returns array of { id, author, content, element, index }
-  function getAllConversationMessages() {
-    try {
-      if (isGemini) {
-        const scope = document.querySelector('main, [role="main"], body') || document;
-        if (!window.__geminiIdMap) window.__geminiIdMap = new Map();
-        window.__geminiIdMap.clear();
-
-        // Primary path: explicit author attribute nodes
-        let nodes = Array.from(scope.querySelectorAll('[data-message-author]'));
-
-        // Fallback path: heuristic using assistant text blocks if no explicit nodes
-        const results = [];
-        const seen = new Set();
-        const pushEntry = (author, el) => {
-          if (!el || seen.has(el)) return;
-          const text = (el.innerText || el.textContent || '').trim();
-          if (!text) return;
-          seen.add(el);
-          results.push({ author, element: el, content: text });
-        };
-
-        if (!nodes.length) {
-          const assistantNodes = Array.from(scope.querySelectorAll('.model-response-text'));
-          assistantNodes.forEach((aEl) => {
-            pushEntry('assistant', aEl);
-            // Try to find the nearest non-empty previous sibling as user message
-            let cont = aEl.closest('*');
-            let prev = cont;
-            for (let hop = 0; hop < 6; hop += 1) {
-              prev = prev ? prev.previousElementSibling : null;
-              if (!prev) break;
-              if (prev.querySelector && prev.querySelector('.model-response-text')) continue;
-              const txt = (prev.innerText || prev.textContent || '').trim();
-              if (txt && txt.length > 0) { pushEntry('user', prev); break; }
-            }
-          });
-        } else {
-          // Build from explicit nodes
-          nodes.forEach((el) => {
-            const role = el.getAttribute('data-message-author') || 'unknown';
-            const author = role === 'model' ? 'assistant' : role;
-            pushEntry(author, el);
-          });
-        }
-
-        // Sort results by DOM order (top position), then map IDs
-        const withPos = results.map((r) => ({ ...r, __top: r.element.getBoundingClientRect ? r.element.getBoundingClientRect().top : 0 }));
-        withPos.sort((a, b) => a.__top - b.__top);
-        const final = withPos.map((r, index) => {
-          const id = `g_${index}`;
-          try { window.__geminiIdMap.set(id, r.element); } catch(_){ }
-          return { id, author: r.author, content: r.content, element: r.element, index };
-        });
-        return final;
-      }
-      // ChatGPT
-      const nodes = Array.from(document.querySelectorAll('[data-message-id]'));
-      return nodes.map((el, index) => ({
-        id: el.getAttribute('data-message-id') || `c_${index}`,
-        author: el.getAttribute('data-message-author-role') || 'unknown',
-        content: (el.innerText || el.textContent || '').trim(),
-        element: el,
-        index
-      }));
-    } catch (err) {
-      console.warn('getAllConversationMessages error:', err);
-      return [];
-    }
-  }
-
-  function getMessageElementById(messageId) {
-    try {
-      if (!messageId) return null;
-      if (isGemini) {
-        // Prefer the synthetic id map
-        const map = window.__geminiIdMap;
-        if (map && map.has(messageId)) return map.get(messageId);
-        // Fallback: best-effort by index
-        if (/^g_\d+$/.test(messageId)) {
-          const idx = parseInt(messageId.split('_')[1], 10);
-          const list = Array.from(document.querySelectorAll('div[data-message-author]'));
-          return list[idx] || null;
-        }
-      }
-      return document.querySelector(`[data-message-id="${messageId}"]`);
-    } catch (err) {
-      console.warn('getMessageElementById error:', err);
-      return null;
-    }
-  }
-
   // Function to get conversation tree data
   function getConversationTreeData(deep = false) {
     try {
@@ -3072,8 +2912,8 @@ const updateTextSize = (container, size) => {
         }
       }
       
-      // If no floatbar or empty panel, try to extract from page structure (ChatGPT or Gemini)
-      console.log('Extracting from page structure');
+      // If no floatbar or empty panel, try to extract from ChatGPT page structure
+      console.log('Extracting from ChatGPT page structure');
       return extractTreeDataFromChatGPT(deep);
     } catch (error) {
       console.error('Error extracting tree data:', error);
@@ -3111,15 +2951,27 @@ const updateTextSize = (container, size) => {
   }
   
   function extractTreeDataFromChatGPT(deep = false) {
-    // Extract conversation structure from current page (works for ChatGPT and Gemini)
-    const msgs = getAllConversationMessages();
+    // Extract conversation structure from ChatGPT page
+    const messages = document.querySelectorAll('[data-message-id]');
     const treeData = [];
-    console.log('Found', msgs.length, 'messages on page');
-    msgs.forEach(({ id, author, content }, index) => {
-      const snippet = (content || '').trim().substring(0, 100) + (content && content.length > 100 ? '...' : '');
-      treeData.push({ id, content: `${author}: ${snippet}`, children: [] });
+    
+    console.log('Found', messages.length, 'messages on ChatGPT page');
+    
+    messages.forEach((message, index) => {
+      const messageId = message.getAttribute('data-message-id');
+      const author = message.getAttribute('data-message-author-role') || 'unknown';
+      const content = message.textContent.trim().substring(0, 100) + '...';
+      
+      console.log('Processing message', index, 'with ID:', messageId, 'author:', author);
+      
+      treeData.push({
+        id: messageId,
+        content: `${author}: ${content}`,
+        children: []
+      });
     });
-    console.log('Extracted', treeData.length, 'messages from page');
+    
+    console.log('Extracted', treeData.length, 'messages from ChatGPT page');
     return treeData;
   }
   
@@ -3132,8 +2984,8 @@ const updateTextSize = (container, size) => {
     try {
       console.log('Attempting to navigate to message:', messageId);
       
-      // First try to find the message by id (synthetic for Gemini, attribute for ChatGPT)
-      let messageElement = getMessageElementById(messageId);
+      // First try to find the message by data-message-id
+      let messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
       console.log('Direct search result:', messageElement);
       
       // If not found, try to find it in the floating window's tree structure
@@ -3155,14 +3007,17 @@ const updateTextSize = (container, size) => {
         }
       }
       
-      // If still not found, try to find by partial match among known messages
+      // If still not found, try to find by partial match
       if (!messageElement) {
-        const all = getAllConversationMessages();
-        console.log('Total messages on page:', all.length);
-        const hit = all.find(m => m.id && (m.id.includes(messageId) || messageId.includes(m.id)));
-        if (hit) {
-          messageElement = hit.element;
-          console.log('Found via partial match:', messageElement);
+        const allMessages = document.querySelectorAll('[data-message-id]');
+        console.log('Total messages on page:', allMessages.length);
+        for (let msg of allMessages) {
+          const msgId = msg.getAttribute('data-message-id');
+          if (msgId && (msgId.includes(messageId) || messageId.includes(msgId))) {
+            messageElement = msg;
+            console.log('Found via partial match:', messageElement);
+            break;
+          }
         }
       }
       
@@ -3641,8 +3496,610 @@ const updateTextSize = (container, size) => {
       currentUrl = window.location.href;
       console.log('URL changed, ensuring sidebar exists...');
       setTimeout(ensureContractedSidebar, 1000);
+      // If Gemini SPA navigated, force a conversation tree refresh quickly and keep trying until filled
+      try {
+        if (window.location.hostname.includes('gemini.google.com')) {
+          setTimeout(() => {
+            try { if (typeof window.__onGeminiConversationChange === 'function') window.__onGeminiConversationChange(); } catch(_) {}
+            try { if (typeof window.__rebuildGeminiTree === 'function') window.__rebuildGeminiTree(); } catch(_) {}
+            try { if (typeof window.__rebuildUntilFilled === 'function') window.__rebuildUntilFilled(8000, 250); } catch(_) {}
+          }, 80);
+        }
+      } catch(_) {}
     }
   };
   setInterval(checkUrlChange, 1000);
+
+  // --- Gemini conversation → Floatbar Tree mirroring ---
+  (function setupGeminiTree() {
+    if (!window.location.hostname.includes('gemini.google.com')) return;
+    // Prevent duplicate initialization
+    if (window.__geminiTreeSetup) return;
+    window.__geminiTreeSetup = true;
+
+    // Silence any previously logged specific warnings from this module
+    try {
+      if (!window.__geminiWarnPatched) {
+        const __origWarn = console.warn.bind(console);
+        console.warn = function(...args) {
+          if (typeof args[0] === 'string' && args[0].includes('Rebuild: no messages found')) return;
+          return __origWarn(...args);
+        };
+        window.__geminiWarnPatched = true;
+      }
+    } catch(_) {}
+
+    // Utilities
+    const getFloatbarUl = () => document.querySelector('.catalogeu-navigation-plugin-floatbar .panel ul');
+    const ensureGeminiAttrs = (el, idx) => {
+      try {
+        const author = el.getAttribute('data-message-author') || '';
+        if (!el.hasAttribute('data-message-author-role')) {
+          el.setAttribute('data-message-author-role', author);
+        }
+        if (!el.hasAttribute('data-message-id')) {
+          el.setAttribute('data-message-id', `g_${idx + 1}`);
+        }
+      } catch (_) {}
+    };
+    const createLeafLi = (labelHtml, refEl, msgId) => {
+      const li = document.createElement('li');
+      li.classList.add('leaf');
+      try { li.__ref = new WeakRef(refEl); } catch(_) {}
+      if (msgId) li.setAttribute('data-message-id', msgId);
+      const iEl = document.createElement('i');
+      const div = document.createElement('div');
+      div.innerHTML = labelHtml;
+      li.appendChild(iEl);
+      li.appendChild(div);
+      return li;
+    };
+    const appendChildLi = (parentLi, childLi) => {
+      try {
+        let ul = parentLi.querySelector(':scope > ul');
+        if (!ul) {
+          ul = document.createElement('ul');
+          parentLi.classList.remove('leaf');
+          parentLi.appendChild(ul);
+        }
+        ul.appendChild(childLi);
+      } catch(_) {}
+    };
+    const findNextModelWithContent = (blocks, fromIdx) => {
+      for (let j = fromIdx + 1; j < blocks.length; j += 1) {
+        const el = blocks[j];
+        const role = el.getAttribute('data-message-author') || el.getAttribute('data-message-author-role');
+        if (role === 'user') break;
+        if (role === 'model' || role === 'assistant') {
+          if (el.querySelector('.model-response-text')) return el;
+        }
+      }
+      return null;
+    };
+    const findPrevUserForModel = (modelEl) => {
+      let prev = modelEl && modelEl.previousElementSibling;
+      while (prev) {
+        const role = prev.getAttribute && (prev.getAttribute('data-message-author') || prev.getAttribute('data-message-author-role'));
+        if (role === 'user') return prev;
+        prev = prev.previousElementSibling;
+      }
+      return null;
+    };
+    const findFollowingModelForAnchor = (anchorEl) => {
+      // Walk forward siblings until next prompt or a model response with content
+      let cur = anchorEl && anchorEl.nextElementSibling;
+      while (cur) {
+        if (cur.querySelector) {
+          // stop if we hit next prompt container
+          if (cur.querySelector(PROMPT_SELECTOR_G)) break;
+          const md = cur.querySelector('.model-response-text');
+          if (md) {
+            const role = cur.getAttribute('data-message-author') || cur.getAttribute('data-message-author-role');
+            if (!role || role === 'model' || role === 'assistant') {
+              return cur;
+            }
+          }
+        }
+        cur = cur.nextElementSibling;
+      }
+      // Fallback: the first model response that appears after anchor in document order
+      try {
+        const mds = Array.from(document.querySelectorAll('.model-response-text'));
+        for (const md of mds) {
+          if ((anchorEl.compareDocumentPosition(md) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0) {
+            return md.closest('[data-message-author],[data-message-id]') || md.parentElement;
+          }
+        }
+      } catch(_) {}
+      return null;
+    };
+    const safeText = (el, max = 300) => {
+      try { const t = (el?.textContent || '').trim(); return t.length > max ? t.slice(0, max) : t; } catch(_) { return ''; }
+    };
+    // Extract only visible text excluding specific selectors
+    const getTextExcluding = (el, excludeSel, max = 300) => {
+      try {
+        const clone = el.cloneNode(true);
+        if (excludeSel) {
+          clone.querySelectorAll(excludeSel).forEach(n => n.remove());
+        }
+        // Prefer likely content nodes
+        const preferSel = [
+          '[data-message-text]',
+          '.message-text',
+          '.message-content',
+          '.prose',
+          '.markdown',
+          'div[dir="auto"]',
+          'p'
+        ].join(',');
+        const preferred = Array.from(clone.querySelectorAll(preferSel))
+          .find(n => n && n.textContent && n.textContent.trim().length > 0) || clone;
+        // Collect plain text, skip hidden/script, and skip model content for user prompts
+        const walker = document.createTreeWalker(preferred, NodeFilter.SHOW_TEXT, {
+          acceptNode(node) {
+            const t = (node.nodeValue || '').trim();
+            if (!t) return NodeFilter.FILTER_REJECT;
+            const p = node.parentElement;
+            if (!p) return NodeFilter.FILTER_ACCEPT;
+            if (p.closest('script,style,template,svg,[aria-hidden="true"],.model-response-text')) return NodeFilter.FILTER_REJECT;
+            return NodeFilter.FILTER_ACCEPT;
+          }
+        });
+        let out = '';
+        let n;
+        while ((n = walker.nextNode())) {
+          const t = n.nodeValue.trim();
+          if (!t) continue;
+          out += (out ? ' ' : '') + t;
+          if (out.length >= max) break;
+        }
+        out = out.trim();
+        if (!out) out = (preferred.textContent || '').trim();
+        return out.length > max ? out.slice(0, max) : out;
+      } catch(_) { return ''; }
+    };
+    // Extract user prompt text from Gemini user block
+    const getUserTextGemini = (userEl, max = 300) => {
+      try {
+        // Broad candidate scan for Gemini user prompt text
+        const candSelList = [
+          '[data-message-text]',
+          '.message-text',
+          'message-content',
+          '[data-message-content]',
+          '[data-qa="UserQuery"]',
+          '[data-qa="query-text"]',
+          '.prose',
+          '.markdown',
+          'div[dir="auto"]',
+          'blockquote',
+          'li',
+          'p',
+          'span'
+        ];
+        const candidates = Array.from(userEl.querySelectorAll(candSelList.join(',')))
+          .filter(n => !n.closest('.model-response-text'));
+        for (const c of candidates) {
+          const t = (c.textContent || '').trim();
+          if (t) return t.length > max ? t.slice(0, max) : t;
+        }
+        // Try direct text from userEl (excluding model reply and common UI noise)
+        const txt = getTextExcluding(userEl, '.model-response-text,[data-message-author="model"],button,svg,[role="img"],[aria-hidden="true"]', max);
+        if (txt) return txt;
+      } catch(_) {}
+      // Exclude any nested model response to avoid duplication
+      return getTextExcluding(userEl, '.model-response-text,[data-message-author="model"]', max);
+    };
+    // Extract assistant model text
+    const getModelTextGemini = (modelEl, max = 300) => {
+      try {
+        const md = modelEl.querySelector('.model-response-text');
+        if (!md) return '';
+        const t = (md.textContent || '').trim();
+        return t.length > max ? t.slice(0, max) : t;
+      } catch(_) { return ''; }
+    };
+    // Gemini-specific prompt selector (from gemini_nav)
+    const PROMPT_SELECTOR_G = 'user-query-content .query-text';
+    const getGeminiPromptText = (refEl, max = 300) => {
+      try {
+        // First, try within the reference element
+        if (refEl && refEl.querySelector) {
+          const within = refEl.querySelector(PROMPT_SELECTOR_G);
+          if (within) {
+            const t = (within.textContent || '').trim();
+            if (t) return t.length > max ? t.slice(0, max) : t;
+          }
+        }
+        // Then, search previous siblings for the nearest prompt container
+        let cur = refEl;
+        let steps = 0;
+        while (cur && steps < 50) {
+          cur = cur.previousElementSibling;
+          if (!cur) break;
+          const q = cur.querySelector && cur.querySelector(PROMPT_SELECTOR_G);
+          if (q && q.textContent && q.textContent.trim()) {
+            const t = q.textContent.trim();
+            return t.length > max ? t.slice(0, max) : t;
+          }
+          steps++;
+        }
+        // Fallback: last prompt on page
+        const all = document.querySelectorAll(PROMPT_SELECTOR_G);
+        if (all && all.length) {
+          const last = all[all.length - 1];
+          const t = (last.textContent || '').trim();
+          if (t) return t.length > max ? t.slice(0, max) : t;
+        }
+      } catch(_) {}
+      return '';
+    };
+    const buildSubcatalog = (hostLi, mdEl) => {
+      // Gemini: add main subheadings as subnodes, and include their immediate sub-sub nodes (one extra level)
+      if (!mdEl) return;
+      const headingTags = new Set(['H1','H2','H3','H4','H5','H6','STRONG']);
+      const listTags = new Set(['OL','UL']);
+
+      // Only consider top-level structural nodes within the model response
+      const isTopStructural = (node) => {
+        let p = node.parentElement;
+        while (p && p !== mdEl) {
+          const tag = (p.tagName || '').toUpperCase();
+          if (headingTags.has(tag) || listTags.has(tag)) return false;
+          p = p.parentElement;
+        }
+        return true;
+      };
+
+      const appendOneLevel = (label, ref, parent = hostLi) => {
+        const li = createLeafLi(label, ref, '');
+        appendChildLi(parent, li);
+        return li;
+      };
+
+      const isTimeCoded = (text) => /\[[^\]]+\]/.test((text || '').trim());
+
+      // Build an ordered list of top-level headings (and time-coded paragraphs) only
+      const topHeadingNodes = Array.from(mdEl.querySelectorAll('h1,h2,h3,h4,h5,h6,strong,p'))
+        .filter(isTopStructural)
+        .filter((node) => {
+          const tag = (node.tagName || '').toUpperCase();
+          if (headingTags.has(tag)) return true;
+          if (tag === 'P') {
+            const raw = (node.textContent || '').trim();
+            return isTimeCoded(raw);
+          }
+          return false;
+        });
+
+      const getLabel = (el) => safeText(el, 240);
+      const getItemLabel = (liEl) => {
+        try {
+          return (typeof getTextExcluding === 'function')
+            ? (getTextExcluding(liEl, 'ul,ol', 240) || getLabel(liEl))
+            : getLabel(liEl);
+        } catch(_) { return getLabel(liEl); }
+      };
+      const processNestedList = (listEl, parentLi) => {
+        const items = Array.from(listEl.children || []).filter(n => n.tagName && n.tagName.toUpperCase() === 'LI');
+        items.forEach((it) => {
+          const childLi = appendOneLevel(getItemLabel(it), it, parentLi);
+          // one nested level only
+          const nested = it.querySelector(':scope > ul, :scope > ol');
+          if (nested) {
+            const subItems = Array.from(nested.children || []).filter(n => (n.tagName||'').toUpperCase() === 'LI');
+            subItems.forEach((subIt) => {
+              appendOneLevel(getItemLabel(subIt), subIt, childLi);
+            });
+          }
+        });
+      };
+      // If assistant main reply is top-level bullet points, add them directly under the assistant reply node
+      try {
+        const topLevelLists = Array.from(mdEl.querySelectorAll('ol,ul')).filter(isTopStructural);
+        topLevelLists.forEach((lst) => processNestedList(lst, hostLi));
+      } catch(_) {}
+      const buildUnderHeading = (headLi, startEl, endEl) => {
+        let cur = startEl;
+        while (cur && cur !== endEl) {
+          const tag = (cur.tagName || '').toUpperCase();
+          if (listTags.has(tag)) {
+            processNestedList(cur, headLi);
+          } else if (headingTags.has(tag)) {
+            appendOneLevel(getLabel(cur), cur, headLi);
+          }
+          cur = cur.nextElementSibling;
+        }
+      };
+
+      topHeadingNodes.forEach((node, idx) => {
+        const tag = (node.tagName || '').toUpperCase();
+        let title = '';
+        if (headingTags.has(tag)) {
+          title = getLabel(node);
+        } else {
+          const raw = (node.textContent || '').trim();
+          const m = raw.match(/\[[^\]]+\][^\n]*/);
+          title = (m && m[0] ? m[0] : raw).slice(0,240);
+        }
+        const headLi = appendOneLevel(title, node, hostLi);
+        const nextHead = topHeadingNodes[idx + 1] || null;
+        buildUnderHeading(headLi, node.nextElementSibling, nextHead);
+      });
+    };
+
+    const computeKeyFromBlocks = (blocks) => {
+      try {
+        const parts = [];
+        const take = Math.min(6, blocks.length);
+        for (let i = 0; i < take; i += 1) {
+          const b = blocks[i];
+          const a = b.getAttribute('data-message-author') || b.getAttribute('data-message-author-role') || '';
+          const id = b.getAttribute('data-message-id') || '';
+          const txt = safeText(b, 120);
+          parts.push(a + '|' + id + '|' + txt);
+        }
+        return parts.join('\n');
+      } catch(_) { return ''; }
+    };
+
+    // Backoff and scheduling helpers
+    const inCooldown = () => Date.now() < (window.__geminiNoMsgCooldownUntil || 0);
+    const scheduleRebuild = (delay = 150) => {
+      try { clearTimeout(window.__geminiRebuildTimer); } catch(_) {}
+      window.__geminiRebuildTimer = setTimeout(() => { try { rebuild(); } catch(_) {} }, delay);
+    };
+    let __rebuildLock = false;
+
+    const rebuild = () => {
+      try {
+        if (__rebuildLock) return;
+        if (inCooldown()) return;
+        const ul = getFloatbarUl();
+        if (!ul) return;
+        __rebuildLock = true;
+        // Find Gemini message blocks with multiple fallbacks
+        let blocks = Array.from(document.querySelectorAll('div[data-message-author]'));
+        if (blocks.length === 0) {
+          blocks = Array.from(document.querySelectorAll('[data-message-author]'));
+        }
+        if (blocks.length === 0) {
+          blocks = Array.from(document.querySelectorAll('[data-message-id]'));
+        }
+        // As a last resort, derive model blocks from content nodes
+        let derivedPairs = [];
+        if (blocks.length === 0) {
+          const modelNodes = Array.from(document.querySelectorAll('.model-response-text'));
+          modelNodes.forEach((modelEl, idx) => {
+            let container = modelEl.closest('[data-message-author]') || modelEl.closest('[data-message-id]') || modelEl;
+            ensureGeminiAttrs(container, idx);
+            // naive previous sibling as user block fallback
+            let userEl = null;
+            let prev = container.previousElementSibling;
+            while (prev && !userEl) {
+              if (prev.matches('[data-message-author], [data-message-id]')) userEl = prev;
+              prev = prev.previousElementSibling;
+            }
+            if (userEl) ensureGeminiAttrs(userEl, Math.max(0, idx - 1));
+            derivedPairs.push({ user: userEl, model: container });
+          });
+        }
+
+        blocks.forEach((b, idx) => ensureGeminiAttrs(b, idx));
+        const liEls = [];
+        let currentKey = '';
+        // Prompt-first builder (gemini_nav semantics)
+        const prompts = Array.from(document.querySelectorAll(PROMPT_SELECTOR_G));
+        let builtByPrompts = false;
+        if (prompts.length > 0) {
+          const keyParts = [];
+          prompts.forEach((promptEl, idx) => {
+            const anchor = promptEl.closest('user-query') || promptEl.closest('[data-message-author="user"]') || promptEl;
+            try { ensureGeminiAttrs(anchor, idx); } catch(_) {}
+            const promptId = anchor.getAttribute('data-message-id') || `g_p_${idx+1}`;
+            let text = (promptEl.textContent || '').trim();
+            if (text.length > 220) text = text.slice(0,220);
+            if (!text) return;
+            keyParts.push(text);
+            const userLi = createLeafLi(text, anchor, promptId);
+            // Find following model output for this prompt
+            const modelBlock = findFollowingModelForAnchor(anchor);
+            if (modelBlock) {
+              const replyId = modelBlock.getAttribute('data-message-id') || '';
+              const md = modelBlock.querySelector('.model-response-text');
+              const replyText = getModelTextGemini(modelBlock, 220) || (md ? safeText(md, 220) : safeText(modelBlock, 220));
+              const replyLi = createLeafLi(replyText, modelBlock, replyId);
+              appendChildLi(userLi, replyLi);
+              if (md) buildSubcatalog(replyLi, md);
+            }
+            liEls.push(userLi);
+          });
+          currentKey = keyParts.slice(0,6).join('\n');
+          builtByPrompts = liEls.length > 0;
+        }
+        if (!builtByPrompts && blocks.length > 0) {
+          console.log('[Gemini] Rebuild (fallback): found blocks', blocks.length);
+          currentKey = computeKeyFromBlocks(blocks);
+          for (let i = 0; i < blocks.length; i += 1) {
+            const userBlock = blocks[i];
+            const author = userBlock.getAttribute('data-message-author') || userBlock.getAttribute('data-message-author-role');
+            if (author !== 'user') continue;
+            let modelBlock = findNextModelWithContent(blocks, i);
+            const msgId = userBlock.getAttribute('data-message-id');
+            let userRefForPrompt = userBlock;
+            let userPrompt = getGeminiPromptText(userBlock, 220) || getUserTextGemini(userBlock, 220);
+            if ((!userPrompt || !userPrompt.trim()) && modelBlock) {
+              const prevUser = findPrevUserForModel(modelBlock);
+              if (prevUser) {
+                try { ensureGeminiAttrs(prevUser, 0); } catch(_) {}
+                let alt = getGeminiPromptText(prevUser, 220) || getUserTextGemini(prevUser, 220);
+                if (alt && alt.trim()) { userPrompt = alt; userRefForPrompt = prevUser; }
+              }
+            }
+            if (!userPrompt || !userPrompt.trim()) userPrompt = '(prompt)';
+            const userLi = createLeafLi(userPrompt, userRefForPrompt, msgId);
+            if (modelBlock) {
+              const replyId = modelBlock.getAttribute('data-message-id');
+              const md = modelBlock.querySelector('.model-response-text');
+              const replyText = getModelTextGemini(modelBlock, 220) || (md ? safeText(md, 220) : safeText(modelBlock, 220));
+              const replyLi = createLeafLi(replyText, modelBlock, replyId);
+              appendChildLi(userLi, replyLi);
+              if (md) buildSubcatalog(replyLi, md);
+            }
+            liEls.push(userLi);
+          }
+        } else if (!builtByPrompts && derivedPairs.length > 0) {
+          console.log('[Gemini] Rebuild: using derived pairs', derivedPairs.length);
+          try { currentKey = computeKeyFromBlocks(derivedPairs.map(p => p.user || p.model).filter(Boolean)); } catch(_) {}
+          derivedPairs.forEach(({ user, model }) => {
+            if (!user && !model) return;
+            // If user is missing, try to find the actual preceding user block in DOM
+            if (!user && model) user = findPrevUserForModel(model);
+            // Ensure attributes
+            if (user) ensureGeminiAttrs(user, 0);
+            if (model) ensureGeminiAttrs(model, 1);
+            // Create user top node. If still no user, do not copy model text into user label
+            const userRef = user || document.createElement('div');
+            const userId = userRef?.getAttribute('data-message-id') || '';
+            let userLabel = '(prompt)';
+            if (user) {
+              // Try Gemini selector first, then generic
+              userLabel = getGeminiPromptText(userRef, 200) || getUserTextGemini(userRef, 200) || '(prompt)';
+            }
+            const userLi = createLeafLi(userLabel, userRef || document.body, userId);
+            // Create assistant child
+            if (model) {
+              const replyId = model.getAttribute('data-message-id') || '';
+              const md = model.querySelector('.model-response-text') || model;
+              const replyText = getModelTextGemini(model, 220) || safeText(md, 220);
+              const replyLi = createLeafLi(replyText, model, replyId);
+              appendChildLi(userLi, replyLi);
+              if (md) buildSubcatalog(replyLi, md);
+            }
+            liEls.push(userLi);
+          });
+        } else {
+          // No content found; set cooldown to avoid tight loops (silent)
+          const now = Date.now();
+          window.__geminiNoMsgCooldownUntil = now + 2500; // backoff 2.5s
+        }
+        // Only clear and repaint when we have content, to avoid transient blanks
+        if (liEls.length > 0) {
+          // Keep a snapshot we can restore if something clears UL later
+          rebuild._last = liEls.map(li => li.cloneNode(true));
+          rebuild._key = currentKey;
+          while (ul.firstChild) ul.removeChild(ul.firstChild);
+          liEls.forEach(li => ul.appendChild(li));
+        }
+        // expose for manual refresh hooks
+        window.__rebuildGeminiTree = rebuild;
+        __rebuildLock = false;
+      } catch (err) {
+        console.error('Gemini tree rebuild failed:', err);
+        __rebuildLock = false;
+      }
+    };
+
+    // Expose a conversation-change hook to refresh immediately when Gemini swaps threads
+    window.__onGeminiConversationChange = () => {
+      // clear caches and rebuild, respecting cooldown
+      try { delete rebuild._last; } catch(_) {}
+      try { delete rebuild._key; } catch(_) {}
+      if (inCooldown()) {
+        // schedule just after cooldown expires
+        const delay = Math.max(0, (window.__geminiNoMsgCooldownUntil || 0) - Date.now() + 50);
+        scheduleRebuild(delay);
+      } else {
+        scheduleRebuild(0);
+        [120,300,600].forEach(ms => setTimeout(() => scheduleRebuild(0), ms));
+      }
+    };
+
+    // Wait for floatbar ul then observe the main area
+    const waitForUl = setInterval(() => {
+      const ul = getFloatbarUl();
+      if (!ul) return;
+      clearInterval(waitForUl);
+      scheduleRebuild(50);
+      try {
+        const mainEl = document.querySelector('main') || document.querySelector('[role="main"]') || document.body;
+        const mo = new MutationObserver((mutations) => {
+          // Rebuild only when new prompt or model output appears
+          const sel = PROMPT_SELECTOR_G + ', .model-response-text';
+          let relevant = false;
+          for (const m of mutations) {
+            if (m.type !== 'childList') continue;
+            for (const node of m.addedNodes) {
+              if (node.nodeType !== 1) continue;
+              const el = node;
+              if ((el.matches && el.matches(sel)) || (el.querySelector && el.querySelector(sel))) { relevant = true; break; }
+            }
+            if (relevant) break;
+          }
+          if (relevant) scheduleRebuild(150);
+        });
+        mo.observe(mainEl, { childList: true, subtree: true });
+        // Guard: if someone clears the UL, rebuild
+        const ul = getFloatbarUl();
+        if (ul) {
+          const mo2 = new MutationObserver((mutations) => {
+            // If anything tries to clear the UL, immediately restore content without clearing first
+            if (ul.childElementCount === 0) {
+              clearTimeout(rebuild._u); rebuild._u = setTimeout(() => {
+                try {
+                  const snapshot = (rebuild._last || []).slice(0);
+                  if (snapshot.length > 0) {
+                    while (ul.firstChild) ul.removeChild(ul.firstChild);
+                    snapshot.forEach(li => ul.appendChild(li.cloneNode(true)));
+                  } else {
+                    scheduleRebuild(120);
+                  }
+                } catch(_) { rebuild(); }
+              }, 80);
+            }
+          });
+          mo2.observe(ul, { childList: true });
+        }
+        // Watch floatbar open/close to burst refresh after layout changes
+        const fb = document.querySelector('.catalogeu-navigation-plugin-floatbar');
+        if (fb) {
+          const burst = () => { [50,150,300,600,1000].forEach(ms => setTimeout(() => scheduleRebuild(0), ms)); };
+          const moFb = new MutationObserver(() => {
+            const pn = fb.querySelector('.panel');
+            const visible = !!(pn && (pn.style.display === 'flex' || fb.classList.contains('show-panel')));
+            if (visible) burst();
+          });
+          moFb.observe(fb, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true });
+        }
+        // Remove periodic safety net to avoid spurious rebuilds
+        try { clearInterval(window.__geminiRebuildIntervalId); } catch(_) {}
+      } catch (e) {
+        // No periodic fallback
+      }
+    }, 500);
+
+    // Detect SPA route changes via History API
+    try {
+      const _ps = history.pushState; const _rs = history.replaceState;
+      const settle = () => { try { window.__onGeminiConversationChange(); } catch(_) {} };
+      history.pushState = function(){ const r = _ps.apply(this, arguments); settle(); return r; };
+      history.replaceState = function(){ const r = _rs.apply(this, arguments); settle(); return r; };
+      window.addEventListener('popstate', settle);
+    } catch(_) {}
+
+    // Conversation signature monitor: if first messages change, force refresh
+    setInterval(() => {
+      try {
+        let blocks = Array.from(document.querySelectorAll('div[data-message-author]'));
+        if (blocks.length === 0) blocks = Array.from(document.querySelectorAll('[data-message-author]'));
+        if (blocks.length === 0) blocks = Array.from(document.querySelectorAll('[data-message-id]'));
+        const key = computeKeyFromBlocks(blocks);
+        if (key && key !== rebuild._key) {
+          window.__onGeminiConversationChange();
+        }
+      } catch(_) {}
+    }, 1200);
+  })();
   
 })();
