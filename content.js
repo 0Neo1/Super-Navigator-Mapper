@@ -236,11 +236,6 @@ const createZeroEkaIconButton = () => {
     menuPanel.style.display = 'flex';
     menuOpen = true;
     scheduleAutoHide();
-    
-    // Debug page elements when menu is opened on Gemini
-    if (isGemini) {
-      setTimeout(debugPageElements, 100);
-    }
   }
   function hideMenu() { menuPanel.style.display = 'none'; menuOpen = false; clearAutoHide(); }
   let menuOpen = false;
@@ -271,102 +266,37 @@ const createZeroEkaIconButton = () => {
   function getMainEl() {
     return document.querySelector('main') || document.querySelector('[role="main"]') || document.body;
   }
-  
-  // Debug function to help identify header/footer elements
-  function debugPageElements() {
-    if (!isGemini) return;
-    
-    console.log('[Extension] Debugging Gemini page elements...');
-    
-    // Check for header elements
-    const headerCandidates = [
-      'header',
-      '[role="banner"]',
-      '[data-testid="header"]',
-      '.header',
-      '[class*="header"]',
-      '[class*="navigation"]',
-      '[class*="top-bar"]',
-      '[class*="app-bar"]',
-      '[class*="toolbar"]'
-    ];
-    
-    headerCandidates.forEach(selector => {
-      const elements = document.querySelectorAll(selector);
-      if (elements.length > 0) {
-        console.log(`[Extension] Found header candidate "${selector}":`, elements);
-      }
-    });
-    
-    // Check for footer elements
-    const footerCandidates = [
-      'footer',
-      '[role="contentinfo"]',
-      '[data-testid="footer"]',
-      '.footer',
-      '[class*="footer"]',
-      '[class*="search"]',
-      'input[type="text"][placeholder*="search" i]',
-      'input[type="text"][placeholder*="message" i]',
-      '[class*="input"]',
-      '[class*="composer"]',
-      '[class*="message-input"]',
-      '[class*="chat-input"]',
-      'div[role="textbox"]',
-      '[contenteditable="true"]'
-    ];
-    
-    footerCandidates.forEach(selector => {
-      const elements = document.querySelectorAll(selector);
-      if (elements.length > 0) {
-        console.log(`[Extension] Found footer candidate "${selector}":`, elements);
-      }
-    });
-    
-    // Also check for elements by position (top/bottom of viewport)
-    const allDivs = document.querySelectorAll('div');
-    const viewportHeight = window.innerHeight;
-    
-    // Look for elements near the top (potential headers)
-    allDivs.forEach(div => {
-      const rect = div.getBoundingClientRect();
-      if (rect.top < 100 && rect.height > 30 && rect.width > 200) {
-        console.log('[Extension] Potential header by position:', div, 'at top:', rect.top);
-      }
-    });
-    
-    // Look for elements near the bottom (potential footers)
-    allDivs.forEach(div => {
-      const rect = div.getBoundingClientRect();
-      if (rect.bottom > viewportHeight - 100 && rect.height > 30 && rect.width > 200) {
-        console.log('[Extension] Potential footer by position:', div, 'at bottom:', rect.bottom);
-      }
-    });
-  }
   function getHeaderEl() {
     if (isGemini) {
-      // Gemini-specific header selectors
-      let header = document.querySelector('header[role="banner"]') || 
-                   document.querySelector('header') || 
-                   document.querySelector('[data-testid="header"]') ||
+      // Gemini-specific header selectors - try multiple approaches
+      let header = document.querySelector('[data-testid="header"]') || 
+                   document.querySelector('header') ||
                    document.querySelector('[role="banner"]') ||
                    document.querySelector('.header') ||
                    document.querySelector('[class*="header"]') ||
-                   document.querySelector('[class*="navigation"]') ||
-                   document.querySelector('[class*="top-bar"]') ||
-                   document.querySelector('[class*="app-bar"]') ||
-                   document.querySelector('[class*="toolbar"]');
+                   document.querySelector('div[class*="Header"]') ||
+                   document.querySelector('div[class*="header"]');
       
-      // Fallback: find by position if standard selectors fail
+      // If still not found, try to find by scanning for common patterns
       if (!header) {
-        const allDivs = document.querySelectorAll('div');
-        const viewportHeight = window.innerHeight;
-        
-        for (let div of allDivs) {
-          const rect = div.getBoundingClientRect();
-          if (rect.top < 100 && rect.height > 30 && rect.width > 200 && 
-              (div.textContent || '').trim().length > 0) {
-            header = div;
+        const headerCandidates = document.querySelectorAll('div[class*="header"], div[class*="Header"]');
+        for (const candidate of headerCandidates) {
+          // Look for elements that contain navigation or logo-like content
+          if (candidate.querySelector('a[href*="gemini"], a[href*="google"], img[alt*="Gemini"], img[alt*="Google"]') ||
+              candidate.textContent.includes('Gemini') ||
+              candidate.textContent.includes('Google')) {
+            header = candidate;
+            break;
+          }
+        }
+      }
+      
+      // Try to find the top navigation area
+      if (!header) {
+        const navElements = document.querySelectorAll('nav, [role="navigation"]');
+        for (const nav of navElements) {
+          if (nav.closest('div[class*="header"]') || nav.textContent.includes('Gemini')) {
+            header = nav.closest('div[class*="header"]') || nav;
             break;
           }
         }
@@ -382,33 +312,35 @@ const createZeroEkaIconButton = () => {
   }
   function getFooterEl() {
     if (isGemini) {
-      // Gemini-specific footer selectors
-      let footer = document.querySelector('footer[role="contentinfo"]') || 
-                   document.querySelector('footer') || 
-                   document.querySelector('[data-testid="footer"]') ||
-                   document.querySelector('[role="contentinfo"]') ||
-                   document.querySelector('.footer') ||
-                   document.querySelector('[class*="footer"]') ||
-                   document.querySelector('[class*="search"]') ||
-                   document.querySelector('input[type="text"][placeholder*="search" i]')?.closest('div') ||
-                   document.querySelector('input[type="text"][placeholder*="message" i]')?.closest('div') ||
-                   document.querySelector('[class*="input"]') ||
-                   document.querySelector('[class*="composer"]') ||
-                   document.querySelector('[class*="message-input"]') ||
-                   document.querySelector('[class*="chat-input"]') ||
-                   document.querySelector('div[role="textbox"]')?.closest('div') ||
-                   document.querySelector('[contenteditable="true"]')?.closest('div');
+      // Gemini-specific footer/input selectors - try multiple approaches
+      let footer = document.querySelector('[data-testid="input-box"]') ||
+                   document.querySelector('[data-testid="input-container"]') ||
+                   document.querySelector('[role="textbox"]') ||
+                   document.querySelector('textarea[placeholder*="Message"]') ||
+                   document.querySelector('textarea[placeholder*="message"]') ||
+                   document.querySelector('div[class*="input"]') ||
+                   document.querySelector('div[class*="Input"]') ||
+                   document.querySelector('div[class*="footer"]') ||
+                   document.querySelector('div[class*="Footer"]') ||
+                   document.querySelector('footer');
       
-      // Fallback: find by position if standard selectors fail
+      // If still not found, try to find by scanning for common patterns
       if (!footer) {
-        const allDivs = document.querySelectorAll('div');
-        const viewportHeight = window.innerHeight;
-        
-        for (let div of allDivs) {
-          const rect = div.getBoundingClientRect();
-          if (rect.bottom > viewportHeight - 100 && rect.height > 30 && rect.width > 200 && 
-              (div.textContent || '').trim().length > 0) {
-            footer = div;
+        const textareas = document.querySelectorAll('textarea');
+        for (const ta of textareas) {
+          if (ta.placeholder && ta.placeholder.toLowerCase().includes('message')) {
+            footer = ta.closest('div') || ta;
+            break;
+          }
+        }
+      }
+      
+      // Try to find the main input area container
+      if (!footer) {
+        const inputContainers = document.querySelectorAll('div[class*="input"], div[class*="Input"]');
+        for (const container of inputContainers) {
+          if (container.querySelector('textarea') || container.textContent.includes('Send')) {
+            footer = container;
             break;
           }
         }
@@ -429,12 +361,21 @@ const createZeroEkaIconButton = () => {
   itemToggleHeader.addEventListener('click', () => {
     const header = getHeaderEl();
     if (!header) {
-      console.log('[Extension] Header element not found for platform:', platform);
+      console.warn('Header element not found for hide/show');
       return;
     }
     const hidden = header.style.display === 'none';
     header.style.display = hidden ? '' : 'none';
-    console.log('[Extension] Header', hidden ? 'shown' : 'hidden', 'on', platform);
+    
+    // Also try to hide parent containers if they exist
+    if (isGemini) {
+      const headerParent = header.closest('div[class*="header"], div[class*="Header"]');
+      if (headerParent && headerParent !== header) {
+        headerParent.style.display = hidden ? '' : 'none';
+      }
+    }
+    
+    console.log(`Header ${hidden ? 'shown' : 'hidden'}`);
     hideMenu(); menuOpen = false;
   });
 
@@ -442,12 +383,35 @@ const createZeroEkaIconButton = () => {
   itemToggleFooter.addEventListener('click', () => {
     const footer = getFooterEl();
     if (!footer) {
-      console.log('[Extension] Footer element not found for platform:', platform);
+      console.warn('Footer element not found for hide/show');
+      // On Gemini, try to find and log available elements for debugging
+      if (isGemini) {
+        console.log('Available Gemini elements for footer:');
+        console.log('Input boxes:', document.querySelectorAll('[data-testid*="input"]'));
+        console.log('Textareas:', document.querySelectorAll('textarea'));
+        console.log('Input containers:', document.querySelectorAll('div[class*="input"]'));
+        console.log('Footer containers:', document.querySelectorAll('div[class*="footer"]'));
+      }
       return;
     }
     const hidden = footer.style.display === 'none';
     footer.style.display = hidden ? '' : 'none';
-    console.log('[Extension] Footer', hidden ? 'shown' : 'hidden', 'on', platform);
+    
+    // Also try to hide parent containers if they exist
+    if (isGemini) {
+      const footerParent = footer.closest('div[class*="input"], div[class*="Input"], div[class*="footer"], div[class*="Footer"]');
+      if (footerParent && footerParent !== footer) {
+        footerParent.style.display = hidden ? '' : 'none';
+      }
+      
+      // Try to hide the entire input area container
+      const inputArea = document.querySelector('div[class*="input-area"], div[class*="InputArea"]');
+      if (inputArea) {
+        inputArea.style.display = hidden ? '' : 'none';
+      }
+    }
+    
+    console.log(`Footer ${hidden ? 'shown' : 'hidden'}`);
     hideMenu(); menuOpen = false;
   });
 
@@ -4458,41 +4422,5 @@ const updateTextSize = (container, size) => {
       } catch(_) {}
     }, 1200);
   })();
-  
-  // Test function for debugging hide/show functionality
-  window.testHideShow = function() {
-    if (!isGemini) {
-      console.log('[Extension] Test function only available on Gemini');
-      return;
-    }
-    
-    console.log('[Extension] Testing hide/show functionality...');
-    
-    const header = getHeaderEl();
-    const footer = getFooterEl();
-    
-    console.log('[Extension] Header element:', header);
-    console.log('[Extension] Footer element:', footer);
-    
-    if (header) {
-      console.log('[Extension] Header styles:', {
-        display: header.style.display,
-        visibility: header.style.visibility,
-        opacity: header.style.opacity,
-        position: getComputedStyle(header).position,
-        top: getComputedStyle(header).top
-      });
-    }
-    
-    if (footer) {
-      console.log('[Extension] Footer styles:', {
-        display: footer.style.display,
-        visibility: footer.style.visibility,
-        opacity: footer.style.opacity,
-        position: getComputedStyle(footer).position,
-        bottom: getComputedStyle(footer).bottom
-      });
-    }
-  };
   
 })();
