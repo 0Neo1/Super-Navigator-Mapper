@@ -43,14 +43,26 @@
   console.log('Current URL:', location.href);
   console.log('Pathname:', location.pathname);
   
-  // Create mindmap data from the current chat tree
-  const e=(t,l)=>t?Array.from(t.children).map((t,a)=>{
-    const s=t.children[1]?.firstChild;
-    let r=s?.data||s?.textContent;
-    r&&n(r.at(-1))&&(r=r.slice(0,-1));
-    const o=`${l}_${a+1}`;
-    return{id:o,topic:r,children:e(t.children[2],o)}
-  }):[];
+  // Create mindmap data from the current chat tree (respecting visibility)
+  const e=(t,l)=>{
+    if (!t) return [];
+    return Array.from(t.children).filter(li => {
+      if (li.tagName !== 'LI') return false;
+      // Check if this LI is actually visible (not collapsed/hidden)
+      try {
+        if (li.closest('li.collapsed')) return false;
+        const cs = getComputedStyle(li);
+        if (cs && (cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0')) return false;
+      } catch(_) {}
+      return true;
+    }).map((t,a)=>{
+      const s=t.children[1]?.firstChild;
+      let r=s?.data||s?.textContent;
+      r&&n(r.at(-1))&&(r=r.slice(0,-1));
+      const o=`${l}_${a+1}`;
+      return{id:o,topic:r,children:e(t.children[2],o)}
+    });
+  };
   
   const t={
     meta:{name:"mind map",author:"ChatGPT Message Tree",version:"1.0"},
@@ -490,7 +502,16 @@ const createZeroEkaIconButton = () => {
       const treeUl = document.querySelector('.catalogeu-navigation-plugin-floatbar .panel ul');
       const walk = (ul, prefix) => {
         if (!ul) return [];
-        return Array.from(ul.children).map((li, idx) => {
+        return Array.from(ul.children).filter(li => {
+          if (li.tagName !== 'LI') return false;
+          // Check if this LI is actually visible (not collapsed/hidden)
+          try {
+            if (li.closest('li.collapsed')) return false;
+            const cs = getComputedStyle(li);
+            if (cs && (cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0')) return false;
+          } catch(_) {}
+          return true;
+        }).map((li, idx) => {
           const labelDiv = li.children?.[1];
           let topic = (labelDiv?.textContent || '').trim();
           const id = `${prefix}_${idx+1}`;
@@ -2125,7 +2146,14 @@ const createZeroEkaIconButton = () => {
     const nextRoot = document.querySelector('#__next');
     const nextInner = document.querySelector('#__next > div');
     
-    const isPanelVisible = panel && (panel.style.display === 'flex' || floatbar.classList.contains('show-panel'));
+    const isPanelVisible = (() => {
+      try {
+        if (!panel) return false;
+        const disp = (panel.style && panel.style.display) || '';
+        const comp = (typeof getComputedStyle === 'function') ? getComputedStyle(panel).display : disp;
+        return comp === 'flex' || (floatbar && floatbar.classList && floatbar.classList.contains('show-panel'));
+      } catch (_) { return false; }
+    })();
     
     console.log('updateSidebarPosition called:', {
       hasFloatbar: !!floatbar,
@@ -2172,6 +2200,9 @@ const createZeroEkaIconButton = () => {
       // Expanded sidebar is hidden - show contracted sidebar and reduce main width to fit it
       contractedSidebar.style.display = 'flex';
       contractedSidebar.style.right = '0';
+      contractedSidebar.style.visibility = 'visible';
+      contractedSidebar.style.pointerEvents = 'auto';
+      contractedSidebar.style.opacity = '1';
 
       const rect = contractedSidebar.getBoundingClientRect();
       let contractedWidth = rect && rect.width ? Math.ceil(rect.width) : (contractedSidebar.offsetWidth || 80);
@@ -2282,11 +2313,21 @@ const createZeroEkaIconButton = () => {
     const panel = floatbar ? floatbar.querySelector('.panel') : null;
     const main = document.querySelector('main') || document.querySelector('[role="main"]') || document.body;
     
-    if (panel && panel.style.display !== 'flex' && !floatbar.classList.contains('show-panel')) {
-      // Panel is closed but contracted sidebar might not be visible
+    const panelVisible = (() => {
+      try {
+        if (!panel) return false;
+        const comp = getComputedStyle(panel).display;
+        return comp === 'flex' || (floatbar && floatbar.classList.contains('show-panel'));
+      } catch(_) { return false; }
+    })();
+
+    if (!panelVisible) {
+      // Ensure contracted sidebar is visible
       contractedSidebar.style.display = 'flex';
       contractedSidebar.style.right = '0';
-      
+      contractedSidebar.style.visibility = 'visible';
+      contractedSidebar.style.pointerEvents = 'auto';
+      contractedSidebar.style.opacity = '1';
       // Ensure main page width is restored
       if (main) {
         main.style.marginRight = '';
@@ -2906,7 +2947,8 @@ const updateTextSize = (container, size) => {
         const panel = floatbar.querySelector('.panel ul');
         if (panel && panel.children.length > 0) {
           console.log('Extracting tree data from floating box panel');
-          return extractTreeDataFromDOM(panel);
+          // Respect current on-screen visibility (concise vs full)
+          return extractTreeDataFromDOM(panel, true);
         } else {
           console.log('Floating box panel found but empty, falling back to ChatGPT extraction');
         }
@@ -2921,31 +2963,43 @@ const updateTextSize = (container, size) => {
     }
   }
   
-  function extractTreeDataFromDOM(ulElement) {
+  function extractTreeDataFromDOM(ulElement, respectVisibility = true) {
     const treeData = [];
-    const items = ulElement.children;
-    
+    if (!ulElement) return treeData;
+
+    const isVisible = (el) => {
+      if (!respectVisibility) return true;
+      try {
+        // Skip if inside a collapsed LI
+        if (el.closest && el.closest('li.collapsed')) return false;
+        // Walk up and ensure no ancestor is hidden and this element is displayed
+        let n = el;
+        while (n && n !== ulElement && n.nodeType === 1) {
+          const cs = getComputedStyle(n);
+          if (!cs || cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0') return false;
+          n = n.parentElement;
+        }
+      } catch (_) {}
+      return true;
+    };
+
+    const items = Array.from(ulElement.children || []);
     console.log('Extracting from DOM with', items.length, 'items');
-    
-    for (let item of items) {
-      if (item.tagName === 'LI') {
-        const contentDiv = item.querySelector('div');
-        const childrenUl = item.querySelector('ul');
-        const messageId = item.getAttribute('data-message-id');
-        
-        console.log('Processing item with messageId:', messageId);
-        
-        const nodeData = {
-          id: messageId || generateId(),
-          content: contentDiv ? contentDiv.textContent.trim() : 'Untitled',
-          children: childrenUl ? extractTreeDataFromDOM(childrenUl) : []
-        };
-        
-        console.log('Created node:', { id: nodeData.id, content: nodeData.content.substring(0, 50) + '...' });
-        treeData.push(nodeData);
-      }
-    }
-    
+
+    items.forEach((item) => {
+      if (item.tagName !== 'LI') return;
+      if (!isVisible(item)) return;
+      const contentDiv = item.querySelector(':scope > div');
+      const childrenUl = item.querySelector(':scope > ul');
+      const messageId = item.getAttribute('data-message-id');
+      const nodeData = {
+        id: messageId || generateId(),
+        content: contentDiv ? contentDiv.textContent.trim() : 'Untitled',
+        children: childrenUl ? extractTreeDataFromDOM(childrenUl, respectVisibility) : []
+      };
+      treeData.push(nodeData);
+    });
+
     console.log('Extracted tree data:', treeData.length, 'items');
     return treeData;
   }
@@ -3565,6 +3619,16 @@ const updateTextSize = (container, size) => {
         ul.appendChild(childLi);
       } catch(_) {}
     };
+    // Fold/unfold Gemini subnodes: when concise, hide li at depth >= 3 (ul ul ul li)
+    const applyGeminiFold = (ul) => {
+      try {
+        const concise = !!window.__geminiConcise;
+        const subNodes = ul.querySelectorAll('ul ul ul li');
+        subNodes.forEach((li) => {
+          li.style.display = concise ? 'none' : '';
+        });
+      } catch(_) {}
+    };
     const findNextModelWithContent = (blocks, fromIdx) => {
       for (let j = fromIdx + 1; j < blocks.length; j += 1) {
         const el = blocks[j];
@@ -3991,6 +4055,8 @@ const updateTextSize = (container, size) => {
           rebuild._key = currentKey;
           while (ul.firstChild) ul.removeChild(ul.firstChild);
           liEls.forEach(li => ul.appendChild(li));
+          // Apply concise folding if enabled
+          try { applyGeminiFold(ul); } catch(_) {}
         }
         // expose for manual refresh hooks
         window.__rebuildGeminiTree = rebuild;
@@ -4072,6 +4138,32 @@ const updateTextSize = (container, size) => {
           });
           moFb.observe(fb, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true });
         }
+        // Footer/header depth/concise toggle wiring (Gemini)
+        const bindGeminiConciseToggle = () => {
+          try {
+            // initialize from storage only once
+            if (typeof window.__geminiConcise === 'undefined' && chrome?.storage?.local) {
+              chrome.storage.local.get(['geminiConcise'], (d) => {
+                try { window.__geminiConcise = !!d?.geminiConcise; } catch(_) {}
+                const treeUl = getFloatbarUl();
+                if (treeUl) applyGeminiFold(treeUl);
+              });
+            }
+            const fb2 = document.querySelector('.catalogeu-navigation-plugin-floatbar');
+            if (!fb2) return;
+            const deepBtn = fb2.querySelector('.header .deep') || fb2.querySelector('.tools .deep') || fb2.querySelector('.deep');
+            if (deepBtn && !deepBtn.__geminiBound) {
+              deepBtn.__geminiBound = true;
+              deepBtn.addEventListener('click', () => {
+                try { window.__geminiConcise = !window.__geminiConcise; } catch(_) {}
+                try { chrome?.storage?.local && chrome.storage.local.set({ geminiConcise: !!window.__geminiConcise }); } catch(_) {}
+                const treeUl = getFloatbarUl();
+                if (treeUl) applyGeminiFold(treeUl);
+              }, true);
+            }
+          } catch(_) {}
+        };
+        bindGeminiConciseToggle();
         // Remove periodic safety net to avoid spurious rebuilds
         try { clearInterval(window.__geminiRebuildIntervalId); } catch(_) {}
       } catch (e) {
