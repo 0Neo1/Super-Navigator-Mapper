@@ -4184,21 +4184,22 @@ const updateTextSize = (container, size) => {
             const fb2 = document.querySelector('.catalogeu-navigation-plugin-floatbar');
             if (!fb2) return;
             
-            // 1. Deep/In-depth button (tree icon) - folds to child level
+            // 1. Deep/In-depth button (tree icon) - toggles between child level and full depth
             const deepBtn = fb2.querySelector('.header .deep') || fb2.querySelector('.tools .deep') || fb2.querySelector('.deep');
             if (deepBtn && !deepBtn.__geminiBound) {
               deepBtn.__geminiBound = true;
               deepBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('[Gemini] Deep button clicked - toggling child level mode');
+                console.log('[Gemini] Deep button clicked - toggling subnodes visibility');
                 
+                // Deep button toggles between parent+child (concise) and full depth (all subnodes)
                 // Reset parent-only mode when deep button is used
                 try { window.__geminiParentOnly = false; } catch(_) {}
-                // Toggle child level mode (shows parent + child, hides subnodes)
+                // Toggle child level mode (shows parent + child, hides/shows subnodes)
                 try { window.__geminiConcise = !window.__geminiConcise; } catch(_) {}
                 
-                console.log('[Gemini] New modes - Parent-only:', window.__geminiParentOnly, 'Child-level:', window.__geminiConcise);
+                console.log('[Gemini] New modes - Parent-only:', window.__geminiParentOnly, 'Child-level (concise):', window.__geminiConcise);
                 try { 
                   chrome?.storage?.local && chrome.storage.local.set({ 
                     geminiConcise: !!window.__geminiConcise,
@@ -4216,19 +4217,30 @@ const updateTextSize = (container, size) => {
               console.log('[Gemini] Deep button bound successfully');
             }
             
-            // 2. Fold button (leftmost in header) - folds to parent level
+            // 2. Fold button (leftmost in header) - toggles between parent-only and parent+child
             const foldBtn = fb2.querySelector('.header .fold');
             if (foldBtn && !foldBtn.__geminiFoldBound) {
               foldBtn.__geminiFoldBound = true;
               foldBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('[Gemini] Fold button clicked - toggling parent-only mode');
+                console.log('[Gemini] Fold button clicked - toggling between parent-only and parent+child');
                 
-                // Reset child level mode when fold button is used
-                try { window.__geminiConcise = false; } catch(_) {}
-                // Toggle parent-only mode (shows only parents)
-                try { window.__geminiParentOnly = !window.__geminiParentOnly; } catch(_) {}
+                // Toggle logic: if currently showing parent-only, expand to parent+child
+                // If currently showing anything else (parent+child or full), collapse to parent-only
+                const currentlyParentOnly = !!window.__geminiParentOnly;
+                
+                if (currentlyParentOnly) {
+                  // Currently parent-only -> expand to parent+child (concise mode)
+                  try { window.__geminiParentOnly = false; } catch(_) {}
+                  try { window.__geminiConcise = true; } catch(_) {}
+                  console.log('[Gemini] Unfolding to parent+child level');
+                } else {
+                  // Currently parent+child or full -> collapse to parent-only
+                  try { window.__geminiParentOnly = true; } catch(_) {}
+                  try { window.__geminiConcise = false; } catch(_) {}
+                  console.log('[Gemini] Folding to parent-only level');
+                }
                 
                 console.log('[Gemini] New modes - Parent-only:', window.__geminiParentOnly, 'Child-level:', window.__geminiConcise);
                 try { 
