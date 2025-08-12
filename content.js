@@ -56,11 +56,11 @@
       } catch(_) {}
       return true;
     }).map((t,a)=>{
-      const s=t.children[1]?.firstChild;
-      let r=s?.data||s?.textContent;
-      r&&n(r.at(-1))&&(r=r.slice(0,-1));
-      const o=`${l}_${a+1}`;
-      return{id:o,topic:r,children:e(t.children[2],o)}
+    const s=t.children[1]?.firstChild;
+    let r=s?.data||s?.textContent;
+    r&&n(r.at(-1))&&(r=r.slice(0,-1));
+    const o=`${l}_${a+1}`;
+    return{id:o,topic:r,children:e(t.children[2],o)}
     });
   };
   
@@ -3619,12 +3619,13 @@ const updateTextSize = (container, size) => {
         ul.appendChild(childLi);
       } catch(_) {}
     };
-    // Fold/unfold Gemini subnodes: when concise, hide li at depth >= 3 (ul ul ul li)
+    // Fold/unfold Gemini subnodes: when concise, hide all child and subnodes (depth >= 2: ul ul li)
     const applyGeminiFold = (ul) => {
       try {
         const concise = !!window.__geminiConcise;
-        const subNodes = ul.querySelectorAll('ul ul ul li');
-        subNodes.forEach((li) => {
+        // Hide all child nodes (assistant replies) and subnodes (headings/lists) when folded
+        const childAndSubNodes = ul.querySelectorAll('ul ul li');
+        childAndSubNodes.forEach((li) => {
           li.style.display = concise ? 'none' : '';
         });
       } catch(_) {}
@@ -4154,16 +4155,33 @@ const updateTextSize = (container, size) => {
             const deepBtn = fb2.querySelector('.header .deep') || fb2.querySelector('.tools .deep') || fb2.querySelector('.deep');
             if (deepBtn && !deepBtn.__geminiBound) {
               deepBtn.__geminiBound = true;
-              deepBtn.addEventListener('click', () => {
+              deepBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[Gemini] Deep/fold button clicked, current state:', window.__geminiConcise);
                 try { window.__geminiConcise = !window.__geminiConcise; } catch(_) {}
+                console.log('[Gemini] New fold state:', window.__geminiConcise);
                 try { chrome?.storage?.local && chrome.storage.local.set({ geminiConcise: !!window.__geminiConcise }); } catch(_) {}
                 const treeUl = getFloatbarUl();
-                if (treeUl) applyGeminiFold(treeUl);
+                if (treeUl) {
+                  console.log('[Gemini] Applying fold to tree with', treeUl.querySelectorAll('ul ul li').length, 'child/subnodes');
+                  applyGeminiFold(treeUl);
+                } else {
+                  console.warn('[Gemini] No tree UL found for folding');
+                }
               }, true);
+              console.log('[Gemini] Deep button bound successfully');
+            } else {
+              console.warn('[Gemini] Deep button not found or already bound');
             }
-          } catch(_) {}
+          } catch(err) {
+            console.error('[Gemini] Error binding concise toggle:', err);
+          }
         };
         bindGeminiConciseToggle();
+        // Retry binding after delays in case floatbar isn't ready
+        setTimeout(bindGeminiConciseToggle, 500);
+        setTimeout(bindGeminiConciseToggle, 1000);
         // Remove periodic safety net to avoid spurious rebuilds
         try { clearInterval(window.__geminiRebuildIntervalId); } catch(_) {}
       } catch (e) {
