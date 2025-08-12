@@ -3619,15 +3619,42 @@ const updateTextSize = (container, size) => {
         ul.appendChild(childLi);
       } catch(_) {}
     };
-    // Fold/unfold Gemini subnodes: when concise, hide all child and subnodes (depth >= 2: ul ul li)
+    // Two-level folding system for Gemini:
+    // Level 1 (Parent-only): Hide all child and subnodes (depth >= 2: ul ul li)  
+    // Level 2 (Child-level): Hide only subnodes (depth >= 3: ul ul ul li)
     const applyGeminiFold = (ul) => {
       try {
-        const concise = !!window.__geminiConcise;
-        // Hide all child nodes (assistant replies) and subnodes (headings/lists) when folded
-        const childAndSubNodes = ul.querySelectorAll('ul ul li');
-        childAndSubNodes.forEach((li) => {
-          li.style.display = concise ? 'none' : '';
-        });
+        const parentOnlyMode = !!window.__geminiParentOnly; // Fold button - shows only parents
+        const childLevelMode = !!window.__geminiConcise;     // Deep button - shows parent + child
+        
+        if (parentOnlyMode) {
+          // Hide all child nodes and subnodes (depth >= 2)
+          const allChildAndSubNodes = ul.querySelectorAll('ul ul li');
+          allChildAndSubNodes.forEach((li) => {
+            li.style.display = 'none';
+          });
+        } else if (childLevelMode) {
+          // Hide only subnodes (depth >= 3), keep child nodes visible
+          const subNodes = ul.querySelectorAll('ul ul ul li');
+          subNodes.forEach((li) => {
+            li.style.display = 'none';
+          });
+          // Ensure child nodes are visible (depth = 2)
+          const childNodes = ul.querySelectorAll('ul ul li');
+          childNodes.forEach((li) => {
+            // Only show if it's not a deeper subnode
+            const depth = li.closest('ul ul ul ul') ? 4 : li.closest('ul ul ul') ? 3 : 2;
+            if (depth === 2) {
+              li.style.display = '';
+            }
+          });
+        } else {
+          // Show everything - no folding
+          const allNodes = ul.querySelectorAll('ul ul li');
+          allNodes.forEach((li) => {
+            li.style.display = '';
+          });
+        }
       } catch(_) {}
     };
     const findNextModelWithContent = (blocks, fromIdx) => {
@@ -4139,49 +4166,99 @@ const updateTextSize = (container, size) => {
           });
           moFb.observe(fb, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true });
         }
-        // Footer/header depth/concise toggle wiring (Gemini)
-        const bindGeminiConciseToggle = () => {
+        // Two-level folding system for Gemini (Deep button + Fold button)
+        const bindGeminiFoldingButtons = () => {
           try {
-            // initialize from storage only once
+            // Initialize from storage only once
             if (typeof window.__geminiConcise === 'undefined' && chrome?.storage?.local) {
-              chrome.storage.local.get(['geminiConcise'], (d) => {
-                try { window.__geminiConcise = !!d?.geminiConcise; } catch(_) {}
+              chrome.storage.local.get(['geminiConcise', 'geminiParentOnly'], (d) => {
+                try { 
+                  window.__geminiConcise = !!d?.geminiConcise; 
+                  window.__geminiParentOnly = !!d?.geminiParentOnly;
+                } catch(_) {}
                 const treeUl = getFloatbarUl();
                 if (treeUl) applyGeminiFold(treeUl);
               });
             }
+            
             const fb2 = document.querySelector('.catalogeu-navigation-plugin-floatbar');
             if (!fb2) return;
+            
+            // 1. Deep/In-depth button (tree icon) - folds to child level
             const deepBtn = fb2.querySelector('.header .deep') || fb2.querySelector('.tools .deep') || fb2.querySelector('.deep');
             if (deepBtn && !deepBtn.__geminiBound) {
               deepBtn.__geminiBound = true;
               deepBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('[Gemini] Deep/fold button clicked, current state:', window.__geminiConcise);
+                console.log('[Gemini] Deep button clicked - toggling child level mode');
+                
+                // Reset parent-only mode when deep button is used
+                try { window.__geminiParentOnly = false; } catch(_) {}
+                // Toggle child level mode (shows parent + child, hides subnodes)
                 try { window.__geminiConcise = !window.__geminiConcise; } catch(_) {}
-                console.log('[Gemini] New fold state:', window.__geminiConcise);
-                try { chrome?.storage?.local && chrome.storage.local.set({ geminiConcise: !!window.__geminiConcise }); } catch(_) {}
+                
+                console.log('[Gemini] New modes - Parent-only:', window.__geminiParentOnly, 'Child-level:', window.__geminiConcise);
+                try { 
+                  chrome?.storage?.local && chrome.storage.local.set({ 
+                    geminiConcise: !!window.__geminiConcise,
+                    geminiParentOnly: !!window.__geminiParentOnly
+                  }); 
+                } catch(_) {}
+                
                 const treeUl = getFloatbarUl();
                 if (treeUl) {
-                  console.log('[Gemini] Applying fold to tree with', treeUl.querySelectorAll('ul ul li').length, 'child/subnodes');
                   applyGeminiFold(treeUl);
                 } else {
                   console.warn('[Gemini] No tree UL found for folding');
                 }
               }, true);
               console.log('[Gemini] Deep button bound successfully');
-            } else {
-              console.warn('[Gemini] Deep button not found or already bound');
+            }
+            
+            // 2. Fold button (leftmost in header) - folds to parent level
+            const foldBtn = fb2.querySelector('.header .fold');
+            if (foldBtn && !foldBtn.__geminiFoldBound) {
+              foldBtn.__geminiFoldBound = true;
+              foldBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[Gemini] Fold button clicked - toggling parent-only mode');
+                
+                // Reset child level mode when fold button is used
+                try { window.__geminiConcise = false; } catch(_) {}
+                // Toggle parent-only mode (shows only parents)
+                try { window.__geminiParentOnly = !window.__geminiParentOnly; } catch(_) {}
+                
+                console.log('[Gemini] New modes - Parent-only:', window.__geminiParentOnly, 'Child-level:', window.__geminiConcise);
+                try { 
+                  chrome?.storage?.local && chrome.storage.local.set({ 
+                    geminiConcise: !!window.__geminiConcise,
+                    geminiParentOnly: !!window.__geminiParentOnly
+                  }); 
+                } catch(_) {}
+                
+                const treeUl = getFloatbarUl();
+                if (treeUl) {
+                  applyGeminiFold(treeUl);
+                } else {
+                  console.warn('[Gemini] No tree UL found for folding');
+                }
+              }, true);
+              console.log('[Gemini] Fold button bound successfully');
+            }
+            
+            if (!deepBtn && !foldBtn) {
+              console.warn('[Gemini] Neither deep nor fold buttons found');
             }
           } catch(err) {
-            console.error('[Gemini] Error binding concise toggle:', err);
+            console.error('[Gemini] Error binding folding buttons:', err);
           }
         };
-        bindGeminiConciseToggle();
+        bindGeminiFoldingButtons();
         // Retry binding after delays in case floatbar isn't ready
-        setTimeout(bindGeminiConciseToggle, 500);
-        setTimeout(bindGeminiConciseToggle, 1000);
+        setTimeout(bindGeminiFoldingButtons, 500);
+        setTimeout(bindGeminiFoldingButtons, 1000);
         // Remove periodic safety net to avoid spurious rebuilds
         try { clearInterval(window.__geminiRebuildIntervalId); } catch(_) {}
       } catch (e) {
