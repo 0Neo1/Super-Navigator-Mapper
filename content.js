@@ -236,6 +236,11 @@ const createZeroEkaIconButton = () => {
     menuPanel.style.display = 'flex';
     menuOpen = true;
     scheduleAutoHide();
+    
+    // Debug page elements when menu is opened on Gemini
+    if (isGemini) {
+      setTimeout(debugPageElements, 100);
+    }
   }
   function hideMenu() { menuPanel.style.display = 'none'; menuOpen = false; clearAutoHide(); }
   let menuOpen = false;
@@ -266,62 +271,183 @@ const createZeroEkaIconButton = () => {
   function getMainEl() {
     return document.querySelector('main') || document.querySelector('[role="main"]') || document.body;
   }
+  
+  // Debug function to help identify header/footer elements
+  function debugPageElements() {
+    if (!isGemini) return;
+    
+    console.log('[Extension] Debugging Gemini page elements...');
+    
+    // Check for header elements
+    const headerCandidates = [
+      'header',
+      '[role="banner"]',
+      '[data-testid="header"]',
+      '.header',
+      '[class*="header"]',
+      '[class*="navigation"]',
+      '[class*="top-bar"]',
+      '[class*="app-bar"]',
+      '[class*="toolbar"]'
+    ];
+    
+    headerCandidates.forEach(selector => {
+      const elements = document.querySelectorAll(selector);
+      if (elements.length > 0) {
+        console.log(`[Extension] Found header candidate "${selector}":`, elements);
+      }
+    });
+    
+    // Check for footer elements
+    const footerCandidates = [
+      'footer',
+      '[role="contentinfo"]',
+      '[data-testid="footer"]',
+      '.footer',
+      '[class*="footer"]',
+      '[class*="search"]',
+      'input[type="text"][placeholder*="search" i]',
+      'input[type="text"][placeholder*="message" i]',
+      '[class*="input"]',
+      '[class*="composer"]',
+      '[class*="message-input"]',
+      '[class*="chat-input"]',
+      'div[role="textbox"]',
+      '[contenteditable="true"]'
+    ];
+    
+    footerCandidates.forEach(selector => {
+      const elements = document.querySelectorAll(selector);
+      if (elements.length > 0) {
+        console.log(`[Extension] Found footer candidate "${selector}":`, elements);
+      }
+    });
+    
+    // Also check for elements by position (top/bottom of viewport)
+    const allDivs = document.querySelectorAll('div');
+    const viewportHeight = window.innerHeight;
+    
+    // Look for elements near the top (potential headers)
+    allDivs.forEach(div => {
+      const rect = div.getBoundingClientRect();
+      if (rect.top < 100 && rect.height > 30 && rect.width > 200) {
+        console.log('[Extension] Potential header by position:', div, 'at top:', rect.top);
+      }
+    });
+    
+    // Look for elements near the bottom (potential footers)
+    allDivs.forEach(div => {
+      const rect = div.getBoundingClientRect();
+      if (rect.bottom > viewportHeight - 100 && rect.height > 30 && rect.width > 200) {
+        console.log('[Extension] Potential footer by position:', div, 'at bottom:', rect.bottom);
+      }
+    });
+  }
   function getHeaderEl() {
-    // Prefer Gemini header if present, fallback to any header
-    return (
-      document.getElementById('page-header') ||
-      document.querySelector('[role="presentation"] > #page-header') ||
-      document.querySelector('header')
-    );
+    if (isGemini) {
+      // Gemini-specific header selectors
+      let header = document.querySelector('header[role="banner"]') || 
+                   document.querySelector('header') || 
+                   document.querySelector('[data-testid="header"]') ||
+                   document.querySelector('[role="banner"]') ||
+                   document.querySelector('.header') ||
+                   document.querySelector('[class*="header"]') ||
+                   document.querySelector('[class*="navigation"]') ||
+                   document.querySelector('[class*="top-bar"]') ||
+                   document.querySelector('[class*="app-bar"]') ||
+                   document.querySelector('[class*="toolbar"]');
+      
+      // Fallback: find by position if standard selectors fail
+      if (!header) {
+        const allDivs = document.querySelectorAll('div');
+        const viewportHeight = window.innerHeight;
+        
+        for (let div of allDivs) {
+          const rect = div.getBoundingClientRect();
+          if (rect.top < 100 && rect.height > 30 && rect.width > 200 && 
+              (div.textContent || '').trim().length > 0) {
+            header = div;
+            break;
+          }
+        }
+      }
+      
+      return header;
+    } else {
+      // ChatGPT-specific header selectors
+      return document.getElementById('page-header') || 
+             document.querySelector('[role="presentation"] > #page-header') || 
+             document.querySelector('header');
+    }
   }
   function getFooterEl() {
-    // Prefer Gemini input/footer container if present, fallback to any footer
-    return (
-      document.getElementById('thread-bottom-container') ||
-      document.querySelector('[role="presentation"] > #thread-bottom-container') ||
-      document.querySelector('footer')
-    );
-  }
-
-  // Ensure global CSS for force-hide header/footer on both Gemini and ChatGPT
-  function ensureHideShowStyles() {
-    if (document.getElementById('zeroeka-hide-show-styles')) return;
-    const style = document.createElement('style');
-    style.id = 'zeroeka-hide-show-styles';
-    style.textContent = `
-      /* Header force hide */
-      .zeroeka-hide-header #page-header,
-      .zeroeka-hide-header [role="presentation"] > #page-header,
-      .zeroeka-hide-header header {
-        display: none !important;
+    if (isGemini) {
+      // Gemini-specific footer selectors
+      let footer = document.querySelector('footer[role="contentinfo"]') || 
+                   document.querySelector('footer') || 
+                   document.querySelector('[data-testid="footer"]') ||
+                   document.querySelector('[role="contentinfo"]') ||
+                   document.querySelector('.footer') ||
+                   document.querySelector('[class*="footer"]') ||
+                   document.querySelector('[class*="search"]') ||
+                   document.querySelector('input[type="text"][placeholder*="search" i]')?.closest('div') ||
+                   document.querySelector('input[type="text"][placeholder*="message" i]')?.closest('div') ||
+                   document.querySelector('[class*="input"]') ||
+                   document.querySelector('[class*="composer"]') ||
+                   document.querySelector('[class*="message-input"]') ||
+                   document.querySelector('[class*="chat-input"]') ||
+                   document.querySelector('div[role="textbox"]')?.closest('div') ||
+                   document.querySelector('[contenteditable="true"]')?.closest('div');
+      
+      // Fallback: find by position if standard selectors fail
+      if (!footer) {
+        const allDivs = document.querySelectorAll('div');
+        const viewportHeight = window.innerHeight;
+        
+        for (let div of allDivs) {
+          const rect = div.getBoundingClientRect();
+          if (rect.bottom > viewportHeight - 100 && rect.height > 30 && rect.width > 200 && 
+              (div.textContent || '').trim().length > 0) {
+            footer = div;
+            break;
+          }
+        }
       }
-      /* Footer/Input force hide */
-      .zeroeka-hide-footer #thread-bottom-container,
-      .zeroeka-hide-footer [role="presentation"] > #thread-bottom-container,
-      .zeroeka-hide-footer footer {
-        display: none !important;
-      }
-    `;
-    (document.head || document.documentElement).appendChild(style);
+      
+      return footer;
+    } else {
+      // ChatGPT-specific footer selectors
+      return document.getElementById('thread-bottom-container') || 
+             document.querySelector('[role="presentation"] > #thread-bottom-container') || 
+             document.querySelector('footer');
+    }
   }
 
   // Removed Toggle chat width action
 
   // Action: Hide/Show header
   itemToggleHeader.addEventListener('click', () => {
-    ensureHideShowStyles();
-    const root = document.documentElement;
-    // Toggle class which forces hide via !important CSS to beat site styles
-    root.classList.toggle('zeroeka-hide-header');
+    const header = getHeaderEl();
+    if (!header) {
+      console.log('[Extension] Header element not found for platform:', platform);
+      return;
+    }
+    const hidden = header.style.display === 'none';
+    header.style.display = hidden ? '' : 'none';
+    console.log('[Extension] Header', hidden ? 'shown' : 'hidden', 'on', platform);
     hideMenu(); menuOpen = false;
   });
 
   // Action: Hide/Show footer
   itemToggleFooter.addEventListener('click', () => {
-    ensureHideShowStyles();
-    const root = document.documentElement;
-    // Toggle class which forces hide via !important CSS to beat site styles
-    root.classList.toggle('zeroeka-hide-footer');
+    const footer = getFooterEl();
+    if (!footer) {
+      console.log('[Extension] Footer element not found for platform:', platform);
+      return;
+    }
+    const hidden = footer.style.display === 'none';
+    footer.style.display = hidden ? '' : 'none';
+    console.log('[Extension] Footer', hidden ? 'shown' : 'hidden', 'on', platform);
     hideMenu(); menuOpen = false;
   });
 
@@ -4332,5 +4458,41 @@ const updateTextSize = (container, size) => {
       } catch(_) {}
     }, 1200);
   })();
+  
+  // Test function for debugging hide/show functionality
+  window.testHideShow = function() {
+    if (!isGemini) {
+      console.log('[Extension] Test function only available on Gemini');
+      return;
+    }
+    
+    console.log('[Extension] Testing hide/show functionality...');
+    
+    const header = getHeaderEl();
+    const footer = getFooterEl();
+    
+    console.log('[Extension] Header element:', header);
+    console.log('[Extension] Footer element:', footer);
+    
+    if (header) {
+      console.log('[Extension] Header styles:', {
+        display: header.style.display,
+        visibility: header.style.visibility,
+        opacity: header.style.opacity,
+        position: getComputedStyle(header).position,
+        top: getComputedStyle(header).top
+      });
+    }
+    
+    if (footer) {
+      console.log('[Extension] Footer styles:', {
+        display: footer.style.display,
+        visibility: footer.style.visibility,
+        opacity: footer.style.opacity,
+        position: getComputedStyle(footer).position,
+        bottom: getComputedStyle(footer).bottom
+      });
+    }
+  };
   
 })();
