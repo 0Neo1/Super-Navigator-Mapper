@@ -4,6 +4,13 @@
   const isChatGPT = window.location.hostname.includes('chatgpt.com');
   const platform = isGemini ? 'gemini' : 'chatgpt';
   
+  // Debug platform detection
+  console.log('Platform detection:');
+  console.log('Hostname:', window.location.hostname);
+  console.log('isGemini:', isGemini);
+  console.log('isChatGPT:', isChatGPT);
+  console.log('Platform:', platform);
+  
   const e=e=>new Promise(t=>{setTimeout(()=>{t()},e)}),t=(e,t,l=1e3)=>{const n=setInterval(()=>{e.isConnected||(clearInterval(n),t())},l);return()=>{clearInterval(n)}},l=(e,t,l)=>{const n=new MutationObserver((e,l)=>{t(e,l)});return n.observe(e,{childList:!0,subtree:l}),n},n=(e="")=>/[：:\uFF1A\u003A\u0903]/.test(e),a=Alert2(()=>document.querySelector(o.floatbar)),s=({action:e,data:t})=>{chrome.runtime.sendMessage({type:"ga-event",action:e,data:t}).catch(e=>{})};let r=0;lang("syncFold");
   
   // Update selectors based on platform
@@ -219,6 +226,11 @@ const createZeroEkaIconButton = () => {
   };
   const itemToggleHeader = mkItem('Hide/Show header');
   const itemToggleFooter = mkItem('Hide/Show footer');
+  
+  // Add test logging to verify buttons are created
+  console.log('Created header toggle button:', itemToggleHeader);
+  console.log('Created footer toggle button:', itemToggleFooter);
+  
   menuPanel.appendChild(itemToggleHeader);
   menuPanel.appendChild(itemToggleFooter);
   // Removed fullscreen option per request
@@ -359,18 +371,36 @@ const createZeroEkaIconButton = () => {
 
   // Action: Hide/Show header
   itemToggleHeader.addEventListener('click', () => {
+    console.log('Header toggle button clicked');
+    console.log('isGemini:', isGemini);
+    console.log('Current URL:', window.location.href);
+    
     const header = getHeaderEl();
+    console.log('Found header element:', header);
+    
     if (!header) {
       console.warn('Header element not found for hide/show');
+      // Log available elements for debugging
+      if (isGemini) {
+        console.log('Available Gemini elements for header:');
+        console.log('Headers:', document.querySelectorAll('header'));
+        console.log('Banners:', document.querySelectorAll('[role="banner"]'));
+        console.log('Header classes:', document.querySelectorAll('div[class*="header"], div[class*="Header"]'));
+        console.log('Navigation:', document.querySelectorAll('nav, [role="navigation"]'));
+      }
       return;
     }
+    
     const hidden = header.style.display === 'none';
+    console.log('Header current display:', header.style.display, 'hidden:', hidden);
+    
     header.style.display = hidden ? '' : 'none';
     
     // Also try to hide parent containers if they exist
     if (isGemini) {
       const headerParent = header.closest('div[class*="header"], div[class*="Header"]');
       if (headerParent && headerParent !== header) {
+        console.log('Hiding header parent:', headerParent);
         headerParent.style.display = hidden ? '' : 'none';
       }
     }
@@ -381,7 +411,13 @@ const createZeroEkaIconButton = () => {
 
   // Action: Hide/Show footer
   itemToggleFooter.addEventListener('click', () => {
+    console.log('Footer toggle button clicked');
+    console.log('isGemini:', isGemini);
+    console.log('Current URL:', window.location.href);
+    
     const footer = getFooterEl();
+    console.log('Found footer element:', footer);
+    
     if (!footer) {
       console.warn('Footer element not found for hide/show');
       // On Gemini, try to find and log available elements for debugging
@@ -391,22 +427,29 @@ const createZeroEkaIconButton = () => {
         console.log('Textareas:', document.querySelectorAll('textarea'));
         console.log('Input containers:', document.querySelectorAll('div[class*="input"]'));
         console.log('Footer containers:', document.querySelectorAll('div[class*="footer"]'));
+        console.log('All textareas:', document.querySelectorAll('textarea'));
+        console.log('All divs with input in class:', document.querySelectorAll('div[class*="input"]'));
       }
       return;
     }
+    
     const hidden = footer.style.display === 'none';
+    console.log('Footer current display:', footer.style.display, 'hidden:', hidden);
+    
     footer.style.display = hidden ? '' : 'none';
     
     // Also try to hide parent containers if they exist
     if (isGemini) {
       const footerParent = footer.closest('div[class*="input"], div[class*="Input"], div[class*="footer"], div[class*="Footer"]');
       if (footerParent && footerParent !== footer) {
+        console.log('Hiding footer parent:', footerParent);
         footerParent.style.display = hidden ? '' : 'none';
       }
       
       // Try to hide the entire input area container
       const inputArea = document.querySelector('div[class*="input-area"], div[class*="InputArea"]');
       if (inputArea) {
+        console.log('Hiding input area:', inputArea);
         inputArea.style.display = hidden ? '' : 'none';
       }
     }
