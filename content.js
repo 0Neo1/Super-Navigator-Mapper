@@ -267,29 +267,61 @@ const createZeroEkaIconButton = () => {
     return document.querySelector('main') || document.querySelector('[role="main"]') || document.body;
   }
   function getHeaderEl() {
-    return document.getElementById('page-header') || document.querySelector('[role="presentation"] > #page-header') || document.querySelector('header');
+    // Prefer Gemini header if present, fallback to any header
+    return (
+      document.getElementById('page-header') ||
+      document.querySelector('[role="presentation"] > #page-header') ||
+      document.querySelector('header')
+    );
   }
   function getFooterEl() {
-    return document.getElementById('thread-bottom-container') || document.querySelector('[role="presentation"] > #thread-bottom-container') || document.querySelector('footer');
+    // Prefer Gemini input/footer container if present, fallback to any footer
+    return (
+      document.getElementById('thread-bottom-container') ||
+      document.querySelector('[role="presentation"] > #thread-bottom-container') ||
+      document.querySelector('footer')
+    );
+  }
+
+  // Ensure global CSS for force-hide header/footer on both Gemini and ChatGPT
+  function ensureHideShowStyles() {
+    if (document.getElementById('zeroeka-hide-show-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'zeroeka-hide-show-styles';
+    style.textContent = `
+      /* Header force hide */
+      .zeroeka-hide-header #page-header,
+      .zeroeka-hide-header [role="presentation"] > #page-header,
+      .zeroeka-hide-header header {
+        display: none !important;
+      }
+      /* Footer/Input force hide */
+      .zeroeka-hide-footer #thread-bottom-container,
+      .zeroeka-hide-footer [role="presentation"] > #thread-bottom-container,
+      .zeroeka-hide-footer footer {
+        display: none !important;
+      }
+    `;
+    (document.head || document.documentElement).appendChild(style);
   }
 
   // Removed Toggle chat width action
 
   // Action: Hide/Show header
   itemToggleHeader.addEventListener('click', () => {
-    const header = getHeaderEl();
-    if (!header) return;
-    const hidden = header.style.display === 'none';
-    header.style.display = hidden ? '' : 'none';
+    ensureHideShowStyles();
+    const root = document.documentElement;
+    // Toggle class which forces hide via !important CSS to beat site styles
+    root.classList.toggle('zeroeka-hide-header');
     hideMenu(); menuOpen = false;
   });
 
   // Action: Hide/Show footer
   itemToggleFooter.addEventListener('click', () => {
-    const footer = getFooterEl();
-    if (!footer) return;
-    const hidden = footer.style.display === 'none';
-    footer.style.display = hidden ? '' : 'none';
+    ensureHideShowStyles();
+    const root = document.documentElement;
+    // Toggle class which forces hide via !important CSS to beat site styles
+    root.classList.toggle('zeroeka-hide-footer');
     hideMenu(); menuOpen = false;
   });
 
