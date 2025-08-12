@@ -4,13 +4,6 @@
   const isChatGPT = window.location.hostname.includes('chatgpt.com');
   const platform = isGemini ? 'gemini' : 'chatgpt';
   
-  // Debug platform detection
-  console.log('Platform detection:');
-  console.log('Hostname:', window.location.hostname);
-  console.log('isGemini:', isGemini);
-  console.log('isChatGPT:', isChatGPT);
-  console.log('Platform:', platform);
-  
   const e=e=>new Promise(t=>{setTimeout(()=>{t()},e)}),t=(e,t,l=1e3)=>{const n=setInterval(()=>{e.isConnected||(clearInterval(n),t())},l);return()=>{clearInterval(n)}},l=(e,t,l)=>{const n=new MutationObserver((e,l)=>{t(e,l)});return n.observe(e,{childList:!0,subtree:l}),n},n=(e="")=>/[：:\uFF1A\u003A\u0903]/.test(e),a=Alert2(()=>document.querySelector(o.floatbar)),s=({action:e,data:t})=>{chrome.runtime.sendMessage({type:"ga-event",action:e,data:t}).catch(e=>{})};let r=0;lang("syncFold");
   
   // Update selectors based on platform
@@ -226,11 +219,6 @@ const createZeroEkaIconButton = () => {
   };
   const itemToggleHeader = mkItem('Hide/Show header');
   const itemToggleFooter = mkItem('Hide/Show footer');
-  
-  // Add test logging to verify buttons are created
-  console.log('Created header toggle button:', itemToggleHeader);
-  console.log('Created footer toggle button:', itemToggleFooter);
-  
   menuPanel.appendChild(itemToggleHeader);
   menuPanel.appendChild(itemToggleFooter);
   // Removed fullscreen option per request
@@ -280,90 +268,34 @@ const createZeroEkaIconButton = () => {
   }
   function getHeaderEl() {
     if (isGemini) {
-      // Gemini-specific header selectors - try multiple approaches
-      let header = document.querySelector('[data-testid="header"]') || 
-                   document.querySelector('header') ||
-                   document.querySelector('[role="banner"]') ||
-                   document.querySelector('.header') ||
-                   document.querySelector('[class*="header"]') ||
-                   document.querySelector('div[class*="Header"]') ||
-                   document.querySelector('div[class*="header"]');
-      
-      // If still not found, try to find by scanning for common patterns
-      if (!header) {
-        const headerCandidates = document.querySelectorAll('div[class*="header"], div[class*="Header"]');
-        for (const candidate of headerCandidates) {
-          // Look for elements that contain navigation or logo-like content
-          if (candidate.querySelector('a[href*="gemini"], a[href*="google"], img[alt*="Gemini"], img[alt*="Google"]') ||
-              candidate.textContent.includes('Gemini') ||
-              candidate.textContent.includes('Google')) {
-            header = candidate;
-            break;
-          }
-        }
-      }
-      
-      // Try to find the top navigation area
-      if (!header) {
-        const navElements = document.querySelectorAll('nav, [role="navigation"]');
-        for (const nav of navElements) {
-          if (nav.closest('div[class*="header"]') || nav.textContent.includes('Gemini')) {
-            header = nav.closest('div[class*="header"]') || nav;
-            break;
-          }
-        }
-      }
-      
-      return header;
+      // Gemini header selectors
+      return document.querySelector('header[data-test-id="app-header"]') || 
+             document.querySelector('.app-header') || 
+             document.querySelector('header[role="banner"]') ||
+             document.querySelector('header') ||
+             document.querySelector('[data-test-id="header"]');
     } else {
-      // ChatGPT-specific header selectors
-      return document.getElementById('page-header') || 
-             document.querySelector('[role="presentation"] > #page-header') || 
-             document.querySelector('header');
+      // ChatGPT header selectors  
+      return document.getElementById('page-header') || document.querySelector('[role="presentation"] > #page-header') || document.querySelector('header');
     }
   }
   function getFooterEl() {
     if (isGemini) {
-      // Gemini-specific footer/input selectors - try multiple approaches
-      let footer = document.querySelector('[data-testid="input-box"]') ||
-                   document.querySelector('[data-testid="input-container"]') ||
-                   document.querySelector('[role="textbox"]') ||
-                   document.querySelector('textarea[placeholder*="Message"]') ||
-                   document.querySelector('textarea[placeholder*="message"]') ||
-                   document.querySelector('div[class*="input"]') ||
-                   document.querySelector('div[class*="Input"]') ||
-                   document.querySelector('div[class*="footer"]') ||
-                   document.querySelector('div[class*="Footer"]') ||
-                   document.querySelector('footer');
-      
-      // If still not found, try to find by scanning for common patterns
-      if (!footer) {
-        const textareas = document.querySelectorAll('textarea');
-        for (const ta of textareas) {
-          if (ta.placeholder && ta.placeholder.toLowerCase().includes('message')) {
-            footer = ta.closest('div') || ta;
-            break;
-          }
-        }
-      }
-      
-      // Try to find the main input area container
-      if (!footer) {
-        const inputContainers = document.querySelectorAll('div[class*="input"], div[class*="Input"]');
-        for (const container of inputContainers) {
-          if (container.querySelector('textarea') || container.textContent.includes('Send')) {
-            footer = container;
-            break;
-          }
-        }
-      }
-      
-      return footer;
-    } else {
-      // ChatGPT-specific footer selectors
-      return document.getElementById('thread-bottom-container') || 
-             document.querySelector('[role="presentation"] > #thread-bottom-container') || 
+      // Gemini footer/input container selectors - try multiple common patterns
+      return document.querySelector('rich-textarea') ||
+             document.querySelector('.input-area') ||
+             document.querySelector('[role="textbox"]') ||
+             document.querySelector('textarea[placeholder*="Message"]') ||
+             document.querySelector('.chat-input') ||
+             document.querySelector('.composer') ||
+             document.querySelector('.input-container') ||
+             document.querySelector('[data-test-id="input-area"]') ||
+             document.querySelector('form[role="form"]') ||
+             document.querySelector('.bottom-input-area') ||
              document.querySelector('footer');
+    } else {
+      // ChatGPT footer selectors
+      return document.getElementById('thread-bottom-container') || document.querySelector('[role="presentation"] > #thread-bottom-container') || document.querySelector('footer');
     }
   }
 
@@ -371,90 +303,27 @@ const createZeroEkaIconButton = () => {
 
   // Action: Hide/Show header
   itemToggleHeader.addEventListener('click', () => {
-    console.log('Header toggle button clicked');
-    console.log('isGemini:', isGemini);
-    console.log('Current URL:', window.location.href);
-    
     const header = getHeaderEl();
-    console.log('Found header element:', header);
-    
     if (!header) {
-      console.warn('Header element not found for hide/show');
-      // Log available elements for debugging
-      if (isGemini) {
-        console.log('Available Gemini elements for header:');
-        console.log('Headers:', document.querySelectorAll('header'));
-        console.log('Banners:', document.querySelectorAll('[role="banner"]'));
-        console.log('Header classes:', document.querySelectorAll('div[class*="header"], div[class*="Header"]'));
-        console.log('Navigation:', document.querySelectorAll('nav, [role="navigation"]'));
-      }
+      console.log('Header element not found. Platform:', isGemini ? 'Gemini' : 'ChatGPT');
       return;
     }
-    
+    console.log('Found header element:', header.tagName, header.className, header.id);
     const hidden = header.style.display === 'none';
-    console.log('Header current display:', header.style.display, 'hidden:', hidden);
-    
     header.style.display = hidden ? '' : 'none';
-    
-    // Also try to hide parent containers if they exist
-    if (isGemini) {
-      const headerParent = header.closest('div[class*="header"], div[class*="Header"]');
-      if (headerParent && headerParent !== header) {
-        console.log('Hiding header parent:', headerParent);
-        headerParent.style.display = hidden ? '' : 'none';
-      }
-    }
-    
-    console.log(`Header ${hidden ? 'shown' : 'hidden'}`);
     hideMenu(); menuOpen = false;
   });
 
   // Action: Hide/Show footer
   itemToggleFooter.addEventListener('click', () => {
-    console.log('Footer toggle button clicked');
-    console.log('isGemini:', isGemini);
-    console.log('Current URL:', window.location.href);
-    
     const footer = getFooterEl();
-    console.log('Found footer element:', footer);
-    
     if (!footer) {
-      console.warn('Footer element not found for hide/show');
-      // On Gemini, try to find and log available elements for debugging
-      if (isGemini) {
-        console.log('Available Gemini elements for footer:');
-        console.log('Input boxes:', document.querySelectorAll('[data-testid*="input"]'));
-        console.log('Textareas:', document.querySelectorAll('textarea'));
-        console.log('Input containers:', document.querySelectorAll('div[class*="input"]'));
-        console.log('Footer containers:', document.querySelectorAll('div[class*="footer"]'));
-        console.log('All textareas:', document.querySelectorAll('textarea'));
-        console.log('All divs with input in class:', document.querySelectorAll('div[class*="input"]'));
-      }
+      console.log('Footer element not found. Platform:', isGemini ? 'Gemini' : 'ChatGPT');
       return;
     }
-    
+    console.log('Found footer element:', footer.tagName, footer.className, footer.id);
     const hidden = footer.style.display === 'none';
-    console.log('Footer current display:', footer.style.display, 'hidden:', hidden);
-    
     footer.style.display = hidden ? '' : 'none';
-    
-    // Also try to hide parent containers if they exist
-    if (isGemini) {
-      const footerParent = footer.closest('div[class*="input"], div[class*="Input"], div[class*="footer"], div[class*="Footer"]');
-      if (footerParent && footerParent !== footer) {
-        console.log('Hiding footer parent:', footerParent);
-        footerParent.style.display = hidden ? '' : 'none';
-      }
-      
-      // Try to hide the entire input area container
-      const inputArea = document.querySelector('div[class*="input-area"], div[class*="InputArea"]');
-      if (inputArea) {
-        console.log('Hiding input area:', inputArea);
-        inputArea.style.display = hidden ? '' : 'none';
-      }
-    }
-    
-    console.log(`Footer ${hidden ? 'shown' : 'hidden'}`);
     hideMenu(); menuOpen = false;
   });
 
