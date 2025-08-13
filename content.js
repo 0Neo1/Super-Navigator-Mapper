@@ -320,19 +320,47 @@ const createZeroEkaIconButton = () => {
     });
   }
 
+  // Strong CSS-based hider so SPA reflows/virtual DOM cannot undo visibility
+  function ensureGeminiHideStyles() {
+    let styleEl = document.getElementById('zeroeka-gemini-hide-styles');
+    if (styleEl) return;
+    styleEl = document.createElement('style');
+    styleEl.id = 'zeroeka-gemini-hide-styles';
+    styleEl.textContent = `
+      .zeroeka-hide-header [role="presentation"] > #page-header,
+      .zeroeka-hide-header #page-header,
+      .zeroeka-hide-header header[role="banner"],
+      .zeroeka-hide-header header { display: none !important; }
+
+      .zeroeka-hide-footer [role="presentation"] > #thread-bottom-container,
+      .zeroeka-hide-footer #thread-bottom-container,
+      .zeroeka-hide-footer footer,
+      .zeroeka-hide-footer form[role="form"],
+      .zeroeka-hide-footer form.composer,
+      .zeroeka-hide-footer [data-qa="input-area"] { display: none !important; }
+    `;
+    document.head.appendChild(styleEl);
+  }
+
   // Removed Toggle chat width action
 
   // Action: Hide/Show header
   itemToggleHeader.addEventListener('click', () => {
-    const headers = getHeaderEls();
-    toggleVisibilityForElements(headers);
+    ensureGeminiHideStyles();
+    // Toggle a body class to persistently hide/show via CSS (more robust for SPA)
+    const cls = 'zeroeka-hide-header';
+    if (document.body.classList.contains(cls)) document.body.classList.remove(cls);
+    else document.body.classList.add(cls);
     hideMenu(); menuOpen = false;
   });
 
   // Action: Hide/Show footer
   itemToggleFooter.addEventListener('click', () => {
-    const footers = getFooterEls();
-    toggleVisibilityForElements(footers);
+    ensureGeminiHideStyles();
+    // Toggle a body class to persistently hide/show via CSS (more robust for SPA)
+    const cls = 'zeroeka-hide-footer';
+    if (document.body.classList.contains(cls)) document.body.classList.remove(cls);
+    else document.body.classList.add(cls);
     hideMenu(); menuOpen = false;
   });
 
