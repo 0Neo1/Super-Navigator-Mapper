@@ -368,11 +368,10 @@ const createZeroEkaIconButton = () => {
     styleEl = document.createElement('style');
     styleEl.id = 'zeroeka-gemini-hide-styles';
     styleEl.textContent = `
+      /* Be precise: only hide concrete header containers to avoid white page */
       .zeroeka-hide-header [role="presentation"] > #page-header,
       .zeroeka-hide-header #page-header,
-      .zeroeka-hide-header [role="banner"],
       .zeroeka-hide-header header[role="banner"],
-      .zeroeka-hide-header header,
       .zeroeka-hide-header [data-zeroeka-header="1"] { display: none !important; }
 
       .zeroeka-hide-footer [role="presentation"] > #thread-bottom-container,
