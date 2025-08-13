@@ -264,65 +264,75 @@ const createZeroEkaIconButton = () => {
 
   // Helpers for actions
   function getMainEl() {
-    // Prefer Gemini's <main> root; fallback to role=main; finally body
-    const m1 = document.querySelector('main');
-    if (m1) return m1;
-    const m2 = document.querySelector('[role="main"]');
-    if (m2) return m2;
-    return document.body;
+    return document.querySelector('main') || document.querySelector('[role="main"]') || document.body;
   }
-  function getHeaderEl() {
-    // Gemini's header is usually #page-header under [role="presentation"], but also try plain header
-    return (
-      document.getElementById('page-header') ||
-      document.querySelector('[role="presentation"] > #page-header') ||
-      document.querySelector('header')
-    );
+  function getHeaderEls() {
+    const els = [];
+    try {
+      // Prefer platform-specific selector
+      const byConst = document.querySelector('[role="presentation"] > #page-header');
+      if (byConst) els.push(byConst);
+      const byId = document.getElementById('page-header');
+      if (byId && !els.includes(byId)) els.push(byId);
+      const headerBanner = document.querySelector('header[role="banner"]');
+      if (headerBanner && !els.includes(headerBanner)) els.push(headerBanner);
+      const headerTag = document.querySelector('header');
+      if (headerTag && !els.includes(headerTag)) els.push(headerTag);
+    } catch(_) {}
+    return els.filter(Boolean);
   }
-  function getFooterEl() {
-    // Gemini's footer input area container
-    return (
-      document.getElementById('thread-bottom-container') ||
-      document.querySelector('[role="presentation"] > #thread-bottom-container') ||
-      document.querySelector('footer')
-    );
+  function getFooterEls() {
+    const els = [];
+    try {
+      // Prefer platform-specific selector
+      const byConst = document.querySelector('[role="presentation"] > #thread-bottom-container');
+      if (byConst) els.push(byConst);
+      const byId = document.getElementById('thread-bottom-container');
+      if (byId && !els.includes(byId)) els.push(byId);
+      const footerTag = document.querySelector('footer');
+      if (footerTag && !els.includes(footerTag)) els.push(footerTag);
+      // Fallback: locate composer by textarea aria-label and walk up to a stable container
+      const composer = document.querySelector('textarea[aria-label*="Message"], textarea[aria-label*="message"], textarea[aria-label*="Gemini"]');
+      if (composer) {
+        let cursor = composer;
+        for (let i = 0; i < 6 && cursor; i += 1) {
+          if (cursor.id && /thread-bottom-container|composer|input|footer/i.test(cursor.id)) { els.push(cursor); break; }
+          if (cursor.getAttribute && (/footer|composer/i.test(cursor.getAttribute('role') || ''))) { els.push(cursor); break; }
+          cursor = cursor.parentElement;
+        }
+        const form = composer.closest('form, [role="form"]');
+        if (form && !els.includes(form)) els.push(form);
+      }
+    } catch(_) {}
+    return els.filter(Boolean);
+  }
+  function toggleVisibilityForElements(elements) {
+    if (!elements || elements.length === 0) return;
+    const anyVisible = elements.some(el => {
+      try { return getComputedStyle(el).display !== 'none'; } catch(_) { return true; }
+    });
+    const hide = anyVisible;
+    elements.forEach(el => {
+      try {
+        if (hide) el.style.setProperty('display', 'none', 'important');
+        else el.style.removeProperty('display');
+      } catch(_) {}
+    });
   }
 
   // Removed Toggle chat width action
 
-  // Action: Hide/Show header (robust: toggle attribute on main so CSS handles both ChatGPT and Gemini)
+  // Action: Hide/Show header
   itemToggleHeader.addEventListener('click', () => {
-    try {
-      const main = getMainEl();
-      if (!main) return;
-      const isHidden = main.hasAttribute('headbar');
-      if (isHidden) {
-        main.removeAttribute('headbar');
-        // Clear any leftover inline style if previously applied
-        const header = getHeaderEl();
-        if (header) header.style.display = '';
-      } else {
-        main.setAttribute('headbar', '');
-      }
-    } catch (_) {}
+    const headers = getHeaderEls();
+    toggleVisibilityForElements(headers);
     hideMenu(); menuOpen = false;
   });
 
-  // Action: Hide/Show footer (robust: toggle attribute on main so CSS handles both ChatGPT and Gemini)
+  // Action: Hide/Show footer
   itemToggleFooter.addEventListener('click', () => {
-    try {
-      const main = getMainEl();
-      if (!main) return;
-      const isHidden = main.hasAttribute('speakbox');
-      if (isHidden) {
-        main.removeAttribute('speakbox');
-        // Clear any leftover inline style if previously applied
-        const footer = getFooterEl();
-        if (footer) footer.style.display = '';
-      } else {
-        main.setAttribute('speakbox', '');
-      }
-    } catch (_) {}
+    const footers = getFooterEls();
+    toggleVisibilityForElements(footers);
     hideMenu(); menuOpen = false;
   });
 
