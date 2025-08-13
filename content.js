@@ -323,13 +323,13 @@ const createZeroEkaIconButton = () => {
         } catch(_) { return []; }
       };
       probeTopHeader().forEach(el => { if (!els.includes(el)) els.push(el); });
-      // Keep only those near top and not containing the main content (avoid hiding app wrapper)
-      const mainEl = getMainEl();
+      // Keep only those near top and not containing the strict main content (avoid hiding app wrapper)
+      const mainStrict = document.querySelector('main, [role="main"]');
       const filtered = els.filter(el => {
         try {
           const r = el.getBoundingClientRect();
-          const nearTop = r.top < 120 && r.height > 20;
-          const notAppWrapper = mainEl ? !el.contains(mainEl) : true;
+          const nearTop = r.top < 120 && r.height > 20 && r.height < window.innerHeight * 0.5;
+          const notAppWrapper = mainStrict ? !el.contains(mainStrict) : true;
           return nearTop && notAppWrapper;
         } catch(_) { return true; }
       });
@@ -406,13 +406,16 @@ const createZeroEkaIconButton = () => {
   // Action: Hide/Show header
   itemToggleHeader.addEventListener('click', () => {
     ensureGeminiHideStyles();
+    // Resolve fresh candidates and sanitize
     const headers = getHeaderEls();
-    // If we found explicit header elements, toggle inline and class for robustness.
-    // Also set an attribute to help CSS target the exact node if classes are needed later.
-    headers.forEach(h => { try { h.setAttribute('data-zeroeka-header', '1'); } catch(_) {} });
-    // Avoid hiding layout wrappers: if a header contains the main content, skip it
-    const mainEl = getMainEl();
-    const safeHeaders = headers.filter(h => mainEl ? !h.contains(mainEl) : true);
+    // Avoid hiding layout wrappers: if a header contains the strict main content, skip it
+    const mainStrict = document.querySelector('main, [role="main"]');
+    const safeHeaders = headers.filter(h => mainStrict ? !h.contains(mainStrict) : true)
+                               .filter(h => {
+                                 try { return h.getBoundingClientRect().height < window.innerHeight * 0.5; } catch(_) { return true; }
+                               });
+    // Mark and toggle only safe headers
+    safeHeaders.forEach(h => { try { h.setAttribute('data-zeroeka-header', '1'); } catch(_) {} });
     toggleVisibilityForElements(safeHeaders);
     hideMenu(); menuOpen = false;
   });
