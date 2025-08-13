@@ -408,15 +408,28 @@ const createZeroEkaIconButton = () => {
     ensureGeminiHideStyles();
     // Resolve fresh candidates and sanitize
     const headers = getHeaderEls();
-    // Avoid hiding layout wrappers: if a header contains the strict main content, skip it
     const mainStrict = document.querySelector('main, [role="main"]');
-    const safeHeaders = headers.filter(h => mainStrict ? !h.contains(mainStrict) : true)
-                               .filter(h => {
-                                 try { return h.getBoundingClientRect().height < window.innerHeight * 0.5; } catch(_) { return true; }
-                               });
+    let safeHeaders = headers.filter(h => mainStrict ? !h.contains(mainStrict) : true)
+                             .filter(h => {
+                               try { return h.getBoundingClientRect().height < window.innerHeight * 0.5; } catch(_) { return true; }
+                             });
+    // Fallback candidates if nothing matched
+    if (safeHeaders.length === 0) {
+      const fbList = Array.from(document.querySelectorAll('[role="presentation"] > #page-header, #page-header, header[role="banner"]'))
+        .filter(h => mainStrict ? !h.contains(mainStrict) : true);
+      safeHeaders = fbList;
+    }
+    // As a last resort, take the first header tag that is not an ancestor of main and not too tall
+    if (safeHeaders.length === 0) {
+      const hdr = Array.from(document.querySelectorAll('header'))
+        .find(h => (mainStrict ? !h.contains(mainStrict) : true) && (() => { try { return h.getBoundingClientRect().height < window.innerHeight * 0.5; } catch(_) { return true; }})());
+      if (hdr) safeHeaders = [hdr];
+    }
     // Mark and toggle only safe headers
     safeHeaders.forEach(h => { try { h.setAttribute('data-zeroeka-header', '1'); } catch(_) {} });
-    toggleVisibilityForElements(safeHeaders);
+    if (safeHeaders.length > 0) {
+      toggleVisibilityForElements(safeHeaders);
+    }
     hideMenu(); menuOpen = false;
   });
 
