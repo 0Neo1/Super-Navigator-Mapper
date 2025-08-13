@@ -283,6 +283,46 @@ const createZeroEkaIconButton = () => {
       // Broaden to common patterns and then filter to top-of-page
       const candidates = Array.from(document.querySelectorAll('[role="banner"], header, [id*="header" i], [class*="header" i]'));
       candidates.forEach(el => { if (!els.includes(el)) els.push(el); });
+      // Fallback: probe screen-top elements to locate the visible top bar
+      const probeTopHeader = () => {
+        try {
+          const midX = Math.floor(window.innerWidth / 2);
+          const ys = [0, 5, 10, 20, 30, 50, 70, 90];
+          const found = new Set();
+          ys.forEach(y => {
+            const row = document.elementsFromPoint(midX, y) || [];
+            row.forEach(el => {
+              if (!el || el === document.documentElement || el === document.body) return;
+              try {
+                const r = el.getBoundingClientRect();
+                const cs = getComputedStyle(el);
+                const pos = (cs.position || '').toLowerCase();
+                const isTop = r.top <= 120;
+                const wide = r.width >= Math.min(600, window.innerWidth * 0.6);
+                const tall = r.height >= 24;
+                const likely = isTop && (pos === 'sticky' || pos === 'fixed' || tall) && wide;
+                if (likely) found.add(el);
+              } catch(_) {}
+            });
+          });
+          // Prefer highest ancestor that still meets top constraints
+          const extras = [];
+          found.forEach(el => {
+            let cur = el;
+            let best = el;
+            for (let i = 0; i < 4 && cur && cur.parentElement; i += 1) {
+              cur = cur.parentElement;
+              try {
+                const r = cur.getBoundingClientRect();
+                if (r.top <= 120 && r.height >= 24) best = cur; else break;
+              } catch(_) { break; }
+            }
+            extras.push(best);
+          });
+          return extras;
+        } catch(_) { return []; }
+      };
+      probeTopHeader().forEach(el => { if (!els.includes(el)) els.push(el); });
       // Keep only those near top and of reasonable height (likely the site header bar)
       const filtered = els.filter(el => {
         try {
@@ -332,7 +372,8 @@ const createZeroEkaIconButton = () => {
       .zeroeka-hide-header #page-header,
       .zeroeka-hide-header [role="banner"],
       .zeroeka-hide-header header[role="banner"],
-      .zeroeka-hide-header header { display: none !important; }
+      .zeroeka-hide-header header,
+      .zeroeka-hide-header [data-zeroeka-header="1"] { display: none !important; }
 
       .zeroeka-hide-footer [role="presentation"] > #thread-bottom-container,
       .zeroeka-hide-footer #thread-bottom-container,
@@ -367,7 +408,9 @@ const createZeroEkaIconButton = () => {
   itemToggleHeader.addEventListener('click', () => {
     ensureGeminiHideStyles();
     const headers = getHeaderEls();
-    // If we found explicit header elements, toggle inline and class for robustness
+    // If we found explicit header elements, toggle inline and class for robustness.
+    // Also set an attribute to help CSS target the exact node if classes are needed later.
+    headers.forEach(h => { try { h.setAttribute('data-zeroeka-header', '1'); } catch(_) {} });
     toggleVisibilityForElements(headers);
     const cls = 'zeroeka-hide-header';
     // If nothing was found, still flip the class so CSS handles future renders
