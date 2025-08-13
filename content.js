@@ -280,6 +280,17 @@ const createZeroEkaIconButton = () => {
       if (roleBanner && !els.includes(roleBanner)) els.push(roleBanner);
       const headerTag = document.querySelector('header');
       if (headerTag && !els.includes(headerTag)) els.push(headerTag);
+      // Broaden to common patterns and then filter to top-of-page
+      const candidates = Array.from(document.querySelectorAll('[role="banner"], header, [id*="header" i], [class*="header" i]'));
+      candidates.forEach(el => { if (!els.includes(el)) els.push(el); });
+      // Keep only those near top and of reasonable height (likely the site header bar)
+      const filtered = els.filter(el => {
+        try {
+          const r = el.getBoundingClientRect();
+          return r.top < 120 && r.height > 20;
+        } catch(_) { return true; }
+      });
+      return filtered.filter(Boolean);
     } catch(_) {}
     return els.filter(Boolean);
   }
@@ -356,10 +367,19 @@ const createZeroEkaIconButton = () => {
   itemToggleHeader.addEventListener('click', () => {
     ensureGeminiHideStyles();
     const headers = getHeaderEls();
+    // If we found explicit header elements, toggle inline and class for robustness
     toggleVisibilityForElements(headers);
     const cls = 'zeroeka-hide-header';
-    if (document.body.classList.contains(cls)) document.body.classList.remove(cls);
-    else document.body.classList.add(cls);
+    // If nothing was found, still flip the class so CSS handles future renders
+    if (headers.length === 0) {
+      if (document.body.classList.contains(cls)) document.body.classList.remove(cls);
+      else document.body.classList.add(cls);
+    } else {
+      // Sync the class with visible state of first header
+      let hidden = false;
+      try { hidden = getComputedStyle(headers[0]).display === 'none'; } catch(_) {}
+      if (hidden) document.body.classList.add(cls); else document.body.classList.remove(cls);
+    }
     hideMenu(); menuOpen = false;
   });
 
