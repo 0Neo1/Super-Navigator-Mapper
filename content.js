@@ -269,98 +269,152 @@ const createZeroEkaIconButton = () => {
   function getHeaderEls() {
     const els = [];
     try {
-      // Prefer platform-specific selector
-      const byConst = document.querySelector('[role="presentation"] > #page-header');
-      if (byConst) els.push(byConst);
-      const byId = document.getElementById('page-header');
-      if (byId && !els.includes(byId)) els.push(byId);
-      const headerBanner = document.querySelector('header[role="banner"]');
-      if (headerBanner && !els.includes(headerBanner)) els.push(headerBanner);
-      const roleBanner = document.querySelector('[role="banner"]');
-      if (roleBanner && !els.includes(roleBanner)) els.push(roleBanner);
-      const headerTag = document.querySelector('header');
-      if (headerTag && !els.includes(headerTag)) els.push(headerTag);
-      // Broaden to common patterns and then filter to top-of-page
-      const candidates = Array.from(document.querySelectorAll('[role="banner"], header, [id*="header" i], [class*="header" i]'));
-      candidates.forEach(el => { if (!els.includes(el)) els.push(el); });
-      // Fallback: probe screen-top elements to locate the visible top bar
-      const probeTopHeader = () => {
+      // First, try very specific Gemini header selectors
+      const geminiSpecific = [
+        '[role="presentation"] > #page-header',
+        '#page-header',
+        'header[role="banner"]',
+        '[role="banner"]'
+      ];
+      
+      for (const selector of geminiSpecific) {
+        const el = document.querySelector(selector);
+        if (el && !els.includes(el)) {
+          els.push(el);
+        }
+      }
+      
+      // If we found specific headers, validate they're safe and return them
+      if (els.length > 0) {
+        const mainStrict = document.querySelector('main, [role="main"]');
+        const safeHeaders = els.filter(el => {
+          try {
+            const r = el.getBoundingClientRect();
+            const isReasonableSize = r.height > 20 && r.height < window.innerHeight * 0.3;
+            const isNearTop = r.top < 100;
+            const notMainContainer = mainStrict ? !el.contains(mainStrict) : true;
+            return isReasonableSize && isNearTop && notMainContainer;
+          } catch(_) { return false; }
+        });
+        if (safeHeaders.length > 0) {
+          return safeHeaders;
+        }
+      }
+      
+      // Fallback: find elements at the very top of the page
+      const candidates = [];
+      
+      // Try generic header tags
+      const headers = document.querySelectorAll('header');
+      headers.forEach(h => {
         try {
-          const midX = Math.floor(window.innerWidth / 2);
-          const ys = [0, 5, 10, 20, 30, 50, 70, 90];
-          const found = new Set();
-          ys.forEach(y => {
-            const row = document.elementsFromPoint(midX, y) || [];
-            row.forEach(el => {
-              if (!el || el === document.documentElement || el === document.body) return;
-              try {
-                const r = el.getBoundingClientRect();
-                const cs = getComputedStyle(el);
-                const pos = (cs.position || '').toLowerCase();
-                const isTop = r.top <= 120;
-                const wide = r.width >= Math.min(600, window.innerWidth * 0.6);
-                const tall = r.height >= 24;
-                const likely = isTop && (pos === 'sticky' || pos === 'fixed' || tall) && wide;
-                if (likely) found.add(el);
-              } catch(_) {}
-            });
-          });
-          // Prefer highest ancestor that still meets top constraints
-          const extras = [];
-          found.forEach(el => {
-            let cur = el;
-            let best = el;
-            for (let i = 0; i < 4 && cur && cur.parentElement; i += 1) {
-              cur = cur.parentElement;
-              try {
-                const r = cur.getBoundingClientRect();
-                if (r.top <= 120 && r.height >= 24) best = cur; else break;
-              } catch(_) { break; }
-            }
-            extras.push(best);
-          });
-          return extras;
-        } catch(_) { return []; }
-      };
-      probeTopHeader().forEach(el => { if (!els.includes(el)) els.push(el); });
-      // Keep only those near top and not containing the strict main content (avoid hiding app wrapper)
-      const mainStrict = document.querySelector('main, [role="main"]');
-      const filtered = els.filter(el => {
+          const r = h.getBoundingClientRect();
+          if (r.top < 50 && r.height > 20 && r.height < 200) {
+            candidates.push(h);
+          }
+        } catch(_) {}
+      });
+      
+      // Try elements with header-like characteristics at top of page
+      const topElements = document.elementsFromPoint(window.innerWidth / 2, 30) || [];
+      topElements.forEach(el => {
+        if (!el || el === document.documentElement || el === document.body) return;
         try {
           const r = el.getBoundingClientRect();
-          const nearTop = r.top < 120 && r.height > 20 && r.height < window.innerHeight * 0.5;
-          const notAppWrapper = mainStrict ? !el.contains(mainStrict) : true;
-          return nearTop && notAppWrapper;
+          const isHeaderLike = r.top < 50 && r.height > 30 && r.height < 150 && r.width > window.innerWidth * 0.5;
+          if (isHeaderLike && !candidates.includes(el)) {
+            candidates.push(el);
+          }
+        } catch(_) {}
+      });
+      
+      // Filter out any elements that contain main content
+      const mainStrict = document.querySelector('main, [role="main"]');
+      return candidates.filter(el => {
+        try {
+          return mainStrict ? !el.contains(mainStrict) : true;
         } catch(_) { return true; }
       });
-      return filtered.filter(Boolean);
+      
     } catch(_) {}
     return els.filter(Boolean);
   }
   function getFooterEls() {
     const els = [];
     try {
-      // Prefer platform-specific selector
-      const byConst = document.querySelector('[role="presentation"] > #thread-bottom-container');
-      if (byConst) els.push(byConst);
-      const byId = document.getElementById('thread-bottom-container');
-      if (byId && !els.includes(byId)) els.push(byId);
-      const footerTag = document.querySelector('footer');
-      if (footerTag && !els.includes(footerTag)) els.push(footerTag);
-      const qaInput = document.querySelector('[data-qa="input-area"], [data-testid="input-area"]');
-      if (qaInput && !els.includes(qaInput)) els.push(qaInput);
-      // Fallback: locate composer by textarea aria-label and walk up to a stable container
-      const composer = document.querySelector('textarea[aria-label*="Message"], textarea[aria-label*="message"], textarea[aria-label*="Gemini"], [role="textbox"][contenteditable="true"], div[contenteditable="true"]');
-      if (composer) {
-        let cursor = composer;
-        for (let i = 0; i < 6 && cursor; i += 1) {
-          if (cursor.id && /thread-bottom-container|composer|input|footer/i.test(cursor.id)) { els.push(cursor); break; }
-          if (cursor.getAttribute && (/footer|composer/i.test(cursor.getAttribute('role') || ''))) { els.push(cursor); break; }
-          cursor = cursor.parentElement;
+      // First, try very specific Gemini footer selectors
+      const geminiSpecific = [
+        '[role="presentation"] > #thread-bottom-container',
+        '#thread-bottom-container',
+        'footer',
+        '[data-qa="input-area"]',
+        '[data-testid="input-area"]'
+      ];
+      
+      for (const selector of geminiSpecific) {
+        const el = document.querySelector(selector);
+        if (el && !els.includes(el)) {
+          els.push(el);
         }
-        const form = composer.closest('form, [role="form"]');
-        if (form && !els.includes(form)) els.push(form);
       }
+      
+      // If we found specific footers, validate they're safe and return them
+      if (els.length > 0) {
+        const mainStrict = document.querySelector('main, [role="main"]');
+        const safeFooters = els.filter(el => {
+          try {
+            const r = el.getBoundingClientRect();
+            const isReasonableSize = r.height > 20 && r.height < window.innerHeight * 0.5;
+            const isNearBottom = r.bottom > window.innerHeight * 0.5; // Should be in bottom half
+            const notMainContainer = mainStrict ? !el.contains(mainStrict) : true;
+            return isReasonableSize && isNearBottom && notMainContainer;
+          } catch(_) { return false; }
+        });
+        if (safeFooters.length > 0) {
+          return safeFooters;
+        }
+      }
+      
+      // Fallback: find input/composer elements
+      const inputSelectors = [
+        'textarea[aria-label*="Message"]',
+        'textarea[aria-label*="message"]', 
+        'textarea[aria-label*="Gemini"]',
+        '[role="textbox"][contenteditable="true"]',
+        'div[contenteditable="true"]'
+      ];
+      
+      for (const selector of inputSelectors) {
+        const composer = document.querySelector(selector);
+        if (composer) {
+          // Walk up to find the input container
+          let cursor = composer;
+          for (let i = 0; i < 6 && cursor; i += 1) {
+            try {
+              const r = cursor.getBoundingClientRect();
+              const isFooterLike = r.bottom > window.innerHeight * 0.7 && r.height > 30;
+              if (isFooterLike && !els.includes(cursor)) {
+                els.push(cursor);
+                break;
+              }
+            } catch(_) {}
+            cursor = cursor.parentElement;
+          }
+          
+          // Also try the form wrapper
+          const form = composer.closest('form, [role="form"]');
+          if (form && !els.includes(form)) {
+            try {
+              const r = form.getBoundingClientRect();
+              if (r.bottom > window.innerHeight * 0.7) {
+                els.push(form);
+              }
+            } catch(_) {}
+          }
+          break; // Only process first found composer
+        }
+      }
+      
     } catch(_) {}
     return els.filter(Boolean);
   }
@@ -406,30 +460,32 @@ const createZeroEkaIconButton = () => {
   // Action: Hide/Show header
   itemToggleHeader.addEventListener('click', () => {
     ensureGeminiHideStyles();
-    // Resolve fresh candidates and sanitize
     const headers = getHeaderEls();
-    const mainStrict = document.querySelector('main, [role="main"]');
-    let safeHeaders = headers.filter(h => mainStrict ? !h.contains(mainStrict) : true)
-                             .filter(h => {
-                               try { return h.getBoundingClientRect().height < window.innerHeight * 0.5; } catch(_) { return true; }
-                             });
-    // Fallback candidates if nothing matched
-    if (safeHeaders.length === 0) {
-      const fbList = Array.from(document.querySelectorAll('[role="presentation"] > #page-header, #page-header, header[role="banner"]'))
-        .filter(h => mainStrict ? !h.contains(mainStrict) : true);
-      safeHeaders = fbList;
+    console.log('[Gemini] Header toggle: Found', headers.length, 'header elements:', headers);
+    
+    if (headers.length > 0) {
+      // Mark headers for CSS targeting
+      headers.forEach(h => { 
+        try { 
+          h.setAttribute('data-zeroeka-header', '1');
+          console.log('[Gemini] Marked header:', h.tagName, h.className, h.id);
+        } catch(_) {} 
+      });
+      
+      // Toggle visibility with direct CSS and body class
+      toggleVisibilityForElements(headers);
+      const cls = 'zeroeka-hide-header';
+      if (document.body.classList.contains(cls)) {
+        document.body.classList.remove(cls);
+        console.log('[Gemini] Showing headers');
+      } else {
+        document.body.classList.add(cls);
+        console.log('[Gemini] Hiding headers');
+      }
+    } else {
+      console.warn('[Gemini] No header elements found to toggle');
     }
-    // As a last resort, take the first header tag that is not an ancestor of main and not too tall
-    if (safeHeaders.length === 0) {
-      const hdr = Array.from(document.querySelectorAll('header'))
-        .find(h => (mainStrict ? !h.contains(mainStrict) : true) && (() => { try { return h.getBoundingClientRect().height < window.innerHeight * 0.5; } catch(_) { return true; }})());
-      if (hdr) safeHeaders = [hdr];
-    }
-    // Mark and toggle only safe headers
-    safeHeaders.forEach(h => { try { h.setAttribute('data-zeroeka-header', '1'); } catch(_) {} });
-    if (safeHeaders.length > 0) {
-      toggleVisibilityForElements(safeHeaders);
-    }
+    
     hideMenu(); menuOpen = false;
   });
 
@@ -437,10 +493,23 @@ const createZeroEkaIconButton = () => {
   itemToggleFooter.addEventListener('click', () => {
     ensureGeminiHideStyles();
     const footers = getFooterEls();
-    toggleVisibilityForElements(footers);
-    const cls = 'zeroeka-hide-footer';
-    if (document.body.classList.contains(cls)) document.body.classList.remove(cls);
-    else document.body.classList.add(cls);
+    console.log('[Gemini] Footer toggle: Found', footers.length, 'footer elements:', footers);
+    
+    if (footers.length > 0) {
+      // Toggle visibility with direct CSS and body class
+      toggleVisibilityForElements(footers);
+      const cls = 'zeroeka-hide-footer';
+      if (document.body.classList.contains(cls)) {
+        document.body.classList.remove(cls);
+        console.log('[Gemini] Showing footers');
+      } else {
+        document.body.classList.add(cls);
+        console.log('[Gemini] Hiding footers');
+      }
+    } else {
+      console.warn('[Gemini] No footer elements found to toggle');
+    }
+    
     hideMenu(); menuOpen = false;
   });
 
