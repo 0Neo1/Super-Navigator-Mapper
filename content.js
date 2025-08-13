@@ -371,10 +371,7 @@ const createZeroEkaIconButton = () => {
     styleEl = document.createElement('style');
     styleEl.id = 'zeroeka-gemini-hide-styles';
     styleEl.textContent = `
-      /* Be precise: only hide concrete header containers to avoid white page */
-      .zeroeka-hide-header [role="presentation"] > #page-header,
-      .zeroeka-hide-header #page-header,
-      .zeroeka-hide-header header[role="banner"],
+      /* Only hide nodes we've explicitly marked as header to avoid hiding app wrapper */
       .zeroeka-hide-header [data-zeroeka-header="1"] { display: none !important; }
 
       .zeroeka-hide-footer [role="presentation"] > #thread-bottom-container,
@@ -417,17 +414,6 @@ const createZeroEkaIconButton = () => {
     const mainEl = getMainEl();
     const safeHeaders = headers.filter(h => mainEl ? !h.contains(mainEl) : true);
     toggleVisibilityForElements(safeHeaders);
-    const cls = 'zeroeka-hide-header';
-    // If nothing was found, still flip the class so CSS handles future renders
-    if (safeHeaders.length === 0) {
-      if (document.body.classList.contains(cls)) document.body.classList.remove(cls);
-      else document.body.classList.add(cls);
-    } else {
-      // Sync the class with visible state of first header
-      let hidden = false;
-      try { hidden = getComputedStyle(safeHeaders[0]).display === 'none'; } catch(_) {}
-      if (hidden) document.body.classList.add(cls); else document.body.classList.remove(cls);
-    }
     hideMenu(); menuOpen = false;
   });
 
