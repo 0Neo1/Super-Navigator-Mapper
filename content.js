@@ -264,13 +264,28 @@ const createZeroEkaIconButton = () => {
 
   // Helpers for actions
   function getMainEl() {
-    return document.querySelector('main') || document.querySelector('[role="main"]') || document.body;
+    // Prefer Gemini's <main> root; fallback to role=main; finally body
+    const m1 = document.querySelector('main');
+    if (m1) return m1;
+    const m2 = document.querySelector('[role="main"]');
+    if (m2) return m2;
+    return document.body;
   }
   function getHeaderEl() {
-    return document.getElementById('page-header') || document.querySelector('[role="presentation"] > #page-header') || document.querySelector('header');
+    // Gemini's header is usually #page-header under [role="presentation"], but also try plain header
+    return (
+      document.getElementById('page-header') ||
+      document.querySelector('[role="presentation"] > #page-header') ||
+      document.querySelector('header')
+    );
   }
   function getFooterEl() {
-    return document.getElementById('thread-bottom-container') || document.querySelector('[role="presentation"] > #thread-bottom-container') || document.querySelector('footer');
+    // Gemini's footer input area container
+    return (
+      document.getElementById('thread-bottom-container') ||
+      document.querySelector('[role="presentation"] > #thread-bottom-container') ||
+      document.querySelector('footer')
+    );
   }
 
   // Removed Toggle chat width action

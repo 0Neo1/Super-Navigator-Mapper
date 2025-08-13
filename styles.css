@@ -912,8 +912,15 @@ main#main[headbar][speakbox] {
   overflow: hidden !important;
 }
 
+/* Also support Gemini where <main> has no id */
+main[headbar][speakbox] {
+  overflow: hidden !important;
+}
+
 main#main[headbar] [role="presentation"]>#page-header,
-main#main[speakbox] [role="presentation"]>#thread-bottom-container {
+main#main[speakbox] [role="presentation"]>#thread-bottom-container,
+main[headbar] [role="presentation"]>#page-header,
+main[speakbox] [role="presentation"]>#thread-bottom-container {
   display: none !important;
 }
 
