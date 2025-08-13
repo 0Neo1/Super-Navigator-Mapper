@@ -323,11 +323,14 @@ const createZeroEkaIconButton = () => {
         } catch(_) { return []; }
       };
       probeTopHeader().forEach(el => { if (!els.includes(el)) els.push(el); });
-      // Keep only those near top and of reasonable height (likely the site header bar)
+      // Keep only those near top and not containing the main content (avoid hiding app wrapper)
+      const mainEl = getMainEl();
       const filtered = els.filter(el => {
         try {
           const r = el.getBoundingClientRect();
-          return r.top < 120 && r.height > 20;
+          const nearTop = r.top < 120 && r.height > 20;
+          const notAppWrapper = mainEl ? !el.contains(mainEl) : true;
+          return nearTop && notAppWrapper;
         } catch(_) { return true; }
       });
       return filtered.filter(Boolean);
@@ -410,16 +413,19 @@ const createZeroEkaIconButton = () => {
     // If we found explicit header elements, toggle inline and class for robustness.
     // Also set an attribute to help CSS target the exact node if classes are needed later.
     headers.forEach(h => { try { h.setAttribute('data-zeroeka-header', '1'); } catch(_) {} });
-    toggleVisibilityForElements(headers);
+    // Avoid hiding layout wrappers: if a header contains the main content, skip it
+    const mainEl = getMainEl();
+    const safeHeaders = headers.filter(h => mainEl ? !h.contains(mainEl) : true);
+    toggleVisibilityForElements(safeHeaders);
     const cls = 'zeroeka-hide-header';
     // If nothing was found, still flip the class so CSS handles future renders
-    if (headers.length === 0) {
+    if (safeHeaders.length === 0) {
       if (document.body.classList.contains(cls)) document.body.classList.remove(cls);
       else document.body.classList.add(cls);
     } else {
       // Sync the class with visible state of first header
       let hidden = false;
-      try { hidden = getComputedStyle(headers[0]).display === 'none'; } catch(_) {}
+      try { hidden = getComputedStyle(safeHeaders[0]).display === 'none'; } catch(_) {}
       if (hidden) document.body.classList.add(cls); else document.body.classList.remove(cls);
     }
     hideMenu(); menuOpen = false;
