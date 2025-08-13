@@ -276,6 +276,8 @@ const createZeroEkaIconButton = () => {
       if (byId && !els.includes(byId)) els.push(byId);
       const headerBanner = document.querySelector('header[role="banner"]');
       if (headerBanner && !els.includes(headerBanner)) els.push(headerBanner);
+      const roleBanner = document.querySelector('[role="banner"]');
+      if (roleBanner && !els.includes(roleBanner)) els.push(roleBanner);
       const headerTag = document.querySelector('header');
       if (headerTag && !els.includes(headerTag)) els.push(headerTag);
     } catch(_) {}
@@ -291,8 +293,10 @@ const createZeroEkaIconButton = () => {
       if (byId && !els.includes(byId)) els.push(byId);
       const footerTag = document.querySelector('footer');
       if (footerTag && !els.includes(footerTag)) els.push(footerTag);
+      const qaInput = document.querySelector('[data-qa="input-area"], [data-testid="input-area"]');
+      if (qaInput && !els.includes(qaInput)) els.push(qaInput);
       // Fallback: locate composer by textarea aria-label and walk up to a stable container
-      const composer = document.querySelector('textarea[aria-label*="Message"], textarea[aria-label*="message"], textarea[aria-label*="Gemini"]');
+      const composer = document.querySelector('textarea[aria-label*="Message"], textarea[aria-label*="message"], textarea[aria-label*="Gemini"], [role="textbox"][contenteditable="true"], div[contenteditable="true"]');
       if (composer) {
         let cursor = composer;
         for (let i = 0; i < 6 && cursor; i += 1) {
@@ -305,6 +309,32 @@ const createZeroEkaIconButton = () => {
       }
     } catch(_) {}
     return els.filter(Boolean);
+  }
+  // Strong CSS-based hider so SPA reflows/virtual DOM cannot undo visibility
+  function ensureGeminiHideStyles() {
+    let styleEl = document.getElementById('zeroeka-gemini-hide-styles');
+    if (styleEl) return;
+    styleEl = document.createElement('style');
+    styleEl.id = 'zeroeka-gemini-hide-styles';
+    styleEl.textContent = `
+      .zeroeka-hide-header [role="presentation"] > #page-header,
+      .zeroeka-hide-header #page-header,
+      .zeroeka-hide-header [role="banner"],
+      .zeroeka-hide-header header[role="banner"],
+      .zeroeka-hide-header header { display: none !important; }
+
+      .zeroeka-hide-footer [role="presentation"] > #thread-bottom-container,
+      .zeroeka-hide-footer #thread-bottom-container,
+      .zeroeka-hide-footer footer,
+      .zeroeka-hide-footer form[role="form"],
+      .zeroeka-hide-footer [data-qa="input-area"],
+      .zeroeka-hide-footer [data-testid="input-area"],
+      .zeroeka-hide-footer [role="textbox"][contenteditable="true"],
+      .zeroeka-hide-footer textarea[aria-label*="Message"],
+      .zeroeka-hide-footer textarea[aria-label*="message"],
+      .zeroeka-hide-footer textarea[aria-label*="Gemini"] { display: none !important; }
+    `;
+    document.head.appendChild(styleEl);
   }
   function toggleVisibilityForElements(elements) {
     if (!elements || elements.length === 0) return;
@@ -320,34 +350,13 @@ const createZeroEkaIconButton = () => {
     });
   }
 
-  // Strong CSS-based hider so SPA reflows/virtual DOM cannot undo visibility
-  function ensureGeminiHideStyles() {
-    let styleEl = document.getElementById('zeroeka-gemini-hide-styles');
-    if (styleEl) return;
-    styleEl = document.createElement('style');
-    styleEl.id = 'zeroeka-gemini-hide-styles';
-    styleEl.textContent = `
-      .zeroeka-hide-header [role="presentation"] > #page-header,
-      .zeroeka-hide-header #page-header,
-      .zeroeka-hide-header header[role="banner"],
-      .zeroeka-hide-header header { display: none !important; }
-
-      .zeroeka-hide-footer [role="presentation"] > #thread-bottom-container,
-      .zeroeka-hide-footer #thread-bottom-container,
-      .zeroeka-hide-footer footer,
-      .zeroeka-hide-footer form[role="form"],
-      .zeroeka-hide-footer form.composer,
-      .zeroeka-hide-footer [data-qa="input-area"] { display: none !important; }
-    `;
-    document.head.appendChild(styleEl);
-  }
-
   // Removed Toggle chat width action
 
   // Action: Hide/Show header
   itemToggleHeader.addEventListener('click', () => {
     ensureGeminiHideStyles();
-    // Toggle a body class to persistently hide/show via CSS (more robust for SPA)
+    const headers = getHeaderEls();
+    toggleVisibilityForElements(headers);
     const cls = 'zeroeka-hide-header';
     if (document.body.classList.contains(cls)) document.body.classList.remove(cls);
     else document.body.classList.add(cls);
@@ -357,7 +366,8 @@ const createZeroEkaIconButton = () => {
   // Action: Hide/Show footer
   itemToggleFooter.addEventListener('click', () => {
     ensureGeminiHideStyles();
-    // Toggle a body class to persistently hide/show via CSS (more robust for SPA)
+    const footers = getFooterEls();
+    toggleVisibilityForElements(footers);
     const cls = 'zeroeka-hide-footer';
     if (document.body.classList.contains(cls)) document.body.classList.remove(cls);
     else document.body.classList.add(cls);
