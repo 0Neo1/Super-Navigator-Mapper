@@ -1207,9 +1207,9 @@ const createZeroEkaIconButton = () => {
     try {
       chrome.runtime.sendMessage(EXT_ID, { action: 'openSidePanel' }, (resp) => {
         if (chrome.runtime.lastError) {
-          console.debug('Direct PE openSidePanel message error:', chrome.runtime.lastError.message);
+          console.debug('[ZeroEka Launcher] Direct PE openSidePanel message error:', chrome.runtime.lastError.message);
         } else {
-          console.debug('Direct PE openSidePanel message resp:', resp);
+          console.debug('[ZeroEka Launcher] Direct PE openSidePanel message resp:', resp);
         }
       });
     } catch (_) {}
