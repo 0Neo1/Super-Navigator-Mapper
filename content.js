@@ -342,74 +342,114 @@ const createZeroEkaIconButton = () => {
   function getFooterEls() {
     const els = [];
     try {
-      // Strategy: resolve to the top-level composer container that wraps the entire input area
-
+      // Strategy: Find the proper footer container, not just the input field
+      
+      // First, try to find input area and walk up to find the full footer container
       const inputSelectors = [
-        'textarea[aria-label*="Message" i]',
-        'textarea[aria-label*="message" i]', 
-        'textarea[aria-label*="Gemini" i]',
+        '.ql-editor', // Gemini's text editor
+        'textarea[aria-label*="Message"]',
+        'textarea[aria-label*="message"]', 
+        'textarea[aria-label*="Gemini"]',
         '[role="textbox"][contenteditable="true"]',
-        'div[contenteditable="true"]',
-        '.ql-editor[contenteditable="true"]'
+        'div[contenteditable="true"]'
       ];
-
+      
       let mainFooterContainer = null;
-      let composer = null;
+      
       for (const selector of inputSelectors) {
-        const found = document.querySelector(selector);
-        if (found) { composer = found; break; }
-      }
-
-      if (composer) {
-        // Prefer well-known wrappers first
-        const preferredWrapper = composer.closest('#thread-bottom-container, [data-qa="input-area"], [data-testid="input-area"], form, [role="form"], footer');
-        if (preferredWrapper) {
-          mainFooterContainer = preferredWrapper;
-        } else {
-          // Walk up to the highest ancestor that still looks like the footer area
-          let cursor = composer;
-          let best = composer;
-          while (cursor && cursor.parentElement && cursor !== document.body) {
+        const inputElement = document.querySelector(selector);
+        if (inputElement) {
+          console.log('[Gemini] Found input element:', inputElement.tagName, inputElement.className);
+          
+          // Walk up to find the footer container that holds everything
+          let cursor = inputElement;
+          let bestContainer = null;
+          
+          // Walk up the DOM tree to find a suitable container
+          for (let i = 0; i < 12 && cursor && cursor.parentElement; i += 1) {
             cursor = cursor.parentElement;
             try {
               const r = cursor.getBoundingClientRect();
-              const cs = getComputedStyle(cursor);
-              const pos = (cs.position || '').toLowerCase();
-              const isBottomZone = r.bottom > window.innerHeight * 0.6;
-              const isReasonableSize = r.height > 40 && r.height < window.innerHeight * 0.6;
-              const isWide = r.width > window.innerWidth * 0.6;
-              const isAffixed = pos === 'fixed' || pos === 'sticky';
-              if ((isBottomZone && isReasonableSize && isWide) || isAffixed) {
-                best = cursor;
+              const styles = getComputedStyle(cursor);
+              
+              // Look for containers that:
+              // 1. Are in the bottom area of the screen
+              // 2. Have reasonable width (span most of screen)
+              // 3. Are not too tall (not the whole page)
+              // 4. Have position fixed/sticky OR are near bottom
+              const isBottomArea = r.bottom > window.innerHeight * 0.7;
+              const isWideEnough = r.width > window.innerWidth * 0.7;
+              const isReasonableHeight = r.height > 60 && r.height < window.innerHeight * 0.4;
+              const isPositioned = ['fixed', 'sticky'].includes(styles.position);
+              const isNearBottom = r.top > window.innerHeight * 0.5;
+              
+              const isGoodContainer = (isBottomArea || isPositioned || isNearBottom) && 
+                                    isWideEnough && 
+                                    isReasonableHeight;
+              
+              if (isGoodContainer) {
+                bestContainer = cursor;
+                console.log(`[Gemini] Found container candidate ${i + 1}:`, {
+                  tag: cursor.tagName,
+                  classes: cursor.className,
+                  id: cursor.id,
+                  position: styles.position,
+                  height: Math.round(r.height),
+                  width: Math.round(r.width),
+                  bottom: Math.round(r.bottom),
+                  top: Math.round(r.top)
+                });
               }
             } catch(_) {}
           }
-          mainFooterContainer = best;
-        }
-
-        if (mainFooterContainer) {
-          els.push(mainFooterContainer);
-          console.log('[Gemini] Resolved footer container:', mainFooterContainer.tagName, mainFooterContainer.id || '', mainFooterContainer.className || '');
+          
+          // If we found a good container, use it; otherwise fall back to a higher-level parent
+          if (bestContainer) {
+            mainFooterContainer = bestContainer;
+          } else {
+            // Fallback: go up fewer levels to get at least some container
+            let fallbackCursor = inputElement;
+            for (let i = 0; i < 6 && fallbackCursor && fallbackCursor.parentElement; i += 1) {
+              fallbackCursor = fallbackCursor.parentElement;
+              const r = fallbackCursor.getBoundingClientRect();
+              if (r.height > 50 && r.width > window.innerWidth * 0.5) {
+                mainFooterContainer = fallbackCursor;
+                console.log('[Gemini] Using fallback container:', fallbackCursor.tagName, fallbackCursor.className);
+                break;
+              }
+            }
+          }
+          break; // Use first found input
         }
       }
-
-      // Fallbacks if we still have nothing
+      
+      if (mainFooterContainer) {
+        els.push(mainFooterContainer);
+        console.log('[Gemini] Selected footer container:', {
+          tag: mainFooterContainer.tagName,
+          id: mainFooterContainer.id,
+          classes: mainFooterContainer.className,
+          rect: mainFooterContainer.getBoundingClientRect()
+        });
+      }
+      
+      // Fallback: try specific known Gemini footer selectors
       if (els.length === 0) {
-        const fallbacks = [
+        const geminiSpecific = [
           '[role="presentation"] > #thread-bottom-container',
           '#thread-bottom-container',
-          'form[role="form"]',
-          'form',
           'footer'
         ];
-        for (const sel of fallbacks) {
-          const el = document.querySelector(sel);
+        
+        for (const selector of geminiSpecific) {
+          const el = document.querySelector(selector);
           if (el) {
             try {
               const r = el.getBoundingClientRect();
-              if (r.bottom > window.innerHeight * 0.5) {
+              const isValidFooter = r.bottom > window.innerHeight * 0.5 && r.height > 30;
+              if (isValidFooter && !els.includes(el)) {
                 els.push(el);
-                break;
+                console.log('[Gemini] Found known footer selector:', el.tagName, el.id);
               }
             } catch(_) {}
           }
@@ -543,11 +583,8 @@ const createZeroEkaIconButton = () => {
   // Action: Hide/Show footer
   itemToggleFooter.addEventListener('click', () => {
     ensureGeminiHideStyles();
-    // Always re-resolve container + include known selectors to guarantee full coverage
-    let footers = getFooterEls();
-    const extras = Array.from(document.querySelectorAll('#thread-bottom-container, [data-qa="input-area"], [data-testid="input-area"], form[role="form"], form, footer'));
-    extras.forEach(el => { if (el && !footers.includes(el)) footers.push(el); });
-    console.log('[Gemini] Footer toggle: Resolved', footers.length, 'footer elements:', footers);
+    const footers = getFooterEls();
+    console.log('[Gemini] Footer toggle: Found', footers.length, 'footer elements:', footers);
     
     if (footers.length > 0) {
       // Check current state of body class (more reliable than element visibility)
@@ -564,17 +601,10 @@ const createZeroEkaIconButton = () => {
         footers.forEach((el, index) => {
           try {
             // Force show with aggressive CSS overrides
-            // Some footers need flex; prefer removing overrides and then normalize
-            el.style.removeProperty('display');
+            el.style.setProperty('display', 'block', 'important');
             el.style.setProperty('visibility', 'visible', 'important');
             el.style.setProperty('opacity', '1', 'important');
             el.removeAttribute('data-zeroeka-hidden');
-            // If still computed as none, default to flex as many Gemini containers use flex
-            const comp = getComputedStyle(el);
-            if (comp.display === 'none') {
-              el.style.setProperty('display', 'flex', 'important');
-              el.style.setProperty('align-items', 'stretch');
-            }
             
             // Check final computed style
             const computedStyle = getComputedStyle(el);
@@ -598,14 +628,10 @@ const createZeroEkaIconButton = () => {
         document.body.classList.add(cls);
         footers.forEach((el, index) => {
           try {
-            // Mark hidden and minimize footprint
+            el.style.setProperty('display', 'none', 'important');
             el.style.setProperty('visibility', 'hidden', 'important');
             el.style.setProperty('opacity', '0', 'important');
             el.setAttribute('data-zeroeka-hidden', 'true');
-            // Prefer display none on the top-most resolved container only to avoid layout breakages
-            if (index === 0) {
-              el.style.setProperty('display', 'none', 'important');
-            }
             
             console.log(`[Gemini] Footer ${index + 1} hidden:`, {
               tag: el.tagName,
