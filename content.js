@@ -342,40 +342,9 @@ const createZeroEkaIconButton = () => {
   function getFooterEls() {
     const els = [];
     try {
-      // First, try very specific Gemini footer selectors
-      const geminiSpecific = [
-        '[role="presentation"] > #thread-bottom-container',
-        '#thread-bottom-container',
-        'footer',
-        '[data-qa="input-area"]',
-        '[data-testid="input-area"]'
-      ];
+      // Strategy: Find the main footer container that encompasses the entire input area
       
-      for (const selector of geminiSpecific) {
-        const el = document.querySelector(selector);
-        if (el && !els.includes(el)) {
-          els.push(el);
-        }
-      }
-      
-      // If we found specific footers, validate they're safe and return them
-      if (els.length > 0) {
-        const mainStrict = document.querySelector('main, [role="main"]');
-        const safeFooters = els.filter(el => {
-          try {
-            const r = el.getBoundingClientRect();
-            const isReasonableSize = r.height > 20 && r.height < window.innerHeight * 0.5;
-            const isNearBottom = r.bottom > window.innerHeight * 0.5; // Should be in bottom half
-            const notMainContainer = mainStrict ? !el.contains(mainStrict) : true;
-            return isReasonableSize && isNearBottom && notMainContainer;
-          } catch(_) { return false; }
-        });
-        if (safeFooters.length > 0) {
-          return safeFooters;
-        }
-      }
-      
-      // Fallback: find input/composer elements
+      // First, try to find the primary input area and walk up to find its container
       const inputSelectors = [
         'textarea[aria-label*="Message"]',
         'textarea[aria-label*="message"]', 
@@ -384,34 +353,84 @@ const createZeroEkaIconButton = () => {
         'div[contenteditable="true"]'
       ];
       
+      let mainFooterContainer = null;
+      
       for (const selector of inputSelectors) {
         const composer = document.querySelector(selector);
         if (composer) {
-          // Walk up to find the input container
+          // Walk up to find the largest container that's still in the bottom area
           let cursor = composer;
-          for (let i = 0; i < 6 && cursor; i += 1) {
+          let bestContainer = composer;
+          
+          for (let i = 0; i < 8 && cursor && cursor.parentElement; i += 1) {
+            cursor = cursor.parentElement;
             try {
               const r = cursor.getBoundingClientRect();
-              const isFooterLike = r.bottom > window.innerHeight * 0.7 && r.height > 30;
-              if (isFooterLike && !els.includes(cursor)) {
-                els.push(cursor);
-                break;
+              const isLargeFooterContainer = (
+                r.bottom > window.innerHeight * 0.6 && // In bottom area
+                r.height > 40 && // Reasonable height
+                r.height < window.innerHeight * 0.5 && // Not too tall
+                r.width > window.innerWidth * 0.5 // Spans most of width
+              );
+              
+              if (isLargeFooterContainer) {
+                bestContainer = cursor;
               }
             } catch(_) {}
-            cursor = cursor.parentElement;
           }
           
-          // Also try the form wrapper
-          const form = composer.closest('form, [role="form"]');
-          if (form && !els.includes(form)) {
+          mainFooterContainer = bestContainer;
+          break; // Use first found input
+        }
+      }
+      
+      if (mainFooterContainer) {
+        els.push(mainFooterContainer);
+        console.log('[Gemini] Found main footer container:', mainFooterContainer.tagName, mainFooterContainer.className);
+      }
+      
+      // Fallback: try specific Gemini selectors
+      if (els.length === 0) {
+        const geminiSpecific = [
+          '[role="presentation"] > #thread-bottom-container',
+          '#thread-bottom-container',
+          'footer'
+        ];
+        
+        for (const selector of geminiSpecific) {
+          const el = document.querySelector(selector);
+          if (el) {
             try {
-              const r = form.getBoundingClientRect();
-              if (r.bottom > window.innerHeight * 0.7) {
-                els.push(form);
+              const r = el.getBoundingClientRect();
+              const isValidFooter = r.bottom > window.innerHeight * 0.5 && r.height > 30;
+              if (isValidFooter && !els.includes(el)) {
+                els.push(el);
+                console.log('[Gemini] Found specific footer:', el.tagName, el.id);
               }
             } catch(_) {}
           }
-          break; // Only process first found composer
+        }
+      }
+      
+      // Additional fallback: find elements at bottom of screen
+      if (els.length === 0) {
+        const bottomElements = document.elementsFromPoint(window.innerWidth / 2, window.innerHeight - 50) || [];
+        for (const el of bottomElements) {
+          if (!el || el === document.documentElement || el === document.body) continue;
+          try {
+            const r = el.getBoundingClientRect();
+            const isBottomContainer = (
+              r.bottom > window.innerHeight * 0.8 && 
+              r.height > 40 && 
+              r.height < window.innerHeight * 0.4 &&
+              r.width > window.innerWidth * 0.5
+            );
+            if (isBottomContainer && !els.includes(el)) {
+              els.push(el);
+              console.log('[Gemini] Found bottom screen element:', el.tagName, el.className);
+              break; // Take first valid one
+            }
+          } catch(_) {}
         }
       }
       
@@ -426,8 +445,13 @@ const createZeroEkaIconButton = () => {
     styleEl.id = 'zeroeka-gemini-hide-styles';
     styleEl.textContent = `
       /* Only hide nodes we've explicitly marked as header to avoid hiding app wrapper */
-      .zeroeka-hide-header [data-zeroeka-header="1"] { display: none !important; }
+      .zeroeka-hide-header [data-zeroeka-header="1"] { 
+        display: none !important; 
+        visibility: hidden !important;
+        opacity: 0 !important;
+      }
 
+      /* Hide footer elements with multiple properties to ensure it works */
       .zeroeka-hide-footer [role="presentation"] > #thread-bottom-container,
       .zeroeka-hide-footer #thread-bottom-container,
       .zeroeka-hide-footer footer,
@@ -437,7 +461,12 @@ const createZeroEkaIconButton = () => {
       .zeroeka-hide-footer [role="textbox"][contenteditable="true"],
       .zeroeka-hide-footer textarea[aria-label*="Message"],
       .zeroeka-hide-footer textarea[aria-label*="message"],
-      .zeroeka-hide-footer textarea[aria-label*="Gemini"] { display: none !important; }
+      .zeroeka-hide-footer textarea[aria-label*="Gemini"],
+      .zeroeka-hide-footer [data-zeroeka-hidden="true"] { 
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+      }
     `;
     document.head.appendChild(styleEl);
   }
@@ -449,8 +478,19 @@ const createZeroEkaIconButton = () => {
     const hide = anyVisible;
     elements.forEach(el => {
       try {
-        if (hide) el.style.setProperty('display', 'none', 'important');
-        else el.style.removeProperty('display');
+        if (hide) {
+          // Use multiple methods to ensure hiding works
+          el.style.setProperty('display', 'none', 'important');
+          el.style.setProperty('visibility', 'hidden', 'important');
+          el.style.setProperty('opacity', '0', 'important');
+          el.setAttribute('data-zeroeka-hidden', 'true');
+        } else {
+          // Restore visibility
+          el.style.removeProperty('display');
+          el.style.removeProperty('visibility');
+          el.style.removeProperty('opacity');
+          el.removeAttribute('data-zeroeka-hidden');
+        }
       } catch(_) {}
     });
   }
@@ -496,14 +536,35 @@ const createZeroEkaIconButton = () => {
     console.log('[Gemini] Footer toggle: Found', footers.length, 'footer elements:', footers);
     
     if (footers.length > 0) {
-      // Toggle visibility with direct CSS and body class
-      toggleVisibilityForElements(footers);
+      // Check current state of body class (more reliable than element visibility)
       const cls = 'zeroeka-hide-footer';
-      if (document.body.classList.contains(cls)) {
+      const isCurrentlyHidden = document.body.classList.contains(cls);
+      
+      if (isCurrentlyHidden) {
+        // Show footers
         document.body.classList.remove(cls);
+        footers.forEach(el => {
+          try {
+            el.style.removeProperty('display');
+            el.style.removeProperty('visibility');
+            el.style.removeProperty('opacity');
+            el.removeAttribute('data-zeroeka-hidden');
+            console.log('[Gemini] Showing footer:', el.tagName, el.className);
+          } catch(_) {}
+        });
         console.log('[Gemini] Showing footers');
       } else {
+        // Hide footers - use aggressive hiding to ensure it works on first click
         document.body.classList.add(cls);
+        footers.forEach(el => {
+          try {
+            el.style.setProperty('display', 'none', 'important');
+            el.style.setProperty('visibility', 'hidden', 'important');
+            el.style.setProperty('opacity', '0', 'important');
+            el.setAttribute('data-zeroeka-hidden', 'true');
+            console.log('[Gemini] Hiding footer:', el.tagName, el.className);
+          } catch(_) {}
+        });
         console.log('[Gemini] Hiding footers');
       }
     } else {
