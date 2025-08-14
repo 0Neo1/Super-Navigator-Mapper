@@ -1190,6 +1190,9 @@ const createZeroEkaIconButton = () => {
   // Add click functionality for ZeroEka extension button
   zeroekaExtensionButton.addEventListener('click', () => {
     console.log('ZeroEka extension button clicked');
+    const EXT_ID = 'enkgghbjjigjjkodkgbakchhflmkaphj';
+    const STORE_URL = 'https://chromewebstore.google.com/detail/prompt-engine-by-zeroeka/enkgghbjjigjjkodkgbakchhflmkaphj';
+
     // Fire a page-level event to create a user gesture boundary the target extension can hook
     try {
       const evtDoc = new CustomEvent('pe-zeroeka-open', { bubbles: true, composed: true });
@@ -1199,18 +1202,44 @@ const createZeroEkaIconButton = () => {
       const evtWin = new CustomEvent('pe-zeroeka-open', { bubbles: true, composed: true });
       window.dispatchEvent(evtWin);
     } catch (_) {}
+
+    // Immediate direct attempt to message Prompt Engine by ID under user gesture
+    try {
+      chrome.runtime.sendMessage(EXT_ID, { action: 'openSidePanel' }, (resp) => {
+        if (chrome.runtime.lastError) {
+          console.debug('Direct PE openSidePanel message error:', chrome.runtime.lastError.message);
+        } else {
+          console.debug('Direct PE openSidePanel message resp:', resp);
+        }
+      });
+    } catch (_) {}
+
     // Also delegate the open request to background to message the target extension by ID
     try {
-      chrome.runtime.sendMessage({ type: 'open-prompt-engine' }, (resp) => {
-        console.log('Open Prompt Engine response:', resp);
-        if (!resp || resp.status !== 'installed_opened') {
-          // If not opened, try a direct ping using the last seen extension ID
-          chrome.storage.local.get(['peExtId'], (d) => {
-            const id = d && d.peExtId;
-            if (!id) return;
-            try { chrome.runtime.sendMessage(id, { action: 'openSidePanel' }); } catch (_) {}
-          });
+      let responded = false;
+      const fallbackTimer = setTimeout(() => {
+        if (!responded) {
+          console.warn('PE did not respond promptly; opening store as fallback');
+          try { window.open(STORE_URL, '_blank', 'noopener'); } catch (_) {}
         }
+      }, 1500);
+
+      chrome.runtime.sendMessage({ type: 'open-prompt-engine' }, (resp) => {
+        responded = true;
+        clearTimeout(fallbackTimer);
+        console.log('Open Prompt Engine response:', resp);
+        const status = resp && resp.status;
+        if (status === 'installed_opened' || status === 'store_opened' || status === 'unknown_opened_details') {
+          return; // success handled by background
+        }
+        if (status === 'installed_disabled' || status === 'installed_but_cannot_open') {
+          // Open extensions page to enable, and also open store in case
+          try { chrome.tabs.create({ url: `chrome://extensions/?id=${EXT_ID}` }); } catch (_) {}
+          try { window.open(STORE_URL, '_blank', 'noopener'); } catch (_) {}
+          return;
+        }
+        // Unknown / null response → open store
+        try { window.open(STORE_URL, '_blank', 'noopener'); } catch (_) {}
       });
     } catch (_) {}
   });
