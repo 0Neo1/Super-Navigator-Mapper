@@ -440,41 +440,45 @@ const createZeroEkaIconButton = () => {
   // Strong CSS-based hider so SPA reflows/virtual DOM cannot undo visibility
   function ensureGeminiHideStyles() {
     let styleEl = document.getElementById('zeroeka-gemini-hide-styles');
-    if (styleEl) return;
+    if (styleEl) {
+      console.log('[Gemini] CSS styles already exist');
+      return;
+    }
     styleEl = document.createElement('style');
     styleEl.id = 'zeroeka-gemini-hide-styles';
     styleEl.textContent = `
-      /* Only hide nodes we've explicitly marked as header to avoid hiding app wrapper */
-      .zeroeka-hide-header [data-zeroeka-header="1"][data-zeroeka-hidden="true"] { 
+      /* Simplified CSS rules - only hide when both body class and hidden attribute are present */
+      body.zeroeka-hide-header [data-zeroeka-header="1"][data-zeroeka-hidden="true"] { 
         display: none !important; 
         visibility: hidden !important;
         opacity: 0 !important;
       }
 
-      /* Hide footer elements with multiple properties to ensure it works */
-      .zeroeka-hide-footer [role="presentation"] > #thread-bottom-container,
-      .zeroeka-hide-footer #thread-bottom-container,
-      .zeroeka-hide-footer footer,
-      .zeroeka-hide-footer form[role="form"],
-      .zeroeka-hide-footer [data-qa="input-area"],
-      .zeroeka-hide-footer [data-testid="input-area"],
-      .zeroeka-hide-footer [role="textbox"][contenteditable="true"],
-      .zeroeka-hide-footer textarea[aria-label*="Message"],
-      .zeroeka-hide-footer textarea[aria-label*="message"],
-      .zeroeka-hide-footer textarea[aria-label*="Gemini"] { 
+      /* Hide footer elements only when body class is present and element is marked hidden */
+      body.zeroeka-hide-footer [data-zeroeka-hidden="true"] { 
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
       }
       
-      /* Additional targeting for elements we explicitly mark as hidden */
-      .zeroeka-hide-footer [data-zeroeka-hidden="true"] { 
+      /* Specific footer selectors only when body class is present */
+      body.zeroeka-hide-footer [role="presentation"] > #thread-bottom-container,
+      body.zeroeka-hide-footer #thread-bottom-container,
+      body.zeroeka-hide-footer footer,
+      body.zeroeka-hide-footer form[role="form"],
+      body.zeroeka-hide-footer [data-qa="input-area"],
+      body.zeroeka-hide-footer [data-testid="input-area"],
+      body.zeroeka-hide-footer [role="textbox"][contenteditable="true"],
+      body.zeroeka-hide-footer textarea[aria-label*="Message"],
+      body.zeroeka-hide-footer textarea[aria-label*="message"],
+      body.zeroeka-hide-footer textarea[aria-label*="Gemini"] { 
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
       }
     `;
     document.head.appendChild(styleEl);
+    console.log('[Gemini] Added CSS styles for hide/show functionality');
   }
   // Note: toggleVisibilityForElements function removed - using direct logic in each toggle handler for better control
 
@@ -491,35 +495,61 @@ const createZeroEkaIconButton = () => {
       const cls = 'zeroeka-hide-header';
       const isCurrentlyHidden = document.body.classList.contains(cls);
       
+      console.log('[Gemini] Current state - Body has hide class:', isCurrentlyHidden);
+      console.log('[Gemini] Body classes:', document.body.className);
+      
       if (isCurrentlyHidden) {
         // Show headers
+        console.log('[Gemini] SHOWING headers...');
         document.body.classList.remove(cls);
-        headers.forEach(h => {
+        headers.forEach((h, index) => {
           try {
-            h.style.removeProperty('display');
-            h.style.removeProperty('visibility');
-            h.style.removeProperty('opacity');
+            // Force show with aggressive CSS overrides
+            h.style.setProperty('display', 'block', 'important');
+            h.style.setProperty('visibility', 'visible', 'important');
+            h.style.setProperty('opacity', '1', 'important');
             h.removeAttribute('data-zeroeka-hidden');
-            // Keep the header marker for future toggles
             h.setAttribute('data-zeroeka-header', '1');
-            console.log('[Gemini] Showing header:', h.tagName, h.className, h.id);
-          } catch(_) {}
+            
+            // Check final computed style
+            const computedStyle = getComputedStyle(h);
+            console.log(`[Gemini] Header ${index + 1} after show attempt:`, {
+              tag: h.tagName,
+              id: h.id,
+              classes: h.className,
+              display: computedStyle.display,
+              visibility: computedStyle.visibility,
+              opacity: computedStyle.opacity,
+              hasHiddenAttr: h.hasAttribute('data-zeroeka-hidden')
+            });
+          } catch(e) {
+            console.error('[Gemini] Error showing header:', e);
+          }
         });
-        console.log('[Gemini] Showing headers');
+        console.log('[Gemini] Body classes after show:', document.body.className);
       } else {
         // Hide headers
+        console.log('[Gemini] HIDING headers...');
         document.body.classList.add(cls);
-        headers.forEach(h => {
+        headers.forEach((h, index) => {
           try {
             h.setAttribute('data-zeroeka-header', '1');
             h.style.setProperty('display', 'none', 'important');
             h.style.setProperty('visibility', 'hidden', 'important');
             h.style.setProperty('opacity', '0', 'important');
             h.setAttribute('data-zeroeka-hidden', 'true');
-            console.log('[Gemini] Hiding header:', h.tagName, h.className, h.id);
-          } catch(_) {}
+            
+            console.log(`[Gemini] Header ${index + 1} hidden:`, {
+              tag: h.tagName,
+              id: h.id,
+              classes: h.className,
+              hasHiddenAttr: h.hasAttribute('data-zeroeka-hidden')
+            });
+          } catch(e) {
+            console.error('[Gemini] Error hiding header:', e);
+          }
         });
-        console.log('[Gemini] Hiding headers');
+        console.log('[Gemini] Body classes after hide:', document.body.className);
       }
     } else {
       console.warn('[Gemini] No header elements found to toggle');
@@ -539,32 +569,59 @@ const createZeroEkaIconButton = () => {
       const cls = 'zeroeka-hide-footer';
       const isCurrentlyHidden = document.body.classList.contains(cls);
       
+      console.log('[Gemini] Current state - Body has footer hide class:', isCurrentlyHidden);
+      console.log('[Gemini] Body classes:', document.body.className);
+      
       if (isCurrentlyHidden) {
         // Show footers
+        console.log('[Gemini] SHOWING footers...');
         document.body.classList.remove(cls);
-        footers.forEach(el => {
+        footers.forEach((el, index) => {
           try {
-            el.style.removeProperty('display');
-            el.style.removeProperty('visibility');
-            el.style.removeProperty('opacity');
+            // Force show with aggressive CSS overrides
+            el.style.setProperty('display', 'block', 'important');
+            el.style.setProperty('visibility', 'visible', 'important');
+            el.style.setProperty('opacity', '1', 'important');
             el.removeAttribute('data-zeroeka-hidden');
-            console.log('[Gemini] Showing footer:', el.tagName, el.className);
-          } catch(_) {}
+            
+            // Check final computed style
+            const computedStyle = getComputedStyle(el);
+            console.log(`[Gemini] Footer ${index + 1} after show attempt:`, {
+              tag: el.tagName,
+              id: el.id,
+              classes: el.className,
+              display: computedStyle.display,
+              visibility: computedStyle.visibility,
+              opacity: computedStyle.opacity,
+              hasHiddenAttr: el.hasAttribute('data-zeroeka-hidden')
+            });
+          } catch(e) {
+            console.error('[Gemini] Error showing footer:', e);
+          }
         });
-        console.log('[Gemini] Showing footers');
+        console.log('[Gemini] Body classes after footer show:', document.body.className);
       } else {
         // Hide footers - use aggressive hiding to ensure it works on first click
+        console.log('[Gemini] HIDING footers...');
         document.body.classList.add(cls);
-        footers.forEach(el => {
+        footers.forEach((el, index) => {
           try {
             el.style.setProperty('display', 'none', 'important');
             el.style.setProperty('visibility', 'hidden', 'important');
             el.style.setProperty('opacity', '0', 'important');
             el.setAttribute('data-zeroeka-hidden', 'true');
-            console.log('[Gemini] Hiding footer:', el.tagName, el.className);
-          } catch(_) {}
+            
+            console.log(`[Gemini] Footer ${index + 1} hidden:`, {
+              tag: el.tagName,
+              id: el.id,
+              classes: el.className,
+              hasHiddenAttr: el.hasAttribute('data-zeroeka-hidden')
+            });
+          } catch(e) {
+            console.error('[Gemini] Error hiding footer:', e);
+          }
         });
-        console.log('[Gemini] Hiding footers');
+        console.log('[Gemini] Body classes after footer hide:', document.body.className);
       }
     } else {
       console.warn('[Gemini] No footer elements found to toggle');
