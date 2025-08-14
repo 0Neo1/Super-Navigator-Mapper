@@ -123,19 +123,9 @@
       const STORE_URL = 'https://chromewebstore.google.com/detail/prompt-engine-by-zeroeka/enkgghbjjigjjkodkgbakchhflmkaphj';
 
       const openStore = () => {
-        try {
-          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            const activeTabId = tabs && tabs[0] && tabs[0].id;
-            // Prefer opening in a new foreground tab
-            chrome.tabs.create({ url: STORE_URL, active: true }, () => {
-              sendResponse({ status: 'store_opened' });
-            });
-          });
-        } catch (_) {
-          chrome.tabs.create({ url: STORE_URL, active: true }).finally(() => {
-            sendResponse({ status: 'store_opened' });
-          });
-        }
+        chrome.tabs.create({ url: STORE_URL, active: true }).finally(() => {
+          sendResponse({ status: 'store_opened' });
+        });
       };
 
       try {
@@ -190,7 +180,7 @@
                 if (ok) break;
               }
               // Only succeed when the side panel was actually triggered.
-              // Do NOT open any full-page fallbacks here; content script/store fallback removed to avoid double navigations.
+              // Do NOT open any full-page fallbacks to ensure UI stays as side panel only.
               sendResponse({ status: ok ? 'installed_opened' : 'installed_but_cannot_open' });
             })();
           } catch (e) {
@@ -199,7 +189,7 @@
         };
 
         chrome.management.getAll((list) => {
-           if (chrome.runtime.lastError || !Array.isArray(list)) { openStore(); return; }
+          if (chrome.runtime.lastError || !Array.isArray(list)) { openStore(); return; }
           // Collect all plausible ZeroEka Prompt Engine candidates
           const candidates = list.filter(x => (
             x.id === EXT_ID || /zeroeka/i.test(x.name || '') || /prompt\s*engine/i.test(x.name || '')
@@ -251,7 +241,7 @@
                 return;
               }
             }
-             sendResponse({ status: 'installed_but_cannot_open' });
+            sendResponse({ status: 'installed_but_cannot_open' });
           })();
         });
         return true; // async

@@ -1218,7 +1218,11 @@ const createZeroEkaIconButton = () => {
     try {
       chrome.runtime.sendMessage({ type: 'open-prompt-engine' }, (resp) => {
         console.log('Open Prompt Engine response:', resp);
-        // Do not open any pages here; background will handle store open if needed.
+        const status = resp && resp.status;
+        // Do not open any pages from content; background is the single authority
+        // Only log statuses to avoid double navigations
+        if (status === 'installed_opened') return;
+        if (status === 'store_opened' || status === 'unknown_opened_details' || status === 'installed_disabled' || status === 'installed_but_cannot_open') return;
       });
     } catch (_) {}
   });
