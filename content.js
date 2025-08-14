@@ -559,49 +559,42 @@ const createZeroEkaIconButton = () => {
   // Action: Hide/Show footer
   itemToggleFooter.addEventListener('click', () => {
     ensureGeminiHideStyles();
+    // Check body class first so second click refresh works even if elements are not detectable
+    const cls = 'zeroeka-hide-footer';
+    const isCurrentlyHidden = document.body.classList.contains(cls);
+    console.log('[Gemini] Current state - Body has footer hide class:', isCurrentlyHidden);
+    console.log('[Gemini] Body classes:', document.body.className);
+    if (isCurrentlyHidden) {
+      console.log('[Gemini] Footer currently hidden → refreshing page');
+      try { hideMenu(); menuOpen = false; } catch(_) {}
+      window.location.reload();
+      return;
+    }
+    // First click: resolve and hide
     const footers = getFooterEls();
     console.log('[Gemini] Footer toggle: Found', footers.length, 'footer elements:', footers);
-    
-    if (footers.length > 0) {
-      // Check current state of body class (more reliable than element visibility)
-      const cls = 'zeroeka-hide-footer';
-      const isCurrentlyHidden = document.body.classList.contains(cls);
-      
-      // New behavior: if already hidden, refresh page on second click
-      if (isCurrentlyHidden) {
-        console.log('[Gemini] Footer currently hidden → refreshing page');
-        try { hideMenu(); menuOpen = false; } catch(_) {}
-        window.location.reload();
-        return;
-      }
-
-      console.log('[Gemini] Current state - Body has footer hide class:', isCurrentlyHidden);
-      console.log('[Gemini] Body classes:', document.body.className);
-      
-      // Hide footers - use aggressive hiding to ensure it works on first click
-      console.log('[Gemini] HIDING footers...');
-      document.body.classList.add(cls);
-      footers.forEach((el, index) => {
-        try {
-          el.style.setProperty('display', 'none', 'important');
-          el.style.setProperty('visibility', 'hidden', 'important');
-          el.style.setProperty('opacity', '0', 'important');
-          el.setAttribute('data-zeroeka-hidden', 'true');
-          console.log(`[Gemini] Footer ${index + 1} hidden:`, {
-            tag: el.tagName,
-            id: el.id,
-            classes: el.className,
-            hasHiddenAttr: el.hasAttribute('data-zeroeka-hidden')
-          });
-        } catch(e) {
-          console.error('[Gemini] Error hiding footer:', e);
-        }
-      });
-      console.log('[Gemini] Body classes after footer hide:', document.body.className);
-    } else {
+    if (footers.length === 0) {
       console.warn('[Gemini] No footer elements found to toggle');
     }
-    
+    console.log('[Gemini] HIDING footers...');
+    document.body.classList.add(cls);
+    footers.forEach((el, index) => {
+      try {
+        el.style.setProperty('display', 'none', 'important');
+        el.style.setProperty('visibility', 'hidden', 'important');
+        el.style.setProperty('opacity', '0', 'important');
+        el.setAttribute('data-zeroeka-hidden', 'true');
+        console.log(`[Gemini] Footer ${index + 1} hidden:`, {
+          tag: el.tagName,
+          id: el.id,
+          classes: el.className,
+          hasHiddenAttr: el.hasAttribute('data-zeroeka-hidden')
+        });
+      } catch(e) {
+        console.error('[Gemini] Error hiding footer:', e);
+      }
+    });
+    console.log('[Gemini] Body classes after footer hide:', document.body.className);
     hideMenu(); menuOpen = false;
   });
 
