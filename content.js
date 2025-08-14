@@ -1218,6 +1218,8 @@ const createZeroEkaIconButton = () => {
     try {
       let responded = false;
       const startTime = Date.now();
+      
+      // Reduced timeout for faster user experience
       const fallbackTimer = setTimeout(() => {
         if (!responded) {
           const elapsed = Date.now() - startTime;
@@ -1226,7 +1228,7 @@ const createZeroEkaIconButton = () => {
         } else {
           console.log('[ZeroEka Launcher] Timeout fired but response already received, ignoring');
         }
-      }, 4000);
+      }, 1500); // Reduced from 4000ms to 1500ms
 
       chrome.runtime.sendMessage({ type: 'open-prompt-engine' }, (resp) => {
         const elapsed = Date.now() - startTime;
@@ -1242,10 +1244,13 @@ const createZeroEkaIconButton = () => {
           try { chrome.tabs.create({ url: `chrome://extensions/?id=${EXT_ID}` }); } catch (_) {}
           return;
         }
-        // Unknown / null response → open store
+        // Unknown / null response → open store immediately
         try { window.open(STORE_URL, '_blank', 'noopener'); } catch (_) {}
       });
-    } catch (_) {}
+    } catch (_) {
+      // If sendMessage fails immediately, open store as fallback
+      try { window.open(STORE_URL, '_blank', 'noopener'); } catch (_) {}
+    }
   });
 
   // Add hover effects for pin/unpin button
