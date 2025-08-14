@@ -123,9 +123,19 @@
       const STORE_URL = 'https://chromewebstore.google.com/detail/prompt-engine-by-zeroeka/enkgghbjjigjjkodkgbakchhflmkaphj';
 
       const openStore = () => {
-        chrome.tabs.create({ url: STORE_URL, active: true }).finally(() => {
-          sendResponse({ status: 'store_opened' });
-        });
+        try {
+          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            const activeTabId = tabs && tabs[0] && tabs[0].id;
+            // Prefer opening in a new foreground tab
+            chrome.tabs.create({ url: STORE_URL, active: true }, () => {
+              sendResponse({ status: 'store_opened' });
+            });
+          });
+        } catch (_) {
+          chrome.tabs.create({ url: STORE_URL, active: true }).finally(() => {
+            sendResponse({ status: 'store_opened' });
+          });
+        }
       };
 
       try {

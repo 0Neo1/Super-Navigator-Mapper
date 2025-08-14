@@ -17,6 +17,7 @@
     "storage",
     "cookies",
     "activeTab",
+    "tabs",
     "identity",
     "management"
   ],
