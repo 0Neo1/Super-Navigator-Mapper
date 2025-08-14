@@ -517,62 +517,38 @@ const createZeroEkaIconButton = () => {
       const cls = 'zeroeka-hide-header';
       const isCurrentlyHidden = document.body.classList.contains(cls);
       
+      // New behavior: if already hidden, refresh page on second click
+      if (isCurrentlyHidden) {
+        console.log('[Gemini] Header currently hidden → refreshing page');
+        try { hideMenu(); menuOpen = false; } catch(_) {}
+        window.location.reload();
+        return;
+      }
+
       console.log('[Gemini] Current state - Body has hide class:', isCurrentlyHidden);
       console.log('[Gemini] Body classes:', document.body.className);
       
-      if (isCurrentlyHidden) {
-        // Show headers
-        console.log('[Gemini] SHOWING headers...');
-        document.body.classList.remove(cls);
-        headers.forEach((h, index) => {
-          try {
-            // Force show with aggressive CSS overrides
-            h.style.setProperty('display', 'block', 'important');
-            h.style.setProperty('visibility', 'visible', 'important');
-            h.style.setProperty('opacity', '1', 'important');
-            h.removeAttribute('data-zeroeka-hidden');
-            h.setAttribute('data-zeroeka-header', '1');
-            
-            // Check final computed style
-            const computedStyle = getComputedStyle(h);
-            console.log(`[Gemini] Header ${index + 1} after show attempt:`, {
-              tag: h.tagName,
-              id: h.id,
-              classes: h.className,
-              display: computedStyle.display,
-              visibility: computedStyle.visibility,
-              opacity: computedStyle.opacity,
-              hasHiddenAttr: h.hasAttribute('data-zeroeka-hidden')
-            });
-          } catch(e) {
-            console.error('[Gemini] Error showing header:', e);
-          }
-        });
-        console.log('[Gemini] Body classes after show:', document.body.className);
-      } else {
-        // Hide headers
-        console.log('[Gemini] HIDING headers...');
-        document.body.classList.add(cls);
-        headers.forEach((h, index) => {
-          try {
-            h.setAttribute('data-zeroeka-header', '1');
-            h.style.setProperty('display', 'none', 'important');
-            h.style.setProperty('visibility', 'hidden', 'important');
-            h.style.setProperty('opacity', '0', 'important');
-            h.setAttribute('data-zeroeka-hidden', 'true');
-            
-            console.log(`[Gemini] Header ${index + 1} hidden:`, {
-              tag: h.tagName,
-              id: h.id,
-              classes: h.className,
-              hasHiddenAttr: h.hasAttribute('data-zeroeka-hidden')
-            });
-          } catch(e) {
-            console.error('[Gemini] Error hiding header:', e);
-          }
-        });
-        console.log('[Gemini] Body classes after hide:', document.body.className);
-      }
+      // Hide headers (first click)
+      console.log('[Gemini] HIDING headers...');
+      document.body.classList.add(cls);
+      headers.forEach((h, index) => {
+        try {
+          h.setAttribute('data-zeroeka-header', '1');
+          h.style.setProperty('display', 'none', 'important');
+          h.style.setProperty('visibility', 'hidden', 'important');
+          h.style.setProperty('opacity', '0', 'important');
+          h.setAttribute('data-zeroeka-hidden', 'true');
+          console.log(`[Gemini] Header ${index + 1} hidden:`, {
+            tag: h.tagName,
+            id: h.id,
+            classes: h.className,
+            hasHiddenAttr: h.hasAttribute('data-zeroeka-hidden')
+          });
+        } catch(e) {
+          console.error('[Gemini] Error hiding header:', e);
+        }
+      });
+      console.log('[Gemini] Body classes after hide:', document.body.className);
     } else {
       console.warn('[Gemini] No header elements found to toggle');
     }
@@ -591,60 +567,37 @@ const createZeroEkaIconButton = () => {
       const cls = 'zeroeka-hide-footer';
       const isCurrentlyHidden = document.body.classList.contains(cls);
       
+      // New behavior: if already hidden, refresh page on second click
+      if (isCurrentlyHidden) {
+        console.log('[Gemini] Footer currently hidden → refreshing page');
+        try { hideMenu(); menuOpen = false; } catch(_) {}
+        window.location.reload();
+        return;
+      }
+
       console.log('[Gemini] Current state - Body has footer hide class:', isCurrentlyHidden);
       console.log('[Gemini] Body classes:', document.body.className);
       
-      if (isCurrentlyHidden) {
-        // Show footers
-        console.log('[Gemini] SHOWING footers...');
-        document.body.classList.remove(cls);
-        footers.forEach((el, index) => {
-          try {
-            // Force show with aggressive CSS overrides
-            el.style.setProperty('display', 'block', 'important');
-            el.style.setProperty('visibility', 'visible', 'important');
-            el.style.setProperty('opacity', '1', 'important');
-            el.removeAttribute('data-zeroeka-hidden');
-            
-            // Check final computed style
-            const computedStyle = getComputedStyle(el);
-            console.log(`[Gemini] Footer ${index + 1} after show attempt:`, {
-              tag: el.tagName,
-              id: el.id,
-              classes: el.className,
-              display: computedStyle.display,
-              visibility: computedStyle.visibility,
-              opacity: computedStyle.opacity,
-              hasHiddenAttr: el.hasAttribute('data-zeroeka-hidden')
-            });
-          } catch(e) {
-            console.error('[Gemini] Error showing footer:', e);
-          }
-        });
-        console.log('[Gemini] Body classes after footer show:', document.body.className);
-      } else {
-        // Hide footers - use aggressive hiding to ensure it works on first click
-        console.log('[Gemini] HIDING footers...');
-        document.body.classList.add(cls);
-        footers.forEach((el, index) => {
-          try {
-            el.style.setProperty('display', 'none', 'important');
-            el.style.setProperty('visibility', 'hidden', 'important');
-            el.style.setProperty('opacity', '0', 'important');
-            el.setAttribute('data-zeroeka-hidden', 'true');
-            
-            console.log(`[Gemini] Footer ${index + 1} hidden:`, {
-              tag: el.tagName,
-              id: el.id,
-              classes: el.className,
-              hasHiddenAttr: el.hasAttribute('data-zeroeka-hidden')
-            });
-          } catch(e) {
-            console.error('[Gemini] Error hiding footer:', e);
-          }
-        });
-        console.log('[Gemini] Body classes after footer hide:', document.body.className);
-      }
+      // Hide footers - use aggressive hiding to ensure it works on first click
+      console.log('[Gemini] HIDING footers...');
+      document.body.classList.add(cls);
+      footers.forEach((el, index) => {
+        try {
+          el.style.setProperty('display', 'none', 'important');
+          el.style.setProperty('visibility', 'hidden', 'important');
+          el.style.setProperty('opacity', '0', 'important');
+          el.setAttribute('data-zeroeka-hidden', 'true');
+          console.log(`[Gemini] Footer ${index + 1} hidden:`, {
+            tag: el.tagName,
+            id: el.id,
+            classes: el.className,
+            hasHiddenAttr: el.hasAttribute('data-zeroeka-hidden')
+          });
+        } catch(e) {
+          console.error('[Gemini] Error hiding footer:', e);
+        }
+      });
+      console.log('[Gemini] Body classes after footer hide:', document.body.className);
     } else {
       console.warn('[Gemini] No footer elements found to toggle');
     }
