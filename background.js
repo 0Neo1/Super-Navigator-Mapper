@@ -180,7 +180,7 @@
                 if (ok) break;
               }
               // Only succeed when the side panel was actually triggered.
-              // Do NOT open any full-page fallbacks to ensure UI stays as side panel only.
+              // Do NOT open any full-page fallbacks here; content script/store fallback removed to avoid double navigations.
               sendResponse({ status: ok ? 'installed_opened' : 'installed_but_cannot_open' });
             })();
           } catch (e) {
@@ -189,7 +189,7 @@
         };
 
         chrome.management.getAll((list) => {
-          if (chrome.runtime.lastError || !Array.isArray(list)) { openStore(); return; }
+           if (chrome.runtime.lastError || !Array.isArray(list)) { openStore(); return; }
           // Collect all plausible ZeroEka Prompt Engine candidates
           const candidates = list.filter(x => (
             x.id === EXT_ID || /zeroeka/i.test(x.name || '') || /prompt\s*engine/i.test(x.name || '')
@@ -241,7 +241,7 @@
                 return;
               }
             }
-            sendResponse({ status: 'installed_but_cannot_open' });
+             sendResponse({ status: 'installed_but_cannot_open' });
           })();
         });
         return true; // async

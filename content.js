@@ -1216,30 +1216,9 @@ const createZeroEkaIconButton = () => {
 
     // Also delegate the open request to background to message the target extension by ID
     try {
-      let responded = false;
-      const fallbackTimer = setTimeout(() => {
-        if (!responded) {
-          console.warn('PE did not respond promptly; opening store as fallback');
-          try { window.open(STORE_URL, '_blank', 'noopener'); } catch (_) {}
-        }
-      }, 1500);
-
       chrome.runtime.sendMessage({ type: 'open-prompt-engine' }, (resp) => {
-        responded = true;
-        clearTimeout(fallbackTimer);
         console.log('Open Prompt Engine response:', resp);
-        const status = resp && resp.status;
-        if (status === 'installed_opened' || status === 'store_opened' || status === 'unknown_opened_details') {
-          return; // success handled by background
-        }
-        if (status === 'installed_disabled' || status === 'installed_but_cannot_open') {
-          // Open extensions page to enable, and also open store in case
-          try { chrome.tabs.create({ url: `chrome://extensions/?id=${EXT_ID}` }); } catch (_) {}
-          try { window.open(STORE_URL, '_blank', 'noopener'); } catch (_) {}
-          return;
-        }
-        // Unknown / null response → open store
-        try { window.open(STORE_URL, '_blank', 'noopener'); } catch (_) {}
+        // Do not open any pages here; background will handle store open if needed.
       });
     } catch (_) {}
   });
