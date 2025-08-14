@@ -130,22 +130,18 @@
 
       try {
         if (!chrome.management || !chrome.management.get) {
-          // Fallback: try ping, otherwise open details page (avoid store false positives)
+          // Fallback: try ping, otherwise open store page (avoid opening chrome://extensions)
           try {
             chrome.runtime.sendMessage(EXT_ID, { action: 'ping' }, (resp) => {
               if (resp && resp.success) {
                 chrome.runtime.sendMessage(EXT_ID, { action: 'open' });
                 sendResponse({ status: 'installed_opened' });
               } else {
-                chrome.tabs.create({ url: `chrome://extensions/?id=${EXT_ID}` }).finally(() => {
-                  sendResponse({ status: 'unknown_opened_details' });
-                });
+                openStore();
               }
             });
           } catch (_) {
-            chrome.tabs.create({ url: `chrome://extensions/?id=${EXT_ID}` }).finally(() => {
-              sendResponse({ status: 'unknown_opened_details' });
-            });
+            openStore();
           }
           return true;
         }
@@ -154,9 +150,7 @@
         const tryTriggerForExt = async (ext) => {
           if (!ext) { openStore(); return; }
           if (!ext.enabled) {
-            chrome.tabs.create({ url: `chrome://extensions/?id=${ext.id}` }).finally(() => {
-              sendResponse({ status: 'installed_disabled' });
-            });
+            openStore();
             return;
           }
           try {
