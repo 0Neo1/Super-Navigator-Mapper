@@ -1209,11 +1209,11 @@ const createZeroEkaIconButton = () => {
       if (completed) return;
       completed = true;
       console.log('[ZeroEka Launcher] Opening Web Store fallback');
-      try { window.open(STORE_URL, '_blank', 'noopener'); } catch (_) {}
+      try { window.open(STORE_URL, '_blank', 'noopener,noreferrer'); } catch (_) {}
     };
 
     // Fallback timer: if nothing succeeds fast, go to store
-    const fallbackTimer = setTimeout(openStoreOnce, 1800);
+    const fallbackTimer = setTimeout(openStoreOnce, 1500);
 
     // 2) Ask background to open or install
     try {
@@ -1221,40 +1221,26 @@ const createZeroEkaIconButton = () => {
         console.log('[ZeroEka Launcher] Background response:', resp);
         if (completed) return;
         const status = resp && resp.status;
-        if (status === 'installed_opened' || status === 'store_opened') {
+        if (status === 'installed_opened') {
+          clearTimeout(fallbackTimer);
+          completed = true;
+          return;
+        }
+        if (status === 'store_opened') {
           clearTimeout(fallbackTimer);
           completed = true;
           return;
         }
         if (status === 'installed_disabled') {
+          // Background already opened details page; stop fallback
           clearTimeout(fallbackTimer);
           completed = true;
-          try { chrome.tabs.create({ url: `chrome://extensions/?id=${EXT_ID}` }); } catch (_) {}
           return;
         }
         if (status === 'installed_but_cannot_open') {
-          // Try direct ping to last seen id, then EXT_ID
-          chrome.storage.local.get(['peExtId'], (d) => {
-            const lastId = d && d.peExtId;
-            const tryIds = [lastId, EXT_ID].filter(Boolean);
-            let tried = 0;
-            const tryNext = () => {
-              if (completed) return;
-              const id = tryIds[tried++];
-              if (!id) { return; }
-              try {
-                chrome.runtime.sendMessage(id, { action: 'openSidePanel' }, () => {
-                  if (chrome.runtime.lastError) {
-                    tryNext();
-                  } else {
-                    clearTimeout(fallbackTimer);
-                    completed = true;
-                  }
-                });
-              } catch (_) { tryNext(); }
-            };
-            tryNext();
-          });
+          // As a last-resort, direct user to store page
+          clearTimeout(fallbackTimer);
+          openStoreOnce();
           return;
         }
         // Unknown/null -> let fallback timer open the store
@@ -1263,15 +1249,34 @@ const createZeroEkaIconButton = () => {
       console.warn('[ZeroEka Launcher] Background messaging failed:', e?.message);
     }
 
-    // 3) In parallel, attempt a fast direct message to official ID under user gesture
-    try {
-      chrome.runtime.sendMessage(EXT_ID, { action: 'openSidePanel' }, () => {
-        if (!chrome.runtime.lastError) {
-          clearTimeout(fallbackTimer);
-          completed = true;
+    // 3) In parallel, attempt a fast direct message to known IDs under user gesture
+    const tryDirectOpen = (id) => new Promise((resolve) => {
+      if (!id) return resolve(false);
+      try {
+        chrome.runtime.sendMessage(id, { action: 'openSidePanel' }, () => {
+          if (chrome.runtime.lastError) return resolve(false);
+          return resolve(true);
+        });
+      } catch (_) { resolve(false); }
+    });
+
+    (async () => {
+      // Try last-seen ID first
+      let lastId = null;
+      try { lastId = (await new Promise(res => chrome.storage.local.get(['peExtId'], d => res(d && d.peExtId)))); } catch(_) {}
+      const idsToTry = [lastId, EXT_ID].filter(Boolean);
+      for (const id of idsToTry) {
+        // eslint-disable-next-line no-await-in-loop
+        const ok = await tryDirectOpen(id);
+        if (ok) {
+          if (!completed) {
+            clearTimeout(fallbackTimer);
+            completed = true;
+          }
+          break;
         }
-      });
-    } catch (_) {}
+      }
+    })();
   });
 
   // Add hover effects for pin/unpin button
