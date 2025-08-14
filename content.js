@@ -445,7 +445,7 @@ const createZeroEkaIconButton = () => {
     styleEl.id = 'zeroeka-gemini-hide-styles';
     styleEl.textContent = `
       /* Only hide nodes we've explicitly marked as header to avoid hiding app wrapper */
-      .zeroeka-hide-header [data-zeroeka-header="1"] { 
+      .zeroeka-hide-header [data-zeroeka-header="1"][data-zeroeka-hidden="true"] { 
         display: none !important; 
         visibility: hidden !important;
         opacity: 0 !important;
@@ -461,7 +461,13 @@ const createZeroEkaIconButton = () => {
       .zeroeka-hide-footer [role="textbox"][contenteditable="true"],
       .zeroeka-hide-footer textarea[aria-label*="Message"],
       .zeroeka-hide-footer textarea[aria-label*="message"],
-      .zeroeka-hide-footer textarea[aria-label*="Gemini"],
+      .zeroeka-hide-footer textarea[aria-label*="Gemini"] { 
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+      }
+      
+      /* Additional targeting for elements we explicitly mark as hidden */
       .zeroeka-hide-footer [data-zeroeka-hidden="true"] { 
         display: none !important;
         visibility: hidden !important;
@@ -470,30 +476,7 @@ const createZeroEkaIconButton = () => {
     `;
     document.head.appendChild(styleEl);
   }
-  function toggleVisibilityForElements(elements) {
-    if (!elements || elements.length === 0) return;
-    const anyVisible = elements.some(el => {
-      try { return getComputedStyle(el).display !== 'none'; } catch(_) { return true; }
-    });
-    const hide = anyVisible;
-    elements.forEach(el => {
-      try {
-        if (hide) {
-          // Use multiple methods to ensure hiding works
-          el.style.setProperty('display', 'none', 'important');
-          el.style.setProperty('visibility', 'hidden', 'important');
-          el.style.setProperty('opacity', '0', 'important');
-          el.setAttribute('data-zeroeka-hidden', 'true');
-        } else {
-          // Restore visibility
-          el.style.removeProperty('display');
-          el.style.removeProperty('visibility');
-          el.style.removeProperty('opacity');
-          el.removeAttribute('data-zeroeka-hidden');
-        }
-      } catch(_) {}
-    });
-  }
+  // Note: toggleVisibilityForElements function removed - using direct logic in each toggle handler for better control
 
   // Removed Toggle chat width action
 
@@ -504,22 +487,38 @@ const createZeroEkaIconButton = () => {
     console.log('[Gemini] Header toggle: Found', headers.length, 'header elements:', headers);
     
     if (headers.length > 0) {
-      // Mark headers for CSS targeting
-      headers.forEach(h => { 
-        try { 
-          h.setAttribute('data-zeroeka-header', '1');
-          console.log('[Gemini] Marked header:', h.tagName, h.className, h.id);
-        } catch(_) {} 
-      });
-      
-      // Toggle visibility with direct CSS and body class
-      toggleVisibilityForElements(headers);
+      // Check current state of body class
       const cls = 'zeroeka-hide-header';
-      if (document.body.classList.contains(cls)) {
+      const isCurrentlyHidden = document.body.classList.contains(cls);
+      
+      if (isCurrentlyHidden) {
+        // Show headers
         document.body.classList.remove(cls);
+        headers.forEach(h => {
+          try {
+            h.style.removeProperty('display');
+            h.style.removeProperty('visibility');
+            h.style.removeProperty('opacity');
+            h.removeAttribute('data-zeroeka-hidden');
+            // Keep the header marker for future toggles
+            h.setAttribute('data-zeroeka-header', '1');
+            console.log('[Gemini] Showing header:', h.tagName, h.className, h.id);
+          } catch(_) {}
+        });
         console.log('[Gemini] Showing headers');
       } else {
+        // Hide headers
         document.body.classList.add(cls);
+        headers.forEach(h => {
+          try {
+            h.setAttribute('data-zeroeka-header', '1');
+            h.style.setProperty('display', 'none', 'important');
+            h.style.setProperty('visibility', 'hidden', 'important');
+            h.style.setProperty('opacity', '0', 'important');
+            h.setAttribute('data-zeroeka-hidden', 'true');
+            console.log('[Gemini] Hiding header:', h.tagName, h.className, h.id);
+          } catch(_) {}
+        });
         console.log('[Gemini] Hiding headers');
       }
     } else {
