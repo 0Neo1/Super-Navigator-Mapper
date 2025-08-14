@@ -1189,11 +1189,11 @@ const createZeroEkaIconButton = () => {
 
   // Add click functionality for ZeroEka extension button
   zeroekaExtensionButton.addEventListener('click', () => {
-    console.log('[ZeroEka Launcher] Extension button clicked');
     const EXT_ID = 'enkgghbjjigjjkodkgbakchhflmkaphj';
     const STORE_URL = 'https://chromewebstore.google.com/detail/prompt-engine-by-zeroeka/enkgghbjjigjjkodkgbakchhflmkaphj';
+    console.log('[ZeroEka Launcher] Click');
 
-    // Fire a page-level event to create a user gesture boundary the target extension can hook
+    // 1) Fire a page-level event to create a user gesture boundary the target extension can hook
     try {
       const evtDoc = new CustomEvent('pe-zeroeka-open', { bubbles: true, composed: true });
       document.dispatchEvent(evtDoc);
@@ -1203,79 +1203,75 @@ const createZeroEkaIconButton = () => {
       window.dispatchEvent(evtWin);
     } catch (_) {}
 
-    // Quick check if we've seen this extension before (to prioritize speed)
-    let fastFallbackUsed = false;
-    chrome.storage.local.get(['peExtId'], (data) => {
-      const knownId = data && data.peExtId;
-      if (!knownId || knownId !== EXT_ID) {
-        // Extension likely not installed - open store immediately for fast UX
-        console.log('[ZeroEka Launcher] Extension not previously detected, opening store immediately');
-        fastFallbackUsed = true;
-        try { window.open(STORE_URL, '_blank', 'noopener'); } catch (_) {}
-      }
-    });
+    // Helper: open store once
+    let completed = false;
+    const openStoreOnce = () => {
+      if (completed) return;
+      completed = true;
+      console.log('[ZeroEka Launcher] Opening Web Store fallback');
+      try { window.open(STORE_URL, '_blank', 'noopener'); } catch (_) {}
+    };
 
-    // Immediate direct attempt to message Prompt Engine by ID under user gesture
-    let directSuccess = false;
+    // Fallback timer: if nothing succeeds fast, go to store
+    const fallbackTimer = setTimeout(openStoreOnce, 1800);
+
+    // 2) Ask background to open or install
     try {
-      chrome.runtime.sendMessage(EXT_ID, { action: 'openSidePanel' }, (resp) => {
-        if (chrome.runtime.lastError) {
-          console.debug('[ZeroEka Launcher] Direct PE openSidePanel message error:', chrome.runtime.lastError.message);
-          // If direct message fails and we haven't opened store yet, do it now
-          if (!fastFallbackUsed && !directSuccess) {
-            setTimeout(() => {
-              if (!directSuccess) {
-                console.log('[ZeroEka Launcher] Direct message failed, opening store as fallback');
-                try { window.open(STORE_URL, '_blank', 'noopener'); } catch (_) {}
-              }
-            }, 500); // Small delay to avoid race condition
-          }
-        } else {
-          directSuccess = true;
-          console.debug('[ZeroEka Launcher] Direct PE openSidePanel message resp:', resp);
-        }
-      });
-    } catch (_) {}
-
-    // Also delegate the open request to background to message the target extension by ID
-    try {
-      let responded = false;
-      const startTime = Date.now();
-      // Reduced timeout for faster fallback
-      const fallbackTimer = setTimeout(() => {
-        if (!responded && !fastFallbackUsed && !directSuccess) {
-          const elapsed = Date.now() - startTime;
-          console.warn(`[ZeroEka Launcher] No response after ${elapsed}ms; opening store as fallback`);
-          try { window.open(STORE_URL, '_blank', 'noopener'); } catch (_) {}
-        }
-      }, 1500); // Reduced from 4000ms for faster UX
-
       chrome.runtime.sendMessage({ type: 'open-prompt-engine' }, (resp) => {
-        const elapsed = Date.now() - startTime;
-        responded = true;
-        clearTimeout(fallbackTimer);
-        console.log(`[ZeroEka Launcher] Background response after ${elapsed}ms:`, resp);
+        console.log('[ZeroEka Launcher] Background response:', resp);
+        if (completed) return;
         const status = resp && resp.status;
-        if (status === 'installed_opened' || status === 'store_opened' || status === 'unknown_opened_details') {
-          directSuccess = true; // Mark as successful to prevent duplicate store opens
-          return; // success handled by background
+        if (status === 'installed_opened' || status === 'store_opened') {
+          clearTimeout(fallbackTimer);
+          completed = true;
+          return;
         }
-        if (status === 'installed_disabled' || status === 'installed_but_cannot_open') {
-          // Open extensions page to enable the extension
+        if (status === 'installed_disabled') {
+          clearTimeout(fallbackTimer);
+          completed = true;
           try { chrome.tabs.create({ url: `chrome://extensions/?id=${EXT_ID}` }); } catch (_) {}
           return;
         }
-        // Unknown / null response → open store (only if not already opened)
-        if (!fastFallbackUsed) {
-          try { window.open(STORE_URL, '_blank', 'noopener'); } catch (_) {}
+        if (status === 'installed_but_cannot_open') {
+          // Try direct ping to last seen id, then EXT_ID
+          chrome.storage.local.get(['peExtId'], (d) => {
+            const lastId = d && d.peExtId;
+            const tryIds = [lastId, EXT_ID].filter(Boolean);
+            let tried = 0;
+            const tryNext = () => {
+              if (completed) return;
+              const id = tryIds[tried++];
+              if (!id) { return; }
+              try {
+                chrome.runtime.sendMessage(id, { action: 'openSidePanel' }, () => {
+                  if (chrome.runtime.lastError) {
+                    tryNext();
+                  } else {
+                    clearTimeout(fallbackTimer);
+                    completed = true;
+                  }
+                });
+              } catch (_) { tryNext(); }
+            };
+            tryNext();
+          });
+          return;
+        }
+        // Unknown/null -> let fallback timer open the store
+      });
+    } catch (e) {
+      console.warn('[ZeroEka Launcher] Background messaging failed:', e?.message);
+    }
+
+    // 3) In parallel, attempt a fast direct message to official ID under user gesture
+    try {
+      chrome.runtime.sendMessage(EXT_ID, { action: 'openSidePanel' }, () => {
+        if (!chrome.runtime.lastError) {
+          clearTimeout(fallbackTimer);
+          completed = true;
         }
       });
-    } catch (_) {
-      // If sendMessage fails immediately and we haven't opened store yet, do it now
-      if (!fastFallbackUsed) {
-        try { window.open(STORE_URL, '_blank', 'noopener'); } catch (_) {}
-      }
-    }
+    } catch (_) {}
   });
 
   // Add hover effects for pin/unpin button

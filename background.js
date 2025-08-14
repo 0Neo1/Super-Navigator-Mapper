@@ -130,30 +130,22 @@
 
       try {
         if (!chrome.management || !chrome.management.get) {
-          // Fallback: try ping with quick timeout, otherwise open store directly
+          // Fallback: try ping, otherwise open details page (avoid store false positives)
           try {
-            let pinged = false;
-            const pingTimeout = setTimeout(() => {
-              if (!pinged) {
-                pinged = true;
-                openStore(); // Open store directly if ping times out
-              }
-            }, 500); // Quick 500ms timeout for ping
-            
             chrome.runtime.sendMessage(EXT_ID, { action: 'ping' }, (resp) => {
-              if (pinged) return; // Already timed out
-              pinged = true;
-              clearTimeout(pingTimeout);
-              
               if (resp && resp.success) {
                 chrome.runtime.sendMessage(EXT_ID, { action: 'open' });
                 sendResponse({ status: 'installed_opened' });
               } else {
-                openStore(); // Open store if extension doesn't respond properly
+                chrome.tabs.create({ url: `chrome://extensions/?id=${EXT_ID}` }).finally(() => {
+                  sendResponse({ status: 'unknown_opened_details' });
+                });
               }
             });
           } catch (_) {
-            openStore(); // Open store if sendMessage fails
+            chrome.tabs.create({ url: `chrome://extensions/?id=${EXT_ID}` }).finally(() => {
+              sendResponse({ status: 'unknown_opened_details' });
+            });
           }
           return true;
         }
@@ -202,14 +194,7 @@
           }
         };
 
-        // Add timeout to prevent hanging on slow management API
-        const managementTimeout = setTimeout(() => {
-          console.warn('[ZeroEka Launcher] Management API timeout, opening store');
-          openStore();
-        }, 1000);
-
         chrome.management.getAll((list) => {
-          clearTimeout(managementTimeout);
           if (chrome.runtime.lastError || !Array.isArray(list)) { openStore(); return; }
           // Collect all plausible ZeroEka Prompt Engine candidates
           const candidates = list.filter(x => (
