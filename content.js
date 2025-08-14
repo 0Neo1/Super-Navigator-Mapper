@@ -1189,7 +1189,7 @@ const createZeroEkaIconButton = () => {
 
   // Add click functionality for ZeroEka extension button
   zeroekaExtensionButton.addEventListener('click', () => {
-    console.log('ZeroEka extension button clicked');
+    console.log('[ZeroEka Launcher] Extension button clicked');
     const EXT_ID = 'enkgghbjjigjjkodkgbakchhflmkaphj';
     const STORE_URL = 'https://chromewebstore.google.com/detail/prompt-engine-by-zeroeka/enkgghbjjigjjkodkgbakchhflmkaphj';
 
@@ -1216,13 +1216,34 @@ const createZeroEkaIconButton = () => {
 
     // Also delegate the open request to background to message the target extension by ID
     try {
+      let responded = false;
+      const startTime = Date.now();
+      const fallbackTimer = setTimeout(() => {
+        if (!responded) {
+          const elapsed = Date.now() - startTime;
+          console.warn(`[ZeroEka Launcher] No response after ${elapsed}ms; opening store as fallback`);
+          try { window.open(STORE_URL, '_blank', 'noopener'); } catch (_) {}
+        } else {
+          console.log('[ZeroEka Launcher] Timeout fired but response already received, ignoring');
+        }
+      }, 4000);
+
       chrome.runtime.sendMessage({ type: 'open-prompt-engine' }, (resp) => {
-        console.log('Open Prompt Engine response:', resp);
+        const elapsed = Date.now() - startTime;
+        responded = true;
+        clearTimeout(fallbackTimer);
+        console.log(`[ZeroEka Launcher] Background response after ${elapsed}ms:`, resp);
         const status = resp && resp.status;
-        // Do not open any pages from content; background is the single authority
-        // Only log statuses to avoid double navigations
-        if (status === 'installed_opened') return;
-        if (status === 'store_opened' || status === 'unknown_opened_details' || status === 'installed_disabled' || status === 'installed_but_cannot_open') return;
+        if (status === 'installed_opened' || status === 'store_opened' || status === 'unknown_opened_details') {
+          return; // success handled by background
+        }
+        if (status === 'installed_disabled' || status === 'installed_but_cannot_open') {
+          // Open extensions page to enable the extension
+          try { chrome.tabs.create({ url: `chrome://extensions/?id=${EXT_ID}` }); } catch (_) {}
+          return;
+        }
+        // Unknown / null response → open store
+        try { window.open(STORE_URL, '_blank', 'noopener'); } catch (_) {}
       });
     } catch (_) {}
   });
