@@ -1203,42 +1203,73 @@ const createZeroEkaIconButton = () => {
       window.dispatchEvent(evtWin);
     } catch (_) {}
 
-    // 2) Ask background to open or install (single authority for store redirects)
+    // Helper flags
+    let opened = false;        // extension side panel opened
+    let storeOpened = false;   // store tab opened (by bg or fallback)
+
+    // Helper: open store once
+    const openStoreOnce = () => {
+      if (opened || storeOpened) return;
+      storeOpened = true;
+      console.log('[ZeroEka Launcher] Opening Web Store fallback');
+      try { window.open(STORE_URL, '_blank', 'noopener,noreferrer'); } catch (_) {}
+    };
+
+    // Fallback timer: if nothing succeeds fast, go to store
+    const fallbackTimer = setTimeout(openStoreOnce, 2200);
+
+    // 2) Ask background to open or install
     try {
       chrome.runtime.sendMessage({ type: 'open-prompt-engine' }, (resp) => {
         console.log('[ZeroEka Launcher] Background response:', resp);
         const status = resp && resp.status;
-        if (status === 'installed_opened' || status === 'store_opened' || status === 'installed_disabled') {
-          return; // background handled it
+        if (status === 'installed_opened') {
+          opened = true;
+          clearTimeout(fallbackTimer);
+          return;
         }
-        // If installed but couldn't open via background, try direct
-        const tryDirectOpen = (id) => new Promise((resolve) => {
-          if (!id) return resolve(false);
-          try {
-            chrome.runtime.sendMessage(id, { action: 'openSidePanel' }, () => {
-              if (chrome.runtime.lastError) return resolve(false);
-              return resolve(true);
-            });
-          } catch (_) { resolve(false); }
-        });
-        (async () => {
-          let lastId = null;
-          try { lastId = (await new Promise(res => chrome.storage.local.get(['peExtId'], d => res(d && d.peExtId)))); } catch(_) {}
-          const idsToTry = [lastId, EXT_ID].filter(Boolean);
-          for (const id of idsToTry) {
-            // eslint-disable-next-line no-await-in-loop
-            const ok = await tryDirectOpen(id);
-            if (ok) return;
-          }
-          // If still not opened and background didn't open store, open store here
-          if (!status || status === 'installed_but_cannot_open') {
-            try { window.open(STORE_URL, '_blank', 'noopener,noreferrer'); } catch (_) {}
-          }
-        })();
+        if (status === 'store_opened') {
+          storeOpened = true;
+          clearTimeout(fallbackTimer);
+          return;
+        }
+        if (status === 'installed_disabled') {
+          clearTimeout(fallbackTimer);
+          return;
+        }
+        // For 'installed_but_cannot_open' or unknown/null, do nothing here.
+        // We'll allow direct attempts or the fallback timer to handle store redirection.
       });
     } catch (e) {
       console.warn('[ZeroEka Launcher] Background messaging failed:', e?.message);
     }
+
+    // 3) In parallel, attempt a fast direct message to known IDs under user gesture
+    const tryDirectOpen = (id) => new Promise((resolve) => {
+      if (!id) return resolve(false);
+      try {
+        chrome.runtime.sendMessage(id, { action: 'openSidePanel' }, () => {
+          if (chrome.runtime.lastError) return resolve(false);
+          return resolve(true);
+        });
+      } catch (_) { resolve(false); }
+    });
+
+    (async () => {
+      // Try last-seen ID first
+      let lastId = null;
+      try { lastId = (await new Promise(res => chrome.storage.local.get(['peExtId'], d => res(d && d.peExtId)))); } catch(_) {}
+      const idsToTry = [lastId, EXT_ID].filter(Boolean);
+      for (const id of idsToTry) {
+        // eslint-disable-next-line no-await-in-loop
+        const ok = await tryDirectOpen(id);
+        if (ok) {
+          opened = true;
+          clearTimeout(fallbackTimer);
+          break;
+        }
+      }
+    })();
   });
 
   // Add hover effects for pin/unpin button
