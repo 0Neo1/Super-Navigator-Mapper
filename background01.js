@@ -117,54 +117,16 @@
       return true; // keep port open for async response
     }
 
-    // Query install state of Prompt Engine by ZeroEka (deterministic, no side effects)
-    if (type === 'pe-check-installed') {
-      const EXT_ID = 'enkgghbjjigjjkodkgbakchhflmkaphj';
-      try {
-        if (!chrome.management || !chrome.management.getAll) {
-          // Fallback probe via ping
-          try {
-            chrome.runtime.sendMessage(EXT_ID, { action: 'ping' }, (resp) => {
-              const ok = !!(resp && (resp.ok || resp.success));
-              if (ok) {
-                try { chrome.storage.local.set({ peExtId: EXT_ID }); } catch (_) {}
-                sendResponse({ state: 'installed_enabled', id: EXT_ID });
-              } else {
-                sendResponse({ state: 'not_installed' });
-              }
-            });
-          } catch (_) {
-            sendResponse({ state: 'not_installed' });
-          }
-          return true;
-        }
-        chrome.management.getAll((list) => {
-          if (chrome.runtime.lastError || !Array.isArray(list)) { sendResponse({ state: 'not_installed' }); return; }
-          const candidates = list.filter(x => (
-            x.id === EXT_ID || /zeroeka/i.test(x.name || '') || /prompt\s*engine/i.test(x.name || '')
-          ));
-          if (!candidates.length) { sendResponse({ state: 'not_installed' }); return; }
-          const preferred = candidates.find(c => c.id === EXT_ID) || candidates[0];
-          try { chrome.storage.local.set({ peExtId: preferred.id }); } catch (_) {}
-          if (preferred.enabled) {
-            sendResponse({ state: 'installed_enabled', id: preferred.id });
-          } else {
-            sendResponse({ state: 'installed_disabled', id: preferred.id });
-          }
-        });
-        return true;
-      } catch (e) {
-        sendResponse({ state: 'not_installed' });
-        return true;
-      }
-    }
-
     // Open/Install Prompt Engine by ZeroEka
     if (type === 'open-prompt-engine') {
       const EXT_ID = 'enkgghbjjigjjkodkgbakchhflmkaphj';
       const STORE_URL = 'https://chromewebstore.google.com/detail/prompt-engine-by-zeroeka/enkgghbjjigjjkodkgbakchhflmkaphj';
 
-      const openStore = () => { sendResponse({ status: 'not_installed' }); };
+      const openStore = () => {
+        chrome.tabs.create({ url: STORE_URL, active: true }).finally(() => {
+          sendResponse({ status: 'store_opened' });
+        });
+      };
 
       try {
         if (!chrome.management || !chrome.management.get) {

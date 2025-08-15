@@ -43,26 +43,14 @@
   console.log('Current URL:', location.href);
   console.log('Pathname:', location.pathname);
   
-  // Create mindmap data from the current chat tree (respecting visibility)
-  const e=(t,l)=>{
-    if (!t) return [];
-    return Array.from(t.children).filter(li => {
-      if (li.tagName !== 'LI') return false;
-      // Check if this LI is actually visible (not collapsed/hidden)
-      try {
-        if (li.closest('li.collapsed')) return false;
-        const cs = getComputedStyle(li);
-        if (cs && (cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0')) return false;
-      } catch(_) {}
-      return true;
-    }).map((t,a)=>{
+  // Create mindmap data from the current chat tree
+  const e=(t,l)=>t?Array.from(t.children).map((t,a)=>{
     const s=t.children[1]?.firstChild;
     let r=s?.data||s?.textContent;
     r&&n(r.at(-1))&&(r=r.slice(0,-1));
     const o=`${l}_${a+1}`;
     return{id:o,topic:r,children:e(t.children[2],o)}
-    });
-  };
+  }):[];
   
   const t={
     meta:{name:"mind map",author:"ChatGPT Message Tree",version:"1.0"},
@@ -266,335 +254,30 @@ const createZeroEkaIconButton = () => {
   function getMainEl() {
     return document.querySelector('main') || document.querySelector('[role="main"]') || document.body;
   }
-  function getHeaderEls() {
-    const els = [];
-    try {
-      // First, try very specific Gemini header selectors
-      const geminiSpecific = [
-        '[role="presentation"] > #page-header',
-        '#page-header',
-        'header[role="banner"]',
-        '[role="banner"]'
-      ];
-      
-      for (const selector of geminiSpecific) {
-        const el = document.querySelector(selector);
-        if (el && !els.includes(el)) {
-          els.push(el);
-        }
-      }
-      
-      // If we found specific headers, validate they're safe and return them
-      if (els.length > 0) {
-        const mainStrict = document.querySelector('main, [role="main"]');
-        const safeHeaders = els.filter(el => {
-          try {
-            const r = el.getBoundingClientRect();
-            const isReasonableSize = r.height > 20 && r.height < window.innerHeight * 0.3;
-            const isNearTop = r.top < 100;
-            const notMainContainer = mainStrict ? !el.contains(mainStrict) : true;
-            return isReasonableSize && isNearTop && notMainContainer;
-          } catch(_) { return false; }
-        });
-        if (safeHeaders.length > 0) {
-          return safeHeaders;
-        }
-      }
-      
-      // Fallback: find elements at the very top of the page
-      const candidates = [];
-      
-      // Try generic header tags
-      const headers = document.querySelectorAll('header');
-      headers.forEach(h => {
-        try {
-          const r = h.getBoundingClientRect();
-          if (r.top < 50 && r.height > 20 && r.height < 200) {
-            candidates.push(h);
-          }
-        } catch(_) {}
-      });
-      
-      // Try elements with header-like characteristics at top of page
-      const topElements = document.elementsFromPoint(window.innerWidth / 2, 30) || [];
-      topElements.forEach(el => {
-        if (!el || el === document.documentElement || el === document.body) return;
-        try {
-          const r = el.getBoundingClientRect();
-          const isHeaderLike = r.top < 50 && r.height > 30 && r.height < 150 && r.width > window.innerWidth * 0.5;
-          if (isHeaderLike && !candidates.includes(el)) {
-            candidates.push(el);
-          }
-        } catch(_) {}
-      });
-      
-      // Filter out any elements that contain main content
-      const mainStrict = document.querySelector('main, [role="main"]');
-      return candidates.filter(el => {
-        try {
-          return mainStrict ? !el.contains(mainStrict) : true;
-        } catch(_) { return true; }
-      });
-      
-    } catch(_) {}
-    return els.filter(Boolean);
+  function getHeaderEl() {
+    return document.getElementById('page-header') || document.querySelector('[role="presentation"] > #page-header') || document.querySelector('header');
   }
-  function getFooterEls() {
-    const els = [];
-    try {
-      // Strategy: Find the proper footer container, not just the input field
-      
-      // First, try to find input area and walk up to find the full footer container
-      const inputSelectors = [
-        '.ql-editor', // Gemini's text editor
-        'textarea[aria-label*="Message"]',
-        'textarea[aria-label*="message"]', 
-        'textarea[aria-label*="Gemini"]',
-        '[role="textbox"][contenteditable="true"]',
-        'div[contenteditable="true"]'
-      ];
-      
-      let mainFooterContainer = null;
-      
-      for (const selector of inputSelectors) {
-        const inputElement = document.querySelector(selector);
-        if (inputElement) {
-          console.log('[Gemini] Found input element:', inputElement.tagName, inputElement.className);
-          
-          // Walk up to find the footer container that holds everything
-          let cursor = inputElement;
-          let bestContainer = null;
-          
-          // Walk up the DOM tree to find a suitable container
-          for (let i = 0; i < 12 && cursor && cursor.parentElement; i += 1) {
-            cursor = cursor.parentElement;
-            try {
-              const r = cursor.getBoundingClientRect();
-              const styles = getComputedStyle(cursor);
-              
-              // Look for containers that:
-              // 1. Are in the bottom area of the screen
-              // 2. Have reasonable width (span most of screen)
-              // 3. Are not too tall (not the whole page)
-              // 4. Have position fixed/sticky OR are near bottom
-              const isBottomArea = r.bottom > window.innerHeight * 0.7;
-              const isWideEnough = r.width > window.innerWidth * 0.7;
-              const isReasonableHeight = r.height > 60 && r.height < window.innerHeight * 0.4;
-              const isPositioned = ['fixed', 'sticky'].includes(styles.position);
-              const isNearBottom = r.top > window.innerHeight * 0.5;
-              
-              const isGoodContainer = (isBottomArea || isPositioned || isNearBottom) && 
-                                    isWideEnough && 
-                                    isReasonableHeight;
-              
-              if (isGoodContainer) {
-                bestContainer = cursor;
-                console.log(`[Gemini] Found container candidate ${i + 1}:`, {
-                  tag: cursor.tagName,
-                  classes: cursor.className,
-                  id: cursor.id,
-                  position: styles.position,
-                  height: Math.round(r.height),
-                  width: Math.round(r.width),
-                  bottom: Math.round(r.bottom),
-                  top: Math.round(r.top)
-                });
-              }
-            } catch(_) {}
-          }
-          
-          // If we found a good container, use it; otherwise fall back to a higher-level parent
-          if (bestContainer) {
-            mainFooterContainer = bestContainer;
-          } else {
-            // Fallback: go up fewer levels to get at least some container
-            let fallbackCursor = inputElement;
-            for (let i = 0; i < 6 && fallbackCursor && fallbackCursor.parentElement; i += 1) {
-              fallbackCursor = fallbackCursor.parentElement;
-              const r = fallbackCursor.getBoundingClientRect();
-              if (r.height > 50 && r.width > window.innerWidth * 0.5) {
-                mainFooterContainer = fallbackCursor;
-                console.log('[Gemini] Using fallback container:', fallbackCursor.tagName, fallbackCursor.className);
-                break;
-              }
-            }
-          }
-          break; // Use first found input
-        }
-      }
-      
-      if (mainFooterContainer) {
-        els.push(mainFooterContainer);
-        console.log('[Gemini] Selected footer container:', {
-          tag: mainFooterContainer.tagName,
-          id: mainFooterContainer.id,
-          classes: mainFooterContainer.className,
-          rect: mainFooterContainer.getBoundingClientRect()
-        });
-      }
-      
-      // Fallback: try specific known Gemini footer selectors
-      if (els.length === 0) {
-        const geminiSpecific = [
-          '[role="presentation"] > #thread-bottom-container',
-          '#thread-bottom-container',
-          'footer'
-        ];
-        
-        for (const selector of geminiSpecific) {
-          const el = document.querySelector(selector);
-          if (el) {
-            try {
-              const r = el.getBoundingClientRect();
-              const isValidFooter = r.bottom > window.innerHeight * 0.5 && r.height > 30;
-              if (isValidFooter && !els.includes(el)) {
-                els.push(el);
-                console.log('[Gemini] Found known footer selector:', el.tagName, el.id);
-              }
-            } catch(_) {}
-          }
-        }
-      }
-      
-    } catch(_) {}
-    return els.filter(Boolean);
+  function getFooterEl() {
+    return document.getElementById('thread-bottom-container') || document.querySelector('[role="presentation"] > #thread-bottom-container') || document.querySelector('footer');
   }
-  // Strong CSS-based hider so SPA reflows/virtual DOM cannot undo visibility
-  function ensureGeminiHideStyles() {
-    let styleEl = document.getElementById('zeroeka-gemini-hide-styles');
-    if (styleEl) {
-      console.log('[Gemini] CSS styles already exist');
-      return;
-    }
-    styleEl = document.createElement('style');
-    styleEl.id = 'zeroeka-gemini-hide-styles';
-    styleEl.textContent = `
-      /* Simplified CSS rules - only hide when both body class and hidden attribute are present */
-      body.zeroeka-hide-header [data-zeroeka-header="1"][data-zeroeka-hidden="true"] { 
-        display: none !important; 
-        visibility: hidden !important;
-        opacity: 0 !important;
-      }
-
-      /* Hide footer elements only when body class is present and element is marked hidden */
-      body.zeroeka-hide-footer [data-zeroeka-hidden="true"] { 
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-      }
-      
-      /* Specific footer selectors only when body class is present */
-      body.zeroeka-hide-footer [role="presentation"] > #thread-bottom-container,
-      body.zeroeka-hide-footer #thread-bottom-container,
-      body.zeroeka-hide-footer footer,
-      body.zeroeka-hide-footer form[role="form"],
-      body.zeroeka-hide-footer [data-qa="input-area"],
-      body.zeroeka-hide-footer [data-testid="input-area"],
-      body.zeroeka-hide-footer [role="textbox"][contenteditable="true"],
-      body.zeroeka-hide-footer textarea[aria-label*="Message"],
-      body.zeroeka-hide-footer textarea[aria-label*="message"],
-      body.zeroeka-hide-footer textarea[aria-label*="Gemini"] { 
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-      }
-    `;
-    document.head.appendChild(styleEl);
-    console.log('[Gemini] Added CSS styles for hide/show functionality');
-  }
-  // Note: toggleVisibilityForElements function removed - using direct logic in each toggle handler for better control
 
   // Removed Toggle chat width action
 
   // Action: Hide/Show header
   itemToggleHeader.addEventListener('click', () => {
-    ensureGeminiHideStyles();
-    const headers = getHeaderEls();
-    console.log('[Gemini] Header toggle: Found', headers.length, 'header elements:', headers);
-    
-    if (headers.length > 0) {
-      // Check current state of body class
-      const cls = 'zeroeka-hide-header';
-      const isCurrentlyHidden = document.body.classList.contains(cls);
-      
-      // New behavior: if already hidden, refresh page on second click
-      if (isCurrentlyHidden) {
-        console.log('[Gemini] Header currently hidden → refreshing page');
-        try { hideMenu(); menuOpen = false; } catch(_) {}
-        window.location.reload();
-        return;
-      }
-
-      console.log('[Gemini] Current state - Body has hide class:', isCurrentlyHidden);
-      console.log('[Gemini] Body classes:', document.body.className);
-      
-      // Hide headers (first click)
-      console.log('[Gemini] HIDING headers...');
-      document.body.classList.add(cls);
-      headers.forEach((h, index) => {
-        try {
-          h.setAttribute('data-zeroeka-header', '1');
-          h.style.setProperty('display', 'none', 'important');
-          h.style.setProperty('visibility', 'hidden', 'important');
-          h.style.setProperty('opacity', '0', 'important');
-          h.setAttribute('data-zeroeka-hidden', 'true');
-          console.log(`[Gemini] Header ${index + 1} hidden:`, {
-            tag: h.tagName,
-            id: h.id,
-            classes: h.className,
-            hasHiddenAttr: h.hasAttribute('data-zeroeka-hidden')
-          });
-        } catch(e) {
-          console.error('[Gemini] Error hiding header:', e);
-        }
-      });
-      console.log('[Gemini] Body classes after hide:', document.body.className);
-    } else {
-      console.warn('[Gemini] No header elements found to toggle');
-    }
-    
+    const header = getHeaderEl();
+    if (!header) return;
+    const hidden = header.style.display === 'none';
+    header.style.display = hidden ? '' : 'none';
     hideMenu(); menuOpen = false;
   });
 
   // Action: Hide/Show footer
   itemToggleFooter.addEventListener('click', () => {
-    ensureGeminiHideStyles();
-    // Check body class first so second click refresh works even if elements are not detectable
-    const cls = 'zeroeka-hide-footer';
-    const isCurrentlyHidden = document.body.classList.contains(cls);
-    console.log('[Gemini] Current state - Body has footer hide class:', isCurrentlyHidden);
-    console.log('[Gemini] Body classes:', document.body.className);
-    if (isCurrentlyHidden) {
-      console.log('[Gemini] Footer currently hidden → refreshing page');
-      try { hideMenu(); menuOpen = false; } catch(_) {}
-      window.location.reload();
-      return;
-    }
-    // First click: resolve and hide
-    const footers = getFooterEls();
-    console.log('[Gemini] Footer toggle: Found', footers.length, 'footer elements:', footers);
-    if (footers.length === 0) {
-      console.warn('[Gemini] No footer elements found to toggle');
-    }
-    console.log('[Gemini] HIDING footers...');
-    document.body.classList.add(cls);
-    footers.forEach((el, index) => {
-      try {
-        el.style.setProperty('display', 'none', 'important');
-        el.style.setProperty('visibility', 'hidden', 'important');
-        el.style.setProperty('opacity', '0', 'important');
-        el.setAttribute('data-zeroeka-hidden', 'true');
-        console.log(`[Gemini] Footer ${index + 1} hidden:`, {
-          tag: el.tagName,
-          id: el.id,
-          classes: el.className,
-          hasHiddenAttr: el.hasAttribute('data-zeroeka-hidden')
-        });
-      } catch(e) {
-        console.error('[Gemini] Error hiding footer:', e);
-      }
-    });
-    console.log('[Gemini] Body classes after footer hide:', document.body.className);
+    const footer = getFooterEl();
+    if (!footer) return;
+    const hidden = footer.style.display === 'none';
+    footer.style.display = hidden ? '' : 'none';
     hideMenu(); menuOpen = false;
   });
 
@@ -807,16 +490,7 @@ const createZeroEkaIconButton = () => {
       const treeUl = document.querySelector('.catalogeu-navigation-plugin-floatbar .panel ul');
       const walk = (ul, prefix) => {
         if (!ul) return [];
-        return Array.from(ul.children).filter(li => {
-          if (li.tagName !== 'LI') return false;
-          // Check if this LI is actually visible (not collapsed/hidden)
-          try {
-            if (li.closest('li.collapsed')) return false;
-            const cs = getComputedStyle(li);
-            if (cs && (cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0')) return false;
-          } catch(_) {}
-          return true;
-        }).map((li, idx) => {
+        return Array.from(ul.children).map((li, idx) => {
           const labelDiv = li.children?.[1];
           let topic = (labelDiv?.textContent || '').trim();
           const id = `${prefix}_${idx+1}`;
@@ -1188,42 +862,9 @@ const createZeroEkaIconButton = () => {
   });
 
   // Add click functionality for ZeroEka extension button
-  zeroekaExtensionButton.addEventListener('click', async () => {
-    const EXT_ID = 'enkgghbjjigjjkodkgbakchhflmkaphj';
-    const STORE_URL = 'https://chromewebstore.google.com/detail/prompt-engine-by-zeroeka/enkgghbjjigjjkodkgbakchhflmkaphj';
-    console.log('[ZeroEka Launcher] Click');
-
-    // Global flag to prevent any other launcher from running
-    if (window.__zeroekaLauncherRunning) {
-      console.log('[ZeroEka Launcher] Another launcher already running, ignoring click');
-      return;
-    }
-    window.__zeroekaLauncherRunning = true;
-
-    // Prevent multiple clicks during processing
-    if (zeroekaExtensionButton.dataset.processing === 'true') {
-      console.log('[ZeroEka Launcher] Already processing, ignoring click');
-      window.__zeroekaLauncherRunning = false;
-      return;
-    }
-    zeroekaExtensionButton.dataset.processing = 'true';
-
-    // Reset all flags after completion
-    const resetAllFlags = () => {
-      setTimeout(() => {
-        zeroekaExtensionButton.dataset.processing = 'false';
-        window.__zeroekaLauncherRunning = false;
-      }, 2000);
-    };
-
-    // Capture baseline viewport width to detect Chrome side panel opening
-    const baselineWidth = window.innerWidth || document.documentElement.clientWidth || 0;
-    const hasViewportShrunk = (minDelta = 150) => {
-      const now = window.innerWidth || document.documentElement.clientWidth || 0;
-      return baselineWidth > 0 && (baselineWidth - now) >= minDelta;
-    };
-
-    // 1) Fire a page-level event to create a user gesture boundary the target extension can hook
+  zeroekaExtensionButton.addEventListener('click', () => {
+    console.log('ZeroEka extension button clicked');
+    // Fire a page-level event to create a user gesture boundary the target extension can hook
     try {
       const evtDoc = new CustomEvent('pe-zeroeka-open', { bubbles: true, composed: true });
       document.dispatchEvent(evtDoc);
@@ -1232,188 +873,20 @@ const createZeroEkaIconButton = () => {
       const evtWin = new CustomEvent('pe-zeroeka-open', { bubbles: true, composed: true });
       window.dispatchEvent(evtWin);
     } catch (_) {}
-
-    // Helper function for direct message attempts with timeout
-    const tryDirectOpen = (id, timeoutMs = 500) => new Promise((resolve) => {
-      if (!id) return resolve(false);
-      
-      let completed = false;
-      const timer = setTimeout(() => {
-        if (!completed) {
-          completed = true;
-          resolve(false);
-        }
-      }, timeoutMs);
-
-      try {
-        chrome.runtime.sendMessage(id, { action: 'openSidePanel' }, () => {
-          if (!completed) {
-            completed = true;
-            clearTimeout(timer);
-            if (chrome.runtime.lastError) {
-              resolve(false);
-            } else {
-              resolve(true);
-            }
-          }
-        });
-      } catch (_) {
-        if (!completed) {
-          completed = true;
-          clearTimeout(timer);
-          resolve(false);
-        }
-      }
-    });
-
-    // Step 0: Deterministic install check via background (matches earlier logic)
-    console.log('[ZeroEka Launcher] Step 0: Checking install state via background...');
-    let extensionOpened = false;
-    // Robust final fallback: probe repeatedly before opening the store
-    const finalStoreFallback = async () => {
-      const deadline = Date.now() + 900; // shorter probe window for quicker store open
-      while (Date.now() < deadline) {
-        // If the Chrome side panel opened, viewport shrinks significantly
-        if (hasViewportShrunk()) {
-          console.log('[ZeroEka Launcher] Detected viewport shrink → side panel likely opened');
-          extensionOpened = true;
-          return;
-        }
-        if (await probeInstalledAgain()) {
-          // Extension opened/responded → do NOT open store
-          return;
-        }
-        // eslint-disable-next-line no-await-in-loop
-        await new Promise(r => setTimeout(r, 150));
-      }
-      if (!extensionOpened && !window.__zeroekaStoreOpened) {
-        window.__zeroekaStoreOpened = true;
-        console.log('[ZeroEka Launcher] Final fallback: opening Chrome Web Store');
-        try { window.open(STORE_URL, '_blank', 'noopener,noreferrer'); } catch (e) {
-          console.error('[ZeroEka Launcher] Failed to open store:', e);
-        }
-      }
-    };
-
-    const probeInstalledAgain = async () => {
-      // Small delay to allow the page-level event to trigger the other extension
-      await new Promise(r => setTimeout(r, 300));
-      let lastId = null;
-      try { lastId = await new Promise(res => chrome.storage.local.get(['peExtId'], d => res(d && d.peExtId))); } catch(_) {}
-      const ids = [lastId, EXT_ID].filter(Boolean);
-      for (const id of ids) {
-        // eslint-disable-next-line no-await-in-loop
-        const ok = await tryDirectOpen(id, 350);
-        if (ok) {
-          console.log('[ZeroEka Launcher] Probe success: extension responded, suppressing store');
-          extensionOpened = true;
-          cancelStoreFallback();
-          return true;
-        }
-      }
-      return false;
-    };
-    
+    // Also delegate the open request to background to message the target extension by ID
     try {
-      // Ask background for install state first
-      const check = await new Promise((resolve) => {
-        chrome.runtime.sendMessage({ type: 'pe-check-installed' }, resolve);
-      });
-      if (check && check.state === 'installed_enabled') {
-        // Try open directly with the reported id
-        const ok = await tryDirectOpen(check.id || EXT_ID, 400);
-        if (ok) {
-          console.log('[ZeroEka Launcher] SUCCESS: Opened using reported installed id');
-          extensionOpened = true;
-          cancelStoreFallback();
-          resetAllFlags();
-          return;
-        }
-      } else if (check && check.state === 'installed_disabled') {
-        // Let background handle opening details page in step 2
-        console.log('[ZeroEka Launcher] Detected installed but disabled');
-      } else {
-        console.log('[ZeroEka Launcher] Not installed per background check');
-        // Fast path: minimal probe, then open store quickly
-        await finalStoreFallback();
-        resetAllFlags();
-        return;
-      }
-
-      // Step 1: Try direct messaging first (fastest method)
-      console.log('[ZeroEka Launcher] Step 1: Trying direct messaging...');
-      let lastId = null;
-      try { 
-        lastId = await new Promise(res => chrome.storage.local.get(['peExtId'], d => res(d && d.peExtId))); 
-      } catch(_) {}
-      
-      const idsToTry = [lastId, EXT_ID].filter(Boolean);
-      for (const id of idsToTry) {
-        if (extensionOpened) break;
-        console.log('[ZeroEka Launcher] Trying direct message to ID:', id);
-        // eslint-disable-next-line no-await-in-loop
-        const ok = await tryDirectOpen(id, 400);
-        if (ok) {
-          console.log('[ZeroEka Launcher] SUCCESS: Extension opened via direct message to', id);
-          extensionOpened = true;
-          // no store open now or later
-          resetAllFlags();
-          return; // Success! Exit early
-        }
-        console.log('[ZeroEka Launcher] Direct message to', id, 'failed');
-      }
-    } catch (e) {
-      console.warn('[ZeroEka Launcher] Direct messaging error:', e?.message);
-    }
-
-    // Step 2: Try background script with proper timeout
-    if (!extensionOpened) {
-      console.log('[ZeroEka Launcher] Step 2: Trying background script...');
-      try {
-        const resp = await new Promise((resolve) => {
-          let completed = false;
-          const timer = setTimeout(() => {
-            if (!completed) {
-              completed = true;
-              resolve(null);
-            }
-          }, 1200);
-
-          chrome.runtime.sendMessage({ type: 'open-prompt-engine' }, (response) => {
-            if (!completed) {
-              completed = true;
-              clearTimeout(timer);
-              resolve(response);
-            }
+      chrome.runtime.sendMessage({ type: 'open-prompt-engine' }, (resp) => {
+        console.log('Open Prompt Engine response:', resp);
+        if (!resp || resp.status !== 'installed_opened') {
+          // If not opened, try a direct ping using the last seen extension ID
+          chrome.storage.local.get(['peExtId'], (d) => {
+            const id = d && d.peExtId;
+            if (!id) return;
+            try { chrome.runtime.sendMessage(id, { action: 'openSidePanel' }); } catch (_) {}
           });
-        });
-        
-        console.log('[ZeroEka Launcher] Background response:', resp);
-        const status = resp && resp.status;
-        
-        if (status === 'installed_opened') {
-          console.log('[ZeroEka Launcher] SUCCESS: Extension opened via background script');
-          extensionOpened = true;
-          // no store open now or later
-          resetAllFlags();
-          return;
         }
-        if (status === 'installed_disabled' || status === 'unknown_opened_details') {
-          console.log('[ZeroEka Launcher] Extension details/disabled page opened');
-          resetAllFlags();
-          return;
-        }
-        // For 'not_installed' / cannot open / unknown: do a robust probe window before store
-        console.log('[ZeroEka Launcher] Background did not open extension (status:', status, ')');
-        await finalStoreFallback();
-      } catch (e) {
-        console.warn('[ZeroEka Launcher] Background messaging error:', e?.message);
-      }
-    }
-
-    // Step 3: No-op; finalStoreFallback handles store open decision
-    
-    resetAllFlags();
+      });
+    } catch (_) {}
   });
 
   // Add hover effects for pin/unpin button
@@ -2652,14 +2125,7 @@ const createZeroEkaIconButton = () => {
     const nextRoot = document.querySelector('#__next');
     const nextInner = document.querySelector('#__next > div');
     
-    const isPanelVisible = (() => {
-      try {
-        if (!panel) return false;
-        const disp = (panel.style && panel.style.display) || '';
-        const comp = (typeof getComputedStyle === 'function') ? getComputedStyle(panel).display : disp;
-        return comp === 'flex' || (floatbar && floatbar.classList && floatbar.classList.contains('show-panel'));
-      } catch (_) { return false; }
-    })();
+    const isPanelVisible = panel && (panel.style.display === 'flex' || floatbar.classList.contains('show-panel'));
     
     console.log('updateSidebarPosition called:', {
       hasFloatbar: !!floatbar,
@@ -2706,9 +2172,6 @@ const createZeroEkaIconButton = () => {
       // Expanded sidebar is hidden - show contracted sidebar and reduce main width to fit it
       contractedSidebar.style.display = 'flex';
       contractedSidebar.style.right = '0';
-      contractedSidebar.style.visibility = 'visible';
-      contractedSidebar.style.pointerEvents = 'auto';
-      contractedSidebar.style.opacity = '1';
 
       const rect = contractedSidebar.getBoundingClientRect();
       let contractedWidth = rect && rect.width ? Math.ceil(rect.width) : (contractedSidebar.offsetWidth || 80);
@@ -2819,21 +2282,11 @@ const createZeroEkaIconButton = () => {
     const panel = floatbar ? floatbar.querySelector('.panel') : null;
     const main = document.querySelector('main') || document.querySelector('[role="main"]') || document.body;
     
-    const panelVisible = (() => {
-      try {
-        if (!panel) return false;
-        const comp = getComputedStyle(panel).display;
-        return comp === 'flex' || (floatbar && floatbar.classList.contains('show-panel'));
-      } catch(_) { return false; }
-    })();
-
-    if (!panelVisible) {
-      // Ensure contracted sidebar is visible
+    if (panel && panel.style.display !== 'flex' && !floatbar.classList.contains('show-panel')) {
+      // Panel is closed but contracted sidebar might not be visible
       contractedSidebar.style.display = 'flex';
       contractedSidebar.style.right = '0';
-      contractedSidebar.style.visibility = 'visible';
-      contractedSidebar.style.pointerEvents = 'auto';
-      contractedSidebar.style.opacity = '1';
+      
       // Ensure main page width is restored
       if (main) {
         main.style.marginRight = '';
@@ -3453,8 +2906,7 @@ const updateTextSize = (container, size) => {
         const panel = floatbar.querySelector('.panel ul');
         if (panel && panel.children.length > 0) {
           console.log('Extracting tree data from floating box panel');
-          // Respect current on-screen visibility (concise vs full)
-          return extractTreeDataFromDOM(panel, true);
+          return extractTreeDataFromDOM(panel);
         } else {
           console.log('Floating box panel found but empty, falling back to ChatGPT extraction');
         }
@@ -3469,43 +2921,31 @@ const updateTextSize = (container, size) => {
     }
   }
   
-  function extractTreeDataFromDOM(ulElement, respectVisibility = true) {
+  function extractTreeDataFromDOM(ulElement) {
     const treeData = [];
-    if (!ulElement) return treeData;
-
-    const isVisible = (el) => {
-      if (!respectVisibility) return true;
-      try {
-        // Skip if inside a collapsed LI
-        if (el.closest && el.closest('li.collapsed')) return false;
-        // Walk up and ensure no ancestor is hidden and this element is displayed
-        let n = el;
-        while (n && n !== ulElement && n.nodeType === 1) {
-          const cs = getComputedStyle(n);
-          if (!cs || cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0') return false;
-          n = n.parentElement;
-        }
-      } catch (_) {}
-      return true;
-    };
-
-    const items = Array.from(ulElement.children || []);
+    const items = ulElement.children;
+    
     console.log('Extracting from DOM with', items.length, 'items');
-
-    items.forEach((item) => {
-      if (item.tagName !== 'LI') return;
-      if (!isVisible(item)) return;
-      const contentDiv = item.querySelector(':scope > div');
-      const childrenUl = item.querySelector(':scope > ul');
-      const messageId = item.getAttribute('data-message-id');
-      const nodeData = {
-        id: messageId || generateId(),
-        content: contentDiv ? contentDiv.textContent.trim() : 'Untitled',
-        children: childrenUl ? extractTreeDataFromDOM(childrenUl, respectVisibility) : []
-      };
-      treeData.push(nodeData);
-    });
-
+    
+    for (let item of items) {
+      if (item.tagName === 'LI') {
+        const contentDiv = item.querySelector('div');
+        const childrenUl = item.querySelector('ul');
+        const messageId = item.getAttribute('data-message-id');
+        
+        console.log('Processing item with messageId:', messageId);
+        
+        const nodeData = {
+          id: messageId || generateId(),
+          content: contentDiv ? contentDiv.textContent.trim() : 'Untitled',
+          children: childrenUl ? extractTreeDataFromDOM(childrenUl) : []
+        };
+        
+        console.log('Created node:', { id: nodeData.id, content: nodeData.content.substring(0, 50) + '...' });
+        treeData.push(nodeData);
+      }
+    }
+    
     console.log('Extracted tree data:', treeData.length, 'items');
     return treeData;
   }
@@ -4125,44 +3565,6 @@ const updateTextSize = (container, size) => {
         ul.appendChild(childLi);
       } catch(_) {}
     };
-    // Two-level folding system for Gemini:
-    // Level 1 (Parent-only): Hide all child and subnodes (depth >= 2: ul ul li)  
-    // Level 2 (Child-level): Hide only subnodes (depth >= 3: ul ul ul li)
-    const applyGeminiFold = (ul) => {
-      try {
-        const parentOnlyMode = !!window.__geminiParentOnly; // Fold button - shows only parents
-        const childLevelMode = !!window.__geminiConcise;     // Deep button - shows parent + child
-        
-        if (parentOnlyMode) {
-          // Hide all child nodes and subnodes (depth >= 2)
-          const allChildAndSubNodes = ul.querySelectorAll('ul ul li');
-          allChildAndSubNodes.forEach((li) => {
-            li.style.display = 'none';
-          });
-        } else if (childLevelMode) {
-          // Hide only subnodes (depth >= 3), keep child nodes visible
-          const subNodes = ul.querySelectorAll('ul ul ul li');
-          subNodes.forEach((li) => {
-            li.style.display = 'none';
-          });
-          // Ensure child nodes are visible (depth = 2)
-          const childNodes = ul.querySelectorAll('ul ul li');
-          childNodes.forEach((li) => {
-            // Only show if it's not a deeper subnode
-            const depth = li.closest('ul ul ul ul') ? 4 : li.closest('ul ul ul') ? 3 : 2;
-            if (depth === 2) {
-              li.style.display = '';
-            }
-          });
-        } else {
-          // Show everything - no folding
-          const allNodes = ul.querySelectorAll('ul ul li');
-          allNodes.forEach((li) => {
-            li.style.display = '';
-          });
-        }
-      } catch(_) {}
-    };
     const findNextModelWithContent = (blocks, fromIdx) => {
       for (let j = fromIdx + 1; j < blocks.length; j += 1) {
         const el = blocks[j];
@@ -4334,7 +3736,7 @@ const updateTextSize = (container, size) => {
       return '';
     };
     const buildSubcatalog = (hostLi, mdEl) => {
-      // Gemini: add main subheadings as subnodes, and include their immediate sub-sub nodes (one extra level)
+      // Gemini: add only main subheadings as subnodes, and allow one concise sub-sub under each
       if (!mdEl) return;
       const headingTags = new Set(['H1','H2','H3','H4','H5','H6','STRONG']);
       const listTags = new Set(['OL','UL']);
@@ -4357,73 +3759,50 @@ const updateTextSize = (container, size) => {
       };
 
       const isTimeCoded = (text) => /\[[^\]]+\]/.test((text || '').trim());
-
-      // Build an ordered list of top-level headings (and time-coded paragraphs) only
-      const topHeadingNodes = Array.from(mdEl.querySelectorAll('h1,h2,h3,h4,h5,h6,strong,p'))
-        .filter(isTopStructural)
-        .filter((node) => {
-          const tag = (node.tagName || '').toUpperCase();
-          if (headingTags.has(tag)) return true;
-          if (tag === 'P') {
-            const raw = (node.textContent || '').trim();
-            return isTimeCoded(raw);
-          }
-          return false;
-        });
-
-      const getLabel = (el) => safeText(el, 240);
-      const getItemLabel = (liEl) => {
+      const isParenLine = (text) => /^\s*\([^).]+.*\)\s*$/.test((text || '').trim());
+      const firstUsefulChild = (container) => {
         try {
-          return (typeof getTextExcluding === 'function')
-            ? (getTextExcluding(liEl, 'ul,ol', 240) || getLabel(liEl))
-            : getLabel(liEl);
-        } catch(_) { return getLabel(liEl); }
-      };
-      const processNestedList = (listEl, parentLi) => {
-        const items = Array.from(listEl.children || []).filter(n => n.tagName && n.tagName.toUpperCase() === 'LI');
-        items.forEach((it) => {
-          const childLi = appendOneLevel(getItemLabel(it), it, parentLi);
-          // one nested level only
-          const nested = it.querySelector(':scope > ul, :scope > ol');
-          if (nested) {
-            const subItems = Array.from(nested.children || []).filter(n => (n.tagName||'').toUpperCase() === 'LI');
-            subItems.forEach((subIt) => {
-              appendOneLevel(getItemLabel(subIt), subIt, childLi);
-            });
-          }
-        });
-      };
-      // If assistant main reply is top-level bullet points, add them directly under the assistant reply node
-      try {
-        const topLevelLists = Array.from(mdEl.querySelectorAll('ol,ul')).filter(isTopStructural);
-        topLevelLists.forEach((lst) => processNestedList(lst, hostLi));
-      } catch(_) {}
-      const buildUnderHeading = (headLi, startEl, endEl) => {
-        let cur = startEl;
-        while (cur && cur !== endEl) {
-          const tag = (cur.tagName || '').toUpperCase();
-          if (listTags.has(tag)) {
-            processNestedList(cur, headLi);
-          } else if (headingTags.has(tag)) {
-            appendOneLevel(getLabel(cur), cur, headLi);
-          }
-          cur = cur.nextElementSibling;
-        }
+          const cand = container.querySelector(':scope > p, :scope > div');
+          if (!cand) return null;
+          const t = (cand.textContent || '').trim();
+          return t ? cand : null;
+        } catch(_) { return null; }
       };
 
-      topHeadingNodes.forEach((node, idx) => {
+      const structs = Array.from(mdEl.querySelectorAll('h1,h2,h3,h4,h5,h6,strong,ol,ul,p'))
+        .filter(isTopStructural);
+
+      structs.forEach((node) => {
         const tag = (node.tagName || '').toUpperCase();
-        let title = '';
         if (headingTags.has(tag)) {
-          title = getLabel(node);
-        } else {
+          // Add heading directly under assistant reply; add one concise child if present
+          const title = safeText(node, 240);
+          const headLi = appendOneLevel(title, node, hostLi);
+          const child = firstUsefulChild(node.parentElement === mdEl ? node.nextElementSibling : null) || node.nextElementSibling;
+          if (child) {
+            const txt = (child.textContent || '').trim();
+            if (txt && !headingTags.has((child.tagName||'').toUpperCase()) && !listTags.has((child.tagName||'').toUpperCase())) {
+              const sub = txt.slice(0,240);
+              appendOneLevel(sub, child, headLi);
+            }
+          }
+        } else if (tag === 'P') {
+          // Treat time-coded paragraph lines as headings
           const raw = (node.textContent || '').trim();
-          const m = raw.match(/\[[^\]]+\][^\n]*/);
-          title = (m && m[0] ? m[0] : raw).slice(0,240);
+          if (isTimeCoded(raw)) {
+            // prefer only the time-code line portion
+            const m = raw.match(/\[[^\]]+\][^\n]*/);
+            const title = (m && m[0] ? m[0] : raw).slice(0,240);
+            const pLi = appendOneLevel(title, node, hostLi);
+            const sib = node.nextElementSibling;
+            if (sib) {
+              const t = (sib.textContent || '').trim();
+              if (t) appendOneLevel(t.slice(0,240), sib, pLi);
+            }
+          }
+        } else if (listTags.has(tag)) {
+          // Ignore lists to keep only main headings as subnodes
         }
-        const headLi = appendOneLevel(title, node, hostLi);
-        const nextHead = topHeadingNodes[idx + 1] || null;
-        buildUnderHeading(headLi, node.nextElementSibling, nextHead);
       });
     };
 
@@ -4589,8 +3968,6 @@ const updateTextSize = (container, size) => {
           rebuild._key = currentKey;
           while (ul.firstChild) ul.removeChild(ul.firstChild);
           liEls.forEach(li => ul.appendChild(li));
-          // Apply concise folding if enabled
-          try { applyGeminiFold(ul); } catch(_) {}
         }
         // expose for manual refresh hooks
         window.__rebuildGeminiTree = rebuild;
@@ -4672,111 +4049,6 @@ const updateTextSize = (container, size) => {
           });
           moFb.observe(fb, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true });
         }
-        // Two-level folding system for Gemini (Deep button + Fold button)
-        const bindGeminiFoldingButtons = () => {
-          try {
-            // Initialize from storage only once
-            if (typeof window.__geminiConcise === 'undefined' && chrome?.storage?.local) {
-              chrome.storage.local.get(['geminiConcise', 'geminiParentOnly'], (d) => {
-                try { 
-                  window.__geminiConcise = !!d?.geminiConcise; 
-                  window.__geminiParentOnly = !!d?.geminiParentOnly;
-                } catch(_) {}
-                const treeUl = getFloatbarUl();
-                if (treeUl) applyGeminiFold(treeUl);
-              });
-            }
-            
-            const fb2 = document.querySelector('.catalogeu-navigation-plugin-floatbar');
-            if (!fb2) return;
-            
-            // 1. Deep/In-depth button (tree icon) - toggles between child level and full depth
-            const deepBtn = fb2.querySelector('.header .deep') || fb2.querySelector('.tools .deep') || fb2.querySelector('.deep');
-            if (deepBtn && !deepBtn.__geminiBound) {
-              deepBtn.__geminiBound = true;
-              deepBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('[Gemini] Deep button clicked - toggling subnodes visibility');
-                
-                // Deep button toggles between parent+child (concise) and full depth (all subnodes)
-                // Reset parent-only mode when deep button is used
-                try { window.__geminiParentOnly = false; } catch(_) {}
-                // Toggle child level mode (shows parent + child, hides/shows subnodes)
-                try { window.__geminiConcise = !window.__geminiConcise; } catch(_) {}
-                
-                console.log('[Gemini] New modes - Parent-only:', window.__geminiParentOnly, 'Child-level (concise):', window.__geminiConcise);
-                try { 
-                  chrome?.storage?.local && chrome.storage.local.set({ 
-                    geminiConcise: !!window.__geminiConcise,
-                    geminiParentOnly: !!window.__geminiParentOnly
-                  }); 
-                } catch(_) {}
-                
-                const treeUl = getFloatbarUl();
-                if (treeUl) {
-                  applyGeminiFold(treeUl);
-                } else {
-                  console.warn('[Gemini] No tree UL found for folding');
-                }
-              }, true);
-              console.log('[Gemini] Deep button bound successfully');
-            }
-            
-            // 2. Fold button (leftmost in header) - toggles between parent-only and parent+child
-            const foldBtn = fb2.querySelector('.header .fold');
-            if (foldBtn && !foldBtn.__geminiFoldBound) {
-              foldBtn.__geminiFoldBound = true;
-              foldBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('[Gemini] Fold button clicked - toggling between parent-only and parent+child');
-                
-                // Toggle logic: if currently showing parent-only, expand to parent+child
-                // If currently showing anything else (parent+child or full), collapse to parent-only
-                const currentlyParentOnly = !!window.__geminiParentOnly;
-                
-                if (currentlyParentOnly) {
-                  // Currently parent-only -> expand to parent+child (concise mode)
-                  try { window.__geminiParentOnly = false; } catch(_) {}
-                  try { window.__geminiConcise = true; } catch(_) {}
-                  console.log('[Gemini] Unfolding to parent+child level');
-                } else {
-                  // Currently parent+child or full -> collapse to parent-only
-                  try { window.__geminiParentOnly = true; } catch(_) {}
-                  try { window.__geminiConcise = false; } catch(_) {}
-                  console.log('[Gemini] Folding to parent-only level');
-                }
-                
-                console.log('[Gemini] New modes - Parent-only:', window.__geminiParentOnly, 'Child-level:', window.__geminiConcise);
-                try { 
-                  chrome?.storage?.local && chrome.storage.local.set({ 
-                    geminiConcise: !!window.__geminiConcise,
-                    geminiParentOnly: !!window.__geminiParentOnly
-                  }); 
-                } catch(_) {}
-                
-                const treeUl = getFloatbarUl();
-                if (treeUl) {
-                  applyGeminiFold(treeUl);
-                } else {
-                  console.warn('[Gemini] No tree UL found for folding');
-                }
-              }, true);
-              console.log('[Gemini] Fold button bound successfully');
-            }
-            
-            if (!deepBtn && !foldBtn) {
-              console.warn('[Gemini] Neither deep nor fold buttons found');
-            }
-          } catch(err) {
-            console.error('[Gemini] Error binding folding buttons:', err);
-          }
-        };
-        bindGeminiFoldingButtons();
-        // Retry binding after delays in case floatbar isn't ready
-        setTimeout(bindGeminiFoldingButtons, 500);
-        setTimeout(bindGeminiFoldingButtons, 1000);
         // Remove periodic safety net to avoid spurious rebuilds
         try { clearInterval(window.__geminiRebuildIntervalId); } catch(_) {}
       } catch (e) {
