@@ -1269,6 +1269,8 @@ const createZeroEkaIconButton = () => {
     // Step 0: Deterministic install check via background (matches earlier logic)
     console.log('[ZeroEka Launcher] Step 0: Checking install state via background...');
     let extensionOpened = false;
+    let storeOpened = false; // per-click guard so every click can decide fresh
+    const cancelStoreFallback = () => {}; // no-op (legacy compatibility)
     // Robust final fallback: probe repeatedly before opening the store
     const finalStoreFallback = async () => {
       const deadline = Date.now() + 900; // shorter probe window for quicker store open
@@ -1286,8 +1288,8 @@ const createZeroEkaIconButton = () => {
         // eslint-disable-next-line no-await-in-loop
         await new Promise(r => setTimeout(r, 150));
       }
-      if (!extensionOpened && !window.__zeroekaStoreOpened) {
-        window.__zeroekaStoreOpened = true;
+      if (!extensionOpened && !storeOpened) {
+        storeOpened = true;
         console.log('[ZeroEka Launcher] Final fallback: opening Chrome Web Store');
         try { window.open(STORE_URL, '_blank', 'noopener,noreferrer'); } catch (e) {
           console.error('[ZeroEka Launcher] Failed to open store:', e);
