@@ -1216,12 +1216,61 @@ const createZeroEkaIconButton = () => {
       }, 2000);
     };
 
+    // Schedule a single page refresh for this click (user request)
+    const scheduleRefreshOnce = () => {
+      try {
+        if (window.__zeroekaRefreshScheduled) return;
+        window.__zeroekaRefreshScheduled = true;
+        setTimeout(() => {
+          try { window.location.reload(); } catch (_) {}
+          // clear flag after reload attempt; page reload will reset context
+          window.__zeroekaRefreshScheduled = false;
+        }, 900);
+      } catch (_) {}
+    };
+
+    // Ensure a persistent max-viewport tracker exists (to detect already-reduced state)
+    const ensureViewportMaxTracker = () => {
+      try {
+        if (typeof window.__zeroekaMaxViewport !== 'number') {
+          window.__zeroekaMaxViewport = window.innerWidth || document.documentElement.clientWidth || 0;
+        }
+        if (!window.__zeroekaViewportTrackerAttached) {
+          window.__zeroekaViewportTrackerAttached = true;
+          window.addEventListener('resize', () => {
+            const w = window.innerWidth || document.documentElement.clientWidth || 0;
+            if (w > window.__zeroekaMaxViewport) window.__zeroekaMaxViewport = w;
+          }, { passive: true });
+        }
+      } catch(_) {}
+    };
+    ensureViewportMaxTracker();
+
     // Capture baseline viewport width to detect Chrome side panel opening
     const baselineWidth = window.innerWidth || document.documentElement.clientWidth || 0;
     const hasViewportShrunk = (minDelta = 150) => {
       const now = window.innerWidth || document.documentElement.clientWidth || 0;
       return baselineWidth > 0 && (baselineWidth - now) >= minDelta;
     };
+    const isAlreadyReduced = (minDelta = 150) => {
+      const now = window.innerWidth || document.documentElement.clientWidth || 0;
+      const maxw = typeof window.__zeroekaMaxViewport === 'number' ? window.__zeroekaMaxViewport : now;
+      return (maxw - now) >= minDelta;
+    };
+
+    // If the side panel is already open (screen is reduced), never open the store on this click
+    if (isAlreadyReduced()) {
+      console.log('[ZeroEka Launcher] Viewport already reduced → treating as side panel open; skipping store');
+      try {
+        const lastId = await new Promise(res => chrome.storage.local.get(['peExtId'], d => res(d && d.peExtId)));
+        // best-effort focus/open on the active id (non-blocking)
+        tryDirectOpen(lastId || EXT_ID, 200).catch(() => {});
+      } catch(_) {}
+      // refresh the page per request
+      scheduleRefreshOnce();
+      resetAllFlags();
+      return;
+    }
 
     // 1) Fire a page-level event to create a user gesture boundary the target extension can hook
     try {
@@ -1279,10 +1328,12 @@ const createZeroEkaIconButton = () => {
         if (hasViewportShrunk()) {
           console.log('[ZeroEka Launcher] Detected viewport shrink → side panel likely opened');
           extensionOpened = true;
+          scheduleRefreshOnce();
           return;
         }
         if (await probeInstalledAgain()) {
           // Extension opened/responded → do NOT open store
+          scheduleRefreshOnce();
           return;
         }
         // eslint-disable-next-line no-await-in-loop
@@ -1294,6 +1345,7 @@ const createZeroEkaIconButton = () => {
         try { window.open(STORE_URL, '_blank', 'noopener,noreferrer'); } catch (e) {
           console.error('[ZeroEka Launcher] Failed to open store:', e);
         }
+        scheduleRefreshOnce();
       }
     };
 
@@ -1327,8 +1379,8 @@ const createZeroEkaIconButton = () => {
         if (ok) {
           console.log('[ZeroEka Launcher] SUCCESS: Opened using reported installed id');
           extensionOpened = true;
-          cancelStoreFallback();
           resetAllFlags();
+          scheduleRefreshOnce();
           return;
         }
       } else if (check && check.state === 'installed_disabled') {
@@ -1358,8 +1410,8 @@ const createZeroEkaIconButton = () => {
         if (ok) {
           console.log('[ZeroEka Launcher] SUCCESS: Extension opened via direct message to', id);
           extensionOpened = true;
-          // no store open now or later
           resetAllFlags();
+          scheduleRefreshOnce();
           return; // Success! Exit early
         }
         console.log('[ZeroEka Launcher] Direct message to', id, 'failed');
@@ -1396,13 +1448,14 @@ const createZeroEkaIconButton = () => {
         if (status === 'installed_opened') {
           console.log('[ZeroEka Launcher] SUCCESS: Extension opened via background script');
           extensionOpened = true;
-          // no store open now or later
           resetAllFlags();
+          scheduleRefreshOnce();
           return;
         }
         if (status === 'installed_disabled' || status === 'unknown_opened_details') {
           console.log('[ZeroEka Launcher] Extension details/disabled page opened');
           resetAllFlags();
+          scheduleRefreshOnce();
           return;
         }
         // For 'not_installed' / cannot open / unknown: do a robust probe window before store
@@ -1415,6 +1468,8 @@ const createZeroEkaIconButton = () => {
 
     // Step 3: No-op; finalStoreFallback handles store open decision
     
+    // Ensure refresh also happens even if no branch returned above
+    scheduleRefreshOnce();
     resetAllFlags();
   });
 
@@ -4395,10 +4450,13 @@ const updateTextSize = (container, size) => {
           }
         });
       };
-      // If assistant main reply is top-level bullet points, add them directly under the assistant reply node
+      // If there are NO headings/time-coded top nodes, treat top-level lists as primary content
+      // Otherwise, lists are only processed within their respective headings via buildUnderHeading
       try {
         const topLevelLists = Array.from(mdEl.querySelectorAll('ol,ul')).filter(isTopStructural);
-        topLevelLists.forEach((lst) => processNestedList(lst, hostLi));
+        if (topHeadingNodes.length === 0) {
+          topLevelLists.forEach((lst) => processNestedList(lst, hostLi));
+        }
       } catch(_) {}
       const buildUnderHeading = (headLi, startEl, endEl) => {
         let cur = startEl;
