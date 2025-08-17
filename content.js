@@ -90,32 +90,119 @@
     
     // Get chat ID from element
     getChatId(chatElement) {
+      let link, match;
+      
       if (isGemini) {
         // For Gemini, extract from URL or data attributes
-        const link = chatElement.querySelector('a[href*="/chat/"]');
+        link = chatElement.href && chatElement.href.includes('/chat/') ? chatElement : 
+               chatElement.querySelector('a[href*="/chat/"]');
+        
         if (link) {
-          const match = link.href.match(/\/chat\/([^?]+)/);
-          return match ? match[1] : null;
+          match = link.href.match(/\/chat\/([^?&#]+)/);
+          if (match) return match[1];
+        }
+        
+        // Try other methods for Gemini
+        const dataId = chatElement.getAttribute('data-conversation-id') || 
+                      chatElement.getAttribute('data-id') ||
+                      chatElement.closest('[data-conversation-id]')?.getAttribute('data-conversation-id');
+        if (dataId) return dataId;
+        
+        // Extract from current URL if this is the active chat
+        if (window.location.pathname.includes('/chat/')) {
+          match = window.location.pathname.match(/\/chat\/([^?&#]+)/);
+          if (match) return match[1];
         }
       } else {
         // For ChatGPT, extract from URL or data attributes
-        const link = chatElement.querySelector('a[href*="/c/"]');
+        link = chatElement.href && chatElement.href.includes('/c/') ? chatElement : 
+               chatElement.querySelector('a[href*="/c/"]');
+        
         if (link) {
-          const match = link.href.match(/\/c\/([^?]+)/);
-          return match ? match[1] : null;
+          match = link.href.match(/\/c\/([^?&#]+)/);
+          if (match) return match[1];
+        }
+        
+        // Try other methods for ChatGPT
+        const dataId = chatElement.getAttribute('data-conversation-id') || 
+                      chatElement.getAttribute('data-id') ||
+                      chatElement.closest('[data-conversation-id]')?.getAttribute('data-conversation-id');
+        if (dataId) return dataId;
+        
+        // Extract from current URL if this is the active chat
+        if (window.location.pathname.includes('/c/')) {
+          match = window.location.pathname.match(/\/c\/([^?&#]+)/);
+          if (match) return match[1];
         }
       }
-      return null;
+      
+      // Fallback: generate ID from element position and text
+      const text = this.getChatTitle(chatElement);
+      const index = Array.from(chatElement.parentElement?.children || []).indexOf(chatElement);
+      return `fallback_${platform}_${btoa(text.substring(0, 20))}_${index}`;
     },
     
     // Get chat title from element
     getChatTitle(chatElement) {
+      let title = '';
+      
       if (isGemini) {
-        return chatElement.querySelector('[role="button"] span:not([class])')?.textContent?.trim() || 'Untitled Chat';
+        // Try multiple selectors for Gemini
+        const selectors = [
+          '[role="button"] span:not([class])',
+          'span:not([class])',
+          'div:not([class])',
+          'a[href*="/chat/"]',
+          '.conversation-title',
+          '.chat-title'
+        ];
+        
+        for (const selector of selectors) {
+          const element = chatElement.querySelector(selector);
+          if (element && element.textContent?.trim()) {
+            title = element.textContent.trim();
+            break;
+          }
+        }
+        
+        // If direct text content
+        if (!title && chatElement.textContent?.trim()) {
+          title = chatElement.textContent.trim();
+        }
       } else {
-        return chatElement.querySelector('div[title], span[title]')?.textContent?.trim() || 
-               chatElement.textContent?.trim() || 'Untitled Chat';
+        // Try multiple selectors for ChatGPT
+        const selectors = [
+          'div[title]',
+          'span[title]',
+          'a[href*="/c/"]',
+          '.conversation-title',
+          '.chat-title',
+          'div:last-child',
+          'span:last-child'
+        ];
+        
+        for (const selector of selectors) {
+          const element = chatElement.querySelector(selector);
+          if (element && element.textContent?.trim()) {
+            title = element.textContent.trim();
+            break;
+          }
+        }
+        
+        // Try title attribute
+        if (!title && chatElement.title) {
+          title = chatElement.title;
+        }
+        
+        // If direct text content
+        if (!title && chatElement.textContent?.trim()) {
+          title = chatElement.textContent.trim();
+        }
       }
+      
+      // Clean up title
+      title = title.replace(/^\s*[\d\-\.\s]*/, '').trim(); // Remove leading dates/numbers
+      return title || 'Untitled Chat';
     },
     
     // Get chat URL from element
@@ -437,10 +524,15 @@
     getSidebar() {
       if (isGemini) {
         return document.querySelector('nav[aria-label="Chat history"]') || 
-               document.querySelector('[role="navigation"]');
+               document.querySelector('[role="navigation"]') ||
+               document.querySelector('nav') ||
+               document.querySelector('aside');
       } else {
         return document.querySelector('nav[aria-label="Chat history"]') || 
-               document.querySelector('.flex.flex-col.gap-2.text-sm');
+               document.querySelector('[data-testid="sidebar"]') ||
+               document.querySelector('nav') ||
+               document.querySelector('.flex-shrink-0.overflow-x-hidden') ||
+               document.querySelector('.dark\\:bg-gray-900');
       }
     },
     
@@ -499,72 +591,181 @@
     // Add pin buttons to existing chat items
     async addPinButtonsToChats() {
       const sidebar = this.getSidebar();
-      if (!sidebar) return;
+      if (!sidebar) {
+        console.log('❌ ZeroEka Pin UI: No sidebar found for adding pin buttons');
+        return;
+      }
       
       const chatItems = this.getChatItems(sidebar);
+      console.log(`🔍 ZeroEka Pin UI: Found ${chatItems.length} chat items`);
+      
+      if (chatItems.length === 0) {
+        console.log('⚠️ ZeroEka Pin UI: No chat items found in sidebar');
+        return;
+      }
+      
+      let buttonsAdded = 0;
       
       for (const chatItem of chatItems) {
-        // Skip if already has pin button
-        if (chatItem.querySelector('.zeroeka-pin-button')) continue;
-        
-        const chatId = chatPinManager.getChatId(chatItem);
-        if (!chatId) continue;
-        
-        const isPinned = await chatPinManager.isChatPinned(chatId);
-        const pinButton = this.createPinButton(chatItem, isPinned);
-        
-        // Add class for styling
-        chatItem.classList.add('zeroeka-chat-item');
-        
-        // Position pin button
-        chatItem.style.position = 'relative';
-        pinButton.style.cssText = `
-          position: absolute;
-          top: 50%;
-          right: 8px;
-          transform: translateY(-50%);
-          z-index: 10;
-        `;
-        
-        chatItem.appendChild(pinButton);
+        try {
+          // Skip if already has pin button
+          if (chatItem.querySelector('.zeroeka-pin-button')) continue;
+          
+          const chatId = chatPinManager.getChatId(chatItem);
+          if (!chatId) {
+            console.log('⚠️ ZeroEka Pin UI: Could not extract chat ID from item:', chatItem);
+            continue;
+          }
+          
+          const isPinned = await chatPinManager.isChatPinned(chatId);
+          const pinButton = this.createPinButton(chatItem, isPinned);
+          
+          // Add class for styling
+          chatItem.classList.add('zeroeka-chat-item');
+          
+          // Find the best container for the pin button
+          let container = chatItem;
+          
+          // Try to find a better container if this is a link element
+          if (chatItem.tagName === 'A') {
+            container = chatItem.closest('li') || chatItem.parentElement || chatItem;
+          }
+          
+          // Position pin button
+          container.style.position = 'relative';
+          pinButton.style.cssText = `
+            position: absolute;
+            top: 50%;
+            right: 8px;
+            transform: translateY(-50%);
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 4px;
+          `;
+          
+          container.appendChild(pinButton);
+          buttonsAdded++;
+          
+          console.log(`✅ ZeroEka Pin UI: Added pin button to chat "${chatPinManager.getChatTitle(chatItem)}" (ID: ${chatId})`);
+        } catch (error) {
+          console.error('❌ ZeroEka Pin UI: Error adding pin button to chat item:', error, chatItem);
+        }
       }
+      
+      console.log(`✅ ZeroEka Pin UI: Added ${buttonsAdded} pin buttons total`);
     },
     
     // Get chat items from sidebar
     getChatItems(sidebar) {
       if (isGemini) {
-        return Array.from(sidebar.querySelectorAll('[role="button"]')).filter(item => {
-          const link = item.querySelector('a[href*="/chat/"]');
-          return link && !item.closest('.zeroeka-pinned-section');
+        // Multiple selectors for Gemini chat items
+        const selectors = [
+          '[role="button"]',
+          'a[href*="/chat/"]',
+          'li a[href*="/chat/"]',
+          '.conversation-item',
+          '[data-test-id*="conversation"]'
+        ];
+        
+        let items = [];
+        selectors.forEach(selector => {
+          const found = Array.from(sidebar.querySelectorAll(selector));
+          items = items.concat(found);
+        });
+        
+        // Filter unique items and those with chat links
+        return items.filter((item, index, self) => {
+          const isDuplicate = self.indexOf(item) !== index;
+          const isInPinnedSection = item.closest('.zeroeka-pinned-section');
+          const hasValidLink = item.href?.includes('/chat/') || item.querySelector('a[href*="/chat/"]');
+          
+          return !isDuplicate && !isInPinnedSection && hasValidLink;
         });
       } else {
-        return Array.from(sidebar.querySelectorAll('li')).filter(item => {
-          const link = item.querySelector('a[href*="/c/"]');
-          return link && !item.closest('.zeroeka-pinned-section');
+        // Multiple selectors for ChatGPT chat items
+        const selectors = [
+          'li a[href*="/c/"]',
+          'ol li',
+          '[data-testid*="conversation"]',
+          '.conversation-item',
+          'a[href*="/c/"]'
+        ];
+        
+        let items = [];
+        selectors.forEach(selector => {
+          const found = Array.from(sidebar.querySelectorAll(selector));
+          items = items.concat(found);
+        });
+        
+        // Filter unique items and those with chat links
+        return items.filter((item, index, self) => {
+          const isDuplicate = self.indexOf(item) !== index;
+          const isInPinnedSection = item.closest('.zeroeka-pinned-section');
+          const hasValidLink = item.href?.includes('/c/') || item.querySelector('a[href*="/c/"]');
+          
+          return !isDuplicate && !isInPinnedSection && hasValidLink;
         });
       }
     },
     
     // Initialize pin UI
     async init() {
-      this.addPinStyles();
-      await this.createPinnedSection();
-      await this.addPinButtonsToChats();
+      console.log('🔧 ZeroEka Pin UI: Initializing...');
       
-      // Set up mutation observer to handle dynamic content
-      const sidebar = this.getSidebar();
-      if (sidebar) {
-        const observer = new MutationObserver(() => {
-          setTimeout(() => {
-            this.addPinButtonsToChats();
-          }, 100);
-        });
+      // Add styles immediately
+      this.addPinStyles();
+      console.log('✅ ZeroEka Pin UI: Styles added');
+      
+      // Wait for sidebar to be available
+      let attempts = 0;
+      const maxAttempts = 20;
+      
+      const initializeWhenReady = async () => {
+        attempts++;
+        const sidebar = this.getSidebar();
         
-        observer.observe(sidebar, {
-          childList: true,
-          subtree: true
-        });
-      }
+        if (sidebar) {
+          console.log('✅ ZeroEka Pin UI: Sidebar found:', sidebar);
+          
+          // Initialize pinned section and buttons
+          await this.createPinnedSection();
+          await this.addPinButtonsToChats();
+          
+          console.log('✅ ZeroEka Pin UI: Initialization complete');
+          
+          // Set up mutation observer to handle dynamic content
+          const observer = new MutationObserver(() => {
+            setTimeout(() => {
+              this.addPinButtonsToChats();
+            }, 100);
+          });
+          
+          observer.observe(sidebar, {
+            childList: true,
+            subtree: true
+          });
+          
+          console.log('✅ ZeroEka Pin UI: Mutation observer setup complete');
+        } else {
+          console.log(`⏳ ZeroEka Pin UI: Waiting for sidebar... (${attempts}/${maxAttempts})`);
+          if (attempts < maxAttempts) {
+            setTimeout(initializeWhenReady, 500);
+          } else {
+            console.error('❌ ZeroEka Pin UI: Failed to find sidebar after', maxAttempts, 'attempts');
+          }
+        }
+      };
+      
+      // Start initialization
+      initializeWhenReady();
+      
+      // Also try again after page fully loads
+      setTimeout(() => {
+        if (attempts >= maxAttempts) {
+          console.log('🔄 ZeroEka Pin UI: Retrying initialization after page load...');
+          initializeWhenReady();
+        }
+      }, 3000);
     }
   };
   
@@ -653,6 +854,32 @@
   H=e=>{let n=e.__reply;if(!n&&(n=t(e.__ref.deref()).answerArticle,n)){const t=n.querySelector(o.markdown);if(t)return v(e,Array.from(t.children)),e.__reply=n,n.setAttribute(l,"reply"),n}}}})(),document.body.appendChild(r);const R=()=>{t(r,()=>{document.body.appendChild(r),R()},2e3)};return R(),r}}})();window.addEventListener("load",function e(){r=0,h(null),h(),m()?(y(),createZeroEkaIconButton(),
 // Initialize pin UI
 pinUI.init(),
+// Add debug test button for pinning
+(() => {
+  const testButton = document.createElement('button');
+  testButton.innerHTML = '🔧 Test Pin';
+  testButton.style.cssText = `
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 10000;
+    background: #10a37f;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+  `;
+  testButton.addEventListener('click', () => {
+    console.log('🔧 Manual Pin Test Triggered');
+    pinUI.addPinButtonsToChats();
+  });
+  document.body.appendChild(testButton);
+  
+  // Remove after 10 seconds
+  setTimeout(() => testButton.remove(), 10000);
+})(),
 (()=>{const floatbar=document.querySelector('.catalogeu-navigation-plugin-floatbar');if(floatbar){const buttons=floatbar.querySelector('.buttons');if(buttons){buttons.style.display='none'}}})(),chrome.runtime.onMessage.addListener((e,t,l)=>{const{type:n,data:s}=e;"logout"===n?location.reload():"error"===n&&("automaticLoginFailure"===s?a(0,lang("automaticLoginFailureTitle"),lang("automaticLoginFailurePrompt")):a(0,lang("operationFailure"),lang(s?.message)||s?.message))})):r<10&&(r++,setTimeout(e,1e3))})})();
 
 // Create ZeroEka icon button for sidebar toggle
