@@ -2234,6 +2234,559 @@ const createZeroEkaIconButton = () => {
   const removePinButtonsFromChats = () => PinningSystem.removePinButtonsFromChats();
   const reorderBookmarkedChatsGroup = () => PinningSystem.reorderPinnedChats();
 
+  // Embedded Pinned Section for Sidebar
+  const EmbeddedPinnedSection = {
+    // Create and inject the pinned section into the sidebar
+    createPinnedSection() {
+      try {
+        // Platform-specific sidebar selectors
+        let sidebarSelector;
+        if (isGemini) {
+          sidebarSelector = '[aria-label="Conversations"], [aria-label="Chat history"], aside nav, nav';
+        } else {
+          sidebarSelector = 'nav[data-testid="chat-history"], [data-testid="chat-history"], nav';
+        }
+        
+        const sidebar = document.querySelector(sidebarSelector);
+        if (!sidebar) {
+          console.log('Sidebar not found, retrying...');
+          return false;
+        }
+
+        // Check if pinned section already exists
+        if (sidebar.querySelector('.embedded-pinned-section')) {
+          console.log('Pinned section already exists');
+          return true;
+        }
+
+        // Create the pinned section container
+        const pinnedSection = document.createElement('div');
+        pinnedSection.className = 'embedded-pinned-section';
+        pinnedSection.style.cssText = `
+          background: ${isGemini ? '#1a1a1a' : '#212121'};
+          border-bottom: 1px solid #333;
+          padding: 12px 16px;
+          margin-bottom: 8px;
+          border-radius: 8px;
+          margin: 8px;
+        `;
+
+        // Create header with title and controls
+        const header = this.createHeader();
+        const pinnedChatsContainer = this.createPinnedChatsContainer();
+
+        // Assemble the section
+        pinnedSection.appendChild(header);
+        pinnedSection.appendChild(pinnedChatsContainer);
+
+        // Insert at the top of the sidebar
+        const firstChild = sidebar.firstElementChild;
+        if (firstChild) {
+          sidebar.insertBefore(pinnedSection, firstChild);
+        } else {
+          sidebar.appendChild(pinnedSection);
+        }
+
+        console.log('Pinned section created successfully');
+        this.updatePinnedChatsDisplay();
+        return true;
+      } catch (error) {
+        console.error('Error creating pinned section:', error);
+        return false;
+      }
+    },
+
+    // Create header with controls
+    createHeader() {
+      const header = document.createElement('div');
+      header.className = 'pinned-header';
+      header.style.cssText = `
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      `;
+
+      // Create title
+      const title = document.createElement('div');
+      title.className = 'pinned-title';
+      title.innerHTML = `📌 Pinned`;
+      title.style.cssText = `
+        font-weight: 600;
+        font-size: 14px;
+        color: #e5e5e5;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      `;
+
+      // Create controls container
+      const controls = document.createElement('div');
+      controls.className = 'pinned-controls';
+      controls.style.cssText = `
+        display: flex;
+        gap: 4px;
+        align-items: center;
+      `;
+
+      // Create buttons
+      const pinButton = this.createControlButton('📌', 'Pin selected chat', () => this.handlePinAction());
+      const folderButton = this.createControlButton('📁', 'Create folder', () => this.handleFolderAction());
+      const searchButton = this.createControlButton('🔍', 'Search pinned chats', () => this.handleSearchAction());
+
+      controls.appendChild(pinButton);
+      controls.appendChild(folderButton);
+      controls.appendChild(searchButton);
+
+      header.appendChild(title);
+      header.appendChild(controls);
+      return header;
+    },
+
+    // Create pinned chats container
+    createPinnedChatsContainer() {
+      const container = document.createElement('div');
+      container.className = 'pinned-chats-container';
+      container.style.cssText = `
+        min-height: 40px;
+        max-height: 300px;
+        overflow-y: auto;
+      `;
+
+      // Create empty state
+      const emptyState = document.createElement('div');
+      emptyState.className = 'pinned-empty-state';
+      emptyState.style.cssText = `
+        text-align: center;
+        color: #888;
+        font-size: 12px;
+        padding: 16px 8px;
+        font-style: italic;
+      `;
+      emptyState.textContent = 'No pinned chats yet. Select a chat and click the pin button.';
+
+      container.appendChild(emptyState);
+      return container;
+    },
+
+    // Create a control button
+    createControlButton(icon, tooltip, onClick) {
+      const button = document.createElement('button');
+      button.innerHTML = icon;
+      button.title = tooltip;
+      button.style.cssText = `
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+        color: #e5e5e5;
+        width: 24px;
+        height: 24px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        transition: all 0.2s ease;
+      `;
+
+      button.addEventListener('mouseenter', () => {
+        button.style.background = 'rgba(255, 255, 255, 0.2)';
+        button.style.transform = 'scale(1.1)';
+      });
+
+      button.addEventListener('mouseleave', () => {
+        button.style.background = 'rgba(255, 255, 255, 0.1)';
+        button.style.transform = 'scale(1)';
+      });
+
+      button.addEventListener('click', onClick);
+      return button;
+    },
+
+    // Handle pin action
+    handlePinAction() {
+      try {
+        const selectedChat = this.getSelectedChat();
+        if (!selectedChat) {
+          alert('Please select a chat first by clicking on it.');
+          return;
+        }
+
+        const chatId = PinningSystem.getChatIdFromEl(selectedChat);
+        const chatTitle = PinningSystem.getChatTitle(selectedChat);
+
+        if (PinningSystem.isPinned(chatId)) {
+          PinningSystem.unpinChat(chatId);
+          this.updatePinnedChatsDisplay();
+          console.log('Chat unpinned:', chatTitle);
+        } else {
+          this.showInlineFolderSelection(chatId, chatTitle, selectedChat);
+        }
+      } catch (error) {
+        console.error('Error in pin action:', error);
+      }
+    },
+
+    // Handle folder action
+    handleFolderAction() {
+      const folderName = prompt('Enter folder name:');
+      if (folderName && folderName.trim()) {
+        PinningSystem.createFolder(folderName.trim());
+        this.updatePinnedChatsDisplay();
+        console.log('Folder created:', folderName);
+      }
+    },
+
+    // Handle search action
+    handleSearchAction() {
+      if (typeof window.createSearchPopup === 'function') {
+        window.createSearchPopup();
+        setTimeout(() => {
+          const searchModeSelect = document.querySelector('#search-popup select');
+          if (searchModeSelect) {
+            searchModeSelect.value = 'pinned';
+            searchModeSelect.dispatchEvent(new Event('change'));
+          }
+        }, 100);
+      }
+    },
+
+    // Get currently selected chat
+    getSelectedChat() {
+      let selectedSelectors;
+      if (isGemini) {
+        selectedSelectors = [
+          '[aria-current="true"]',
+          '.selected',
+          '[data-selected="true"]',
+          'a[href*="/chat/"]:hover'
+        ];
+      } else {
+        selectedSelectors = [
+          '[aria-current="page"]',
+          '.bg-token-sidebar-surface-secondary',
+          '.selected',
+          '[data-selected="true"]'
+        ];
+      }
+
+      for (const selector of selectedSelectors) {
+        const element = document.querySelector(selector);
+        if (element) {
+          const chatContainer = element.closest('li, .conversation-item, [data-testid="conversation-item"]') || element;
+          if (chatContainer) return chatContainer;
+        }
+      }
+
+      return null;
+    },
+
+    // Show inline folder selection
+    showInlineFolderSelection(chatId, chatTitle, chatElement) {
+      const folders = PinningSystem.getFolders();
+      const folderOptions = ['📌 Root (No folder)'];
+      Object.values(folders).forEach(folder => {
+        folderOptions.push(`📁 ${folder.name}`);
+      });
+
+      let selectedFolder = null;
+      
+      if (Object.keys(folders).length === 0) {
+        selectedFolder = null;
+      } else {
+        const selection = prompt(
+          `Pin "${chatTitle}" to:\n\n` +
+          folderOptions.map((opt, i) => `${i + 1}. ${opt}`).join('\n') +
+          '\n\nEnter number (or 0 to cancel):'
+        );
+
+        if (!selection || selection === '0') return;
+
+        const index = parseInt(selection) - 1;
+        if (index === 0) {
+          selectedFolder = null;
+        } else if (index > 0 && index <= Object.keys(folders).length) {
+          selectedFolder = Object.keys(folders)[index - 1];
+        } else {
+          alert('Invalid selection');
+          return;
+        }
+      }
+
+      const chatData = {
+        title: chatTitle,
+        url: window.location.href,
+        timestamp: Date.now()
+      };
+
+      PinningSystem.pinChat(chatId, chatData, selectedFolder);
+      this.updatePinnedChatsDisplay();
+      console.log('Chat pinned:', chatTitle);
+    },
+
+    // Initialize the embedded section
+    init() {
+      if (!this.createPinnedSection()) {
+        setTimeout(() => this.init(), 2000);
+        return;
+      }
+      this.setupMonitoring();
+    },
+
+    // Update the display of pinned chats
+    updatePinnedChatsDisplay() {
+      try {
+        const container = document.querySelector('.pinned-chats-container');
+        const emptyState = document.querySelector('.pinned-empty-state');
+        
+        if (!container) return;
+
+        const pinnedChats = PinningSystem.getPinnedChats();
+        const folders = PinningSystem.getFolders();
+        const pinnedIds = Object.keys(pinnedChats);
+
+        // Clear existing content except empty state
+        const children = Array.from(container.children);
+        children.forEach(child => {
+          if (!child.classList.contains('pinned-empty-state')) {
+            child.remove();
+          }
+        });
+
+        if (pinnedIds.length === 0) {
+          emptyState.style.display = 'block';
+          return;
+        }
+
+        emptyState.style.display = 'none';
+
+        // Group pinned chats by folder
+        const pinnedByFolder = { root: [] };
+        Object.keys(folders).forEach(folderId => {
+          pinnedByFolder[folderId] = [];
+        });
+
+        pinnedIds.forEach(chatId => {
+          const chat = pinnedChats[chatId];
+          const folderId = chat.folderId || 'root';
+          if (!pinnedByFolder[folderId]) {
+            pinnedByFolder[folderId] = [];
+          }
+          pinnedByFolder[folderId].push({ chatId, ...chat });
+        });
+
+        // Display root pinned chats first
+        if (pinnedByFolder.root.length > 0) {
+          pinnedByFolder.root.forEach(chat => {
+            const chatItem = this.createPinnedChatItem(chat);
+            container.appendChild(chatItem);
+          });
+        }
+
+        // Display folder-organized chats
+        Object.keys(folders).forEach(folderId => {
+          const folder = folders[folderId];
+          const folderChats = pinnedByFolder[folderId] || [];
+          
+          if (folderChats.length > 0) {
+            // Create folder header
+            const folderHeader = this.createFolderHeader(folder, folderId);
+            container.appendChild(folderHeader);
+
+            // Add folder chats
+            folderChats.forEach(chat => {
+              const chatItem = this.createPinnedChatItem(chat, true);
+              container.appendChild(chatItem);
+            });
+          }
+        });
+
+        console.log(`Updated pinned chats display with ${pinnedIds.length} chats`);
+      } catch (error) {
+        console.error('Error updating pinned chats display:', error);
+      }
+    },
+
+    // Create folder header
+    createFolderHeader(folder, folderId) {
+      const folderHeader = document.createElement('div');
+      folderHeader.className = 'folder-header';
+      folderHeader.style.cssText = `
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 8px;
+        margin: 8px 0 4px 0;
+        background: rgba(59, 185, 16, 0.1);
+        border-radius: 4px;
+        border-left: 3px solid #3bb910;
+      `;
+
+      const folderTitle = document.createElement('span');
+      folderTitle.textContent = `📁 ${folder.name}`;
+      folderTitle.style.cssText = `
+        font-size: 12px;
+        font-weight: 500;
+        color: #3bb910;
+      `;
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.innerHTML = '🗑️';
+      deleteBtn.title = 'Delete folder';
+      deleteBtn.style.cssText = `
+        background: none;
+        border: none;
+        color: #ff6b6b;
+        cursor: pointer;
+        font-size: 10px;
+        padding: 2px;
+        border-radius: 2px;
+      `;
+      deleteBtn.addEventListener('click', () => {
+        if (confirm(`Delete folder "${folder.name}"? Chats will be moved to root.`)) {
+          PinningSystem.deleteFolder(folderId);
+          this.updatePinnedChatsDisplay();
+        }
+      });
+
+      folderHeader.appendChild(folderTitle);
+      folderHeader.appendChild(deleteBtn);
+      return folderHeader;
+    },
+
+    // Create a pinned chat item
+    createPinnedChatItem(chat, isInFolder = false) {
+      const item = document.createElement('div');
+      item.className = 'pinned-chat-item';
+      item.style.cssText = `
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px ${isInFolder ? '16px' : '8px'};
+        margin: 2px 0;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border-left: 2px solid ${isInFolder ? '#3bb910' : 'transparent'};
+      `;
+
+      const title = document.createElement('span');
+      title.textContent = chat.title || 'Untitled Chat';
+      title.style.cssText = `
+        font-size: 12px;
+        color: #e5e5e5;
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      `;
+
+      const unpinBtn = document.createElement('button');
+      unpinBtn.innerHTML = '📌';
+      unpinBtn.title = 'Unpin chat';
+      unpinBtn.style.cssText = `
+        background: none;
+        border: none;
+        color: #ff6b6b;
+        cursor: pointer;
+        font-size: 10px;
+        padding: 2px;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      `;
+      unpinBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        PinningSystem.unpinChat(chat.chatId);
+        this.updatePinnedChatsDisplay();
+      });
+
+      item.appendChild(title);
+      item.appendChild(unpinBtn);
+
+      // Hover effects
+      item.addEventListener('mouseenter', () => {
+        item.style.background = 'rgba(255, 255, 255, 0.1)';
+        unpinBtn.style.opacity = '1';
+      });
+
+      item.addEventListener('mouseleave', () => {
+        item.style.background = 'rgba(255, 255, 255, 0.05)';
+        unpinBtn.style.opacity = '0';
+      });
+
+      // Click to navigate to chat
+      item.addEventListener('click', () => {
+        this.navigateToChat(chat.chatId, chat.url);
+      });
+
+      return item;
+    },
+
+    // Navigate to a specific chat
+    navigateToChat(chatId, chatUrl) {
+      try {
+        // Try to find the chat in the sidebar and click it
+        const chatSelectors = [
+          `a[href="${chatId}"]`,
+          `a[href*="${chatId}"]`,
+          `[data-message-id="${chatId}"]`,
+        ];
+
+        for (const selector of chatSelectors) {
+          const chatElement = document.querySelector(selector);
+          if (chatElement) {
+            chatElement.click();
+            return;
+          }
+        }
+
+        // If not found, navigate via URL
+        if (chatUrl && chatUrl !== window.location.href) {
+          window.location.href = chatUrl;
+        } else {
+          console.log('Could not navigate to chat:', chatId);
+        }
+      } catch (error) {
+        console.error('Error navigating to chat:', error);
+      }
+    },
+
+    // Setup monitoring for sidebar changes
+    setupMonitoring() {
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === 'childList') {
+            const pinnedSection = document.querySelector('.embedded-pinned-section');
+            if (!pinnedSection) {
+              console.log('Pinned section removed, recreating...');
+              setTimeout(() => this.createPinnedSection(), 500);
+            }
+          }
+        });
+      });
+
+      let sidebarSelector;
+      if (isGemini) {
+        sidebarSelector = '[aria-label="Conversations"], [aria-label="Chat history"], aside nav, nav';
+      } else {
+        sidebarSelector = 'nav[data-testid="chat-history"], [data-testid="chat-history"], nav';
+      }
+      
+      const sidebar = document.querySelector(sidebarSelector);
+      if (sidebar) {
+        observer.observe(sidebar, { childList: true, subtree: true });
+      }
+
+      // Update display periodically
+      setInterval(() => {
+        this.updatePinnedChatsDisplay();
+      }, 5000);
+
+      console.log('Embedded pinned section monitoring setup complete');
+    }
+  };
+
 
 
   // Create Profile button at the bottom of contracted sidebar
@@ -4843,6 +5396,19 @@ const updateTextSize = (container, size) => {
   // Call restore function on page load
   window.addEventListener('load', restoreBookmarkedChats);
   document.addEventListener('DOMContentLoaded', restoreBookmarkedChats);
+
+  // Initialize embedded pinned section
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      EmbeddedPinnedSection.init();
+    }, 3000); // Wait a bit for the page to fully load
+  });
+  
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+      EmbeddedPinnedSection.init();
+    }, 3000);
+  });
   
   // Monitor pinned chat positions and fix if needed
   const monitorPinnedPositions = () => {

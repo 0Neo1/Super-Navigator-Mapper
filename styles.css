@@ -1438,6 +1438,99 @@ nav[data-testid="chat-history"] .pinned,
   100% { transform: rotate(360deg) !important; }
 }
 
+/* Embedded Pinned Section Styles */
+.embedded-pinned-section {
+  border: 1px solid #333 !important;
+  margin: 8px !important;
+  animation: fadeIn 0.3s ease !important;
+}
+
+.pinned-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  padding-bottom: 8px !important;
+}
+
+.pinned-title {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+.pinned-controls button {
+  transition: all 0.2s ease !important;
+}
+
+.pinned-controls button:hover {
+  transform: scale(1.1) !important;
+}
+
+.pinned-chats-container {
+  scrollbar-width: thin !important;
+  scrollbar-color: #444 transparent !important;
+}
+
+.pinned-chats-container::-webkit-scrollbar {
+  width: 4px !important;
+}
+
+.pinned-chats-container::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.pinned-chats-container::-webkit-scrollbar-thumb {
+  background: #444 !important;
+  border-radius: 2px !important;
+}
+
+.pinned-empty-state {
+  color: #666 !important;
+  font-style: italic !important;
+}
+
+.folder-header {
+  animation: slideInResult 0.2s ease !important;
+}
+
+.pinned-chat-item {
+  animation: slideInResult 0.2s ease !important;
+  border: 1px solid transparent !important;
+}
+
+.pinned-chat-item:hover {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  transform: translateX(2px) !important;
+}
+
+/* Integration with existing ChatGPT sidebar */
+nav[data-testid="chat-history"] .embedded-pinned-section,
+[data-testid="chat-history"] .embedded-pinned-section {
+  background: #212121 !important;
+  border-color: #444 !important;
+}
+
+/* Integration with Gemini sidebar */
+[aria-label="Conversations"] .embedded-pinned-section,
+[aria-label="Chat history"] .embedded-pinned-section {
+  background: #1a1a1a !important;
+  border-color: #333 !important;
+}
+
+/* Responsive design for smaller sidebars */
+@media (max-width: 320px) {
+  .embedded-pinned-section {
+    margin: 4px !important;
+    padding: 8px 12px !important;
+  }
+  
+  .pinned-controls {
+    gap: 2px !important;
+  }
+  
+  .pinned-controls button {
+    width: 20px !important;
+    height: 20px !important;
+    font-size: 10px !important;
+  }
+}
+
 /* Dark mode compatibility */
 @media (prefers-color-scheme: dark) {
   .folder-selection-popup {
@@ -1448,5 +1541,10 @@ nav[data-testid="chat-history"] .pinned,
   .pin-tooltip {
     background: #2a2a2a !important;
     border: 1px solid #444 !important;
+  }
+  
+  .embedded-pinned-section {
+    background: #1a1a1a !important;
+    border-color: #333 !important;
   }
 }
