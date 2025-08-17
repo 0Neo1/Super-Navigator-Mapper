@@ -1543,6 +1543,72 @@ const createZeroEkaIconButton = () => {
     return el.closest('li, .conversation-item, [data-testid="conversation-item"], [data-testid="conversation-turn-2"]') || el;
   };
 
+  // Add a star badge on the right of pinned chats that switches to three-dots on hover
+  const addPinnedStarBadge = (chatItem) => {
+    try {
+      const container = getChatItemContainer(chatItem);
+      if (!container) return;
+
+      // Prevent duplicates
+      if (container.querySelector('.zeroeka-pinned-star')) return;
+
+      // Locate the right-side actions (three dots) if present
+      const actionButton = container.querySelector('button[aria-label*="More"], button[aria-haspopup], [aria-haspopup="menu"]');
+
+      // Wrapper to position the star at far right
+      const wrapper = document.createElement('div');
+      wrapper.className = 'zeroeka-pinned-star';
+      wrapper.style.cssText = `
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        color: #10b981;
+        opacity: 0.95;
+        pointer-events: none;
+      `;
+      wrapper.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="currentColor" style="width: 16px; height: 16px;">
+          <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+        </svg>
+      `;
+
+      // Ensure container is positioned for absolute child
+      const host = container.closest('a, [role="button"], li, .conversation-item, [data-testid="conversation-item"]') || container;
+      const prevPosition = window.getComputedStyle(host).position;
+      if (prevPosition === 'static' || !prevPosition) {
+        host.style.position = 'relative';
+      }
+
+      host.appendChild(wrapper);
+
+      // Swap visibility on hover to show native three-dots
+      if (actionButton) {
+        // Make star non-interactive and hide when hovering over the row
+        host.addEventListener('mouseenter', () => {
+          wrapper.style.display = 'none';
+          // native three-dots stays visible
+        });
+        host.addEventListener('mouseleave', () => {
+          wrapper.style.display = '';
+        });
+      }
+    } catch (_) {}
+  };
+
+  // Decorate all currently marked bookmarked chat items with star badge
+  const decorateBookmarkedChats = () => {
+    const items = document.querySelectorAll('nav[data-testid="chat-history"] a.bookmarked, nav[data-testid="chat-history"] [role="button"].bookmarked, nav[data-testid="chat-history"] .conversation-item.bookmarked, nav[data-testid="chat-history"] [data-testid="conversation-item"].bookmarked');
+    items.forEach((item) => {
+      try { addPinnedStarBadge(item); } catch (_) {}
+    });
+  };
+
   // Helper to extract a stable chat id from an item/container
   const getChatIdFromEl = (el) => {
     if (!el) return '';
@@ -1588,6 +1654,7 @@ const createZeroEkaIconButton = () => {
         
         if (isBookmarked) {
           itemEl.classList.add('bookmarked');
+          try { addPinnedStarBadge(chatItem); } catch (_) {}
         }
         
         // Add hover effect for bookmark mode
@@ -1752,6 +1819,7 @@ const createZeroEkaIconButton = () => {
         if (parent.firstChild !== el) parent.insertBefore(el, parent.firstChild);
       }
     });
+    try { decorateBookmarkedChats(); } catch (_) {}
   };
 
   // Function to remove bookmark mode from ChatGPT sidebar chats
@@ -4020,11 +4088,10 @@ const updateTextSize = (container, size) => {
             });
             
             if (chatItem) {
-              // Add bookmarked class (no visual indicator by default)
+              // Add bookmarked class and decorate with star badge
               chatItem.classList.add('bookmarked');
-               found.push(chatItem);
-              
-
+              try { addPinnedStarBadge(chatItem); } catch (_) {}
+              found.push(chatItem);
             } else {
               console.warn('Bookmarked chat not found in sidebar:', chatId);
             }
@@ -4085,6 +4152,7 @@ const updateTextSize = (container, size) => {
           // Ensure class reflects storage truth
           if (bookmarkedChats.includes(chatId)) {
             chatItem.classList.add('bookmarked');
+            try { addPinnedStarBadge(chatItem); } catch (_) {}
           } else {
             chatItem.classList.remove('bookmarked');
           }
@@ -4103,6 +4171,7 @@ const updateTextSize = (container, size) => {
     if (!document.hidden) {
       console.log('Page became visible, checking sidebar...');
       setTimeout(ensureContractedSidebar, 500);
+      try { decorateBookmarkedChats(); } catch (_) {}
     }
   });
 
