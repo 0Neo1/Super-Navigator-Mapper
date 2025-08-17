@@ -3,6 +3,570 @@
   const isGemini = window.location.hostname.includes('gemini.google.com');
   const isChatGPT = window.location.hostname.includes('chatgpt.com');
   const platform = isGemini ? 'gemini' : 'chatgpt';
+
+  // Chat pinning functionality
+  const chatPinManager = {
+    // Storage keys
+    STORAGE_KEY: 'zeroeka_pinned_chats',
+    FOLDERS_KEY: 'zeroeka_pin_folders',
+    
+    // Get pinned chats for current platform
+    async getPinnedChats() {
+      const stored = await chrome.storage.local.get(this.STORAGE_KEY);
+      const pinnedChats = stored[this.STORAGE_KEY] || {};
+      return pinnedChats[platform] || { chats: [], folders: {} };
+    },
+    
+    // Save pinned chats for current platform
+    async savePinnedChats(data) {
+      const stored = await chrome.storage.local.get(this.STORAGE_KEY);
+      const pinnedChats = stored[this.STORAGE_KEY] || {};
+      pinnedChats[platform] = data;
+      await chrome.storage.local.set({ [this.STORAGE_KEY]: pinnedChats });
+    },
+    
+    // Pin a chat
+    async pinChat(chatId, chatTitle, chatUrl) {
+      const data = await this.getPinnedChats();
+      const existingIndex = data.chats.findIndex(chat => chat.id === chatId);
+      
+      if (existingIndex === -1) {
+        data.chats.unshift({
+          id: chatId,
+          title: chatTitle,
+          url: chatUrl,
+          timestamp: Date.now(),
+          folderId: null
+        });
+        await this.savePinnedChats(data);
+        return true;
+      }
+      return false;
+    },
+    
+    // Unpin a chat
+    async unpinChat(chatId) {
+      const data = await this.getPinnedChats();
+      const index = data.chats.findIndex(chat => chat.id === chatId);
+      
+      if (index !== -1) {
+        data.chats.splice(index, 1);
+        await this.savePinnedChats(data);
+        return true;
+      }
+      return false;
+    },
+    
+    // Check if chat is pinned
+    async isChatPinned(chatId) {
+      const data = await this.getPinnedChats();
+      return data.chats.some(chat => chat.id === chatId);
+    },
+    
+    // Create folder
+    async createFolder(folderName) {
+      const data = await this.getPinnedChats();
+      const folderId = 'folder_' + Date.now();
+      data.folders[folderId] = {
+        id: folderId,
+        name: folderName,
+        timestamp: Date.now()
+      };
+      await this.savePinnedChats(data);
+      return folderId;
+    },
+    
+    // Move chat to folder
+    async moveChatToFolder(chatId, folderId) {
+      const data = await this.getPinnedChats();
+      const chat = data.chats.find(c => c.id === chatId);
+      if (chat) {
+        chat.folderId = folderId;
+        await this.savePinnedChats(data);
+        return true;
+      }
+      return false;
+    },
+    
+    // Get chat ID from element
+    getChatId(chatElement) {
+      if (isGemini) {
+        // For Gemini, extract from URL or data attributes
+        const link = chatElement.querySelector('a[href*="/chat/"]');
+        if (link) {
+          const match = link.href.match(/\/chat\/([^?]+)/);
+          return match ? match[1] : null;
+        }
+      } else {
+        // For ChatGPT, extract from URL or data attributes
+        const link = chatElement.querySelector('a[href*="/c/"]');
+        if (link) {
+          const match = link.href.match(/\/c\/([^?]+)/);
+          return match ? match[1] : null;
+        }
+      }
+      return null;
+    },
+    
+    // Get chat title from element
+    getChatTitle(chatElement) {
+      if (isGemini) {
+        return chatElement.querySelector('[role="button"] span:not([class])')?.textContent?.trim() || 'Untitled Chat';
+      } else {
+        return chatElement.querySelector('div[title], span[title]')?.textContent?.trim() || 
+               chatElement.textContent?.trim() || 'Untitled Chat';
+      }
+    },
+    
+    // Get chat URL from element
+    getChatUrl(chatElement) {
+      if (isGemini) {
+        const link = chatElement.querySelector('a[href*="/chat/"]');
+        return link ? link.href : window.location.href;
+      } else {
+        const link = chatElement.querySelector('a[href*="/c/"]');
+        return link ? link.href : window.location.href;
+      }
+    }
+  };
+
+  // Pin UI Manager
+  const pinUI = {
+    // CSS styles for pin elements
+    addPinStyles() {
+      if (document.getElementById('zeroeka-pin-styles')) return;
+      
+      const style = document.createElement('style');
+      style.id = 'zeroeka-pin-styles';
+      style.textContent = `
+        .zeroeka-pinned-section {
+          padding: 8px 12px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          margin-bottom: 8px;
+        }
+        
+        .zeroeka-pinned-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 8px;
+          font-size: 14px;
+          font-weight: 600;
+          color: ${isGemini ? '#9aa0a6' : '#8e8ea0'};
+        }
+        
+        .zeroeka-pin-button {
+          opacity: 0;
+          transition: opacity 0.2s;
+          padding: 4px;
+          border-radius: 4px;
+          cursor: pointer;
+          color: ${isGemini ? '#9aa0a6' : '#8e8ea0'};
+          background: none;
+          border: none;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+        }
+        
+        .zeroeka-pin-button:hover {
+          background: ${isGemini ? 'rgba(154, 160, 166, 0.1)' : 'rgba(142, 142, 160, 0.1)'};
+          color: ${isGemini ? '#e8eaed' : '#ececf1'};
+        }
+        
+        .zeroeka-pin-button.pinned {
+          opacity: 1;
+          color: ${isGemini ? '#1a73e8' : '#10a37f'};
+        }
+        
+        .zeroeka-chat-item:hover .zeroeka-pin-button {
+          opacity: 1;
+        }
+        
+        .zeroeka-folder-button {
+          padding: 2px 6px;
+          background: ${isGemini ? 'rgba(154, 160, 166, 0.1)' : 'rgba(142, 142, 160, 0.1)'};
+          border: 1px solid ${isGemini ? 'rgba(154, 160, 166, 0.2)' : 'rgba(142, 142, 160, 0.2)'};
+          border-radius: 4px;
+          color: ${isGemini ? '#9aa0a6' : '#8e8ea0'};
+          font-size: 12px;
+          cursor: pointer;
+        }
+        
+        .zeroeka-folder-button:hover {
+          background: ${isGemini ? 'rgba(154, 160, 166, 0.2)' : 'rgba(142, 142, 160, 0.2)'};
+        }
+        
+        .zeroeka-pinned-chat {
+          position: relative;
+          margin-bottom: 2px;
+        }
+        
+        .zeroeka-folder {
+          margin-bottom: 4px;
+        }
+        
+        .zeroeka-folder-header {
+          display: flex;
+          align-items: center;
+          padding: 4px 8px;
+          background: ${isGemini ? 'rgba(154, 160, 166, 0.05)' : 'rgba(142, 142, 160, 0.05)'};
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 13px;
+          color: ${isGemini ? '#9aa0a6' : '#8e8ea0'};
+        }
+        
+        .zeroeka-folder-content {
+          margin-left: 16px;
+          margin-top: 4px;
+        }
+        
+        .zeroeka-folder-toggle {
+          margin-right: 6px;
+          transition: transform 0.2s;
+        }
+        
+        .zeroeka-folder-toggle.expanded {
+          transform: rotate(90deg);
+        }
+        
+        .zeroeka-drag-over {
+          background: ${isGemini ? 'rgba(26, 115, 232, 0.1)' : 'rgba(16, 163, 127, 0.1)'} !important;
+          border: 1px dashed ${isGemini ? '#1a73e8' : '#10a37f'} !important;
+        }
+      `;
+      document.head.appendChild(style);
+    },
+    
+    // Create pin button for chat item
+    createPinButton(chatElement, isPinned = false) {
+      const pinButton = document.createElement('button');
+      pinButton.className = `zeroeka-pin-button ${isPinned ? 'pinned' : ''}`;
+      pinButton.innerHTML = isPinned ? '📌' : '📌';
+      pinButton.title = isPinned ? 'Unpin chat' : 'Pin chat';
+      
+      pinButton.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        
+        const chatId = chatPinManager.getChatId(chatElement);
+        if (!chatId) return;
+        
+        if (isPinned) {
+          await chatPinManager.unpinChat(chatId);
+          pinButton.classList.remove('pinned');
+          pinButton.title = 'Pin chat';
+        } else {
+          const chatTitle = chatPinManager.getChatTitle(chatElement);
+          const chatUrl = chatPinManager.getChatUrl(chatElement);
+          await chatPinManager.pinChat(chatId, chatTitle, chatUrl);
+          pinButton.classList.add('pinned');
+          pinButton.title = 'Unpin chat';
+        }
+        
+        // Refresh pinned section
+        this.refreshPinnedSection();
+      });
+      
+      return pinButton;
+    },
+    
+    // Create pinned section in sidebar
+    async createPinnedSection() {
+      const sidebar = this.getSidebar();
+      if (!sidebar) return;
+      
+      // Remove existing pinned section
+      const existingSection = document.querySelector('.zeroeka-pinned-section');
+      if (existingSection) existingSection.remove();
+      
+      const pinnedData = await chatPinManager.getPinnedChats();
+      if (pinnedData.chats.length === 0) return;
+      
+      const pinnedSection = document.createElement('div');
+      pinnedSection.className = 'zeroeka-pinned-section';
+      
+      const header = document.createElement('div');
+      header.className = 'zeroeka-pinned-header';
+      header.innerHTML = `
+        <span>Pinned</span>
+        <button class="zeroeka-folder-button" id="zeroeka-add-folder">+ Folder</button>
+      `;
+      
+      pinnedSection.appendChild(header);
+      
+      // Add folder creation handler
+      const addFolderBtn = header.querySelector('#zeroeka-add-folder');
+      addFolderBtn.addEventListener('click', () => this.showCreateFolderDialog());
+      
+      // Create folders and ungrouped chats
+      await this.createFoldersAndChats(pinnedSection, pinnedData);
+      
+      // Insert at the top of sidebar
+      const firstChild = sidebar.firstElementChild;
+      if (firstChild) {
+        sidebar.insertBefore(pinnedSection, firstChild);
+      } else {
+        sidebar.appendChild(pinnedSection);
+      }
+    },
+    
+    // Create folders and ungrouped chats
+    async createFoldersAndChats(container, pinnedData) {
+      // Group chats by folder
+      const folders = {};
+      const ungroupedChats = [];
+      
+      pinnedData.chats.forEach(chat => {
+        if (chat.folderId && pinnedData.folders[chat.folderId]) {
+          if (!folders[chat.folderId]) {
+            folders[chat.folderId] = {
+              folder: pinnedData.folders[chat.folderId],
+              chats: []
+            };
+          }
+          folders[chat.folderId].chats.push(chat);
+        } else {
+          ungroupedChats.push(chat);
+        }
+      });
+      
+      // Create folder elements
+      Object.values(folders).forEach(({ folder, chats }) => {
+        const folderElement = this.createFolderElement(folder, chats);
+        container.appendChild(folderElement);
+      });
+      
+      // Create ungrouped chat elements
+      ungroupedChats.forEach(chat => {
+        const chatElement = this.createPinnedChatElement(chat);
+        container.appendChild(chatElement);
+      });
+    },
+    
+    // Create folder element
+    createFolderElement(folder, chats) {
+      const folderDiv = document.createElement('div');
+      folderDiv.className = 'zeroeka-folder';
+      folderDiv.dataset.folderId = folder.id;
+      
+      const header = document.createElement('div');
+      header.className = 'zeroeka-folder-header';
+      header.innerHTML = `
+        <span class="zeroeka-folder-toggle">▶</span>
+        <span>${folder.name}</span>
+      `;
+      
+      const content = document.createElement('div');
+      content.className = 'zeroeka-folder-content';
+      content.style.display = 'none';
+      
+      // Add chats to folder
+      chats.forEach(chat => {
+        const chatElement = this.createPinnedChatElement(chat);
+        content.appendChild(chatElement);
+      });
+      
+      // Toggle folder
+      header.addEventListener('click', () => {
+        const toggle = header.querySelector('.zeroeka-folder-toggle');
+        const isExpanded = content.style.display !== 'none';
+        
+        if (isExpanded) {
+          content.style.display = 'none';
+          toggle.classList.remove('expanded');
+        } else {
+          content.style.display = 'block';
+          toggle.classList.add('expanded');
+        }
+      });
+      
+      // Enable drop functionality
+      this.enableFolderDrop(header, folder.id);
+      
+      folderDiv.appendChild(header);
+      folderDiv.appendChild(content);
+      
+      return folderDiv;
+    },
+    
+    // Create pinned chat element
+    createPinnedChatElement(chat) {
+      const chatDiv = document.createElement('div');
+      chatDiv.className = 'zeroeka-pinned-chat';
+      chatDiv.dataset.chatId = chat.id;
+      
+      // Create chat link
+      const link = document.createElement('a');
+      link.href = chat.url;
+      link.textContent = chat.title;
+      link.style.cssText = `
+        display: block;
+        padding: 6px 8px;
+        text-decoration: none;
+        color: inherit;
+        border-radius: 4px;
+        font-size: 14px;
+        line-height: 1.2;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      `;
+      
+      // Add hover effect
+      link.addEventListener('mouseenter', () => {
+        link.style.background = isGemini ? 'rgba(154, 160, 166, 0.1)' : 'rgba(142, 142, 160, 0.1)';
+      });
+      
+      link.addEventListener('mouseleave', () => {
+        link.style.background = 'transparent';
+      });
+      
+      // Enable drag functionality
+      this.enableChatDrag(chatDiv, chat);
+      
+      chatDiv.appendChild(link);
+      
+      return chatDiv;
+    },
+    
+    // Get sidebar element
+    getSidebar() {
+      if (isGemini) {
+        return document.querySelector('nav[aria-label="Chat history"]') || 
+               document.querySelector('[role="navigation"]');
+      } else {
+        return document.querySelector('nav[aria-label="Chat history"]') || 
+               document.querySelector('.flex.flex-col.gap-2.text-sm');
+      }
+    },
+    
+    // Show create folder dialog
+    showCreateFolderDialog() {
+      const folderName = prompt('Enter folder name:');
+      if (folderName && folderName.trim()) {
+        chatPinManager.createFolder(folderName.trim()).then(() => {
+          this.refreshPinnedSection();
+        });
+      }
+    },
+    
+    // Enable folder drop functionality
+    enableFolderDrop(folderElement, folderId) {
+      folderElement.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        folderElement.classList.add('zeroeka-drag-over');
+      });
+      
+      folderElement.addEventListener('dragleave', () => {
+        folderElement.classList.remove('zeroeka-drag-over');
+      });
+      
+      folderElement.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        folderElement.classList.remove('zeroeka-drag-over');
+        
+        const chatId = e.dataTransfer.getData('chatId');
+        if (chatId) {
+          await chatPinManager.moveChatToFolder(chatId, folderId);
+          this.refreshPinnedSection();
+        }
+      });
+    },
+    
+    // Enable chat drag functionality
+    enableChatDrag(chatElement, chat) {
+      chatElement.draggable = true;
+      
+      chatElement.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('chatId', chat.id);
+        chatElement.style.opacity = '0.5';
+      });
+      
+      chatElement.addEventListener('dragend', () => {
+        chatElement.style.opacity = '1';
+      });
+    },
+    
+    // Refresh pinned section
+    async refreshPinnedSection() {
+      await this.createPinnedSection();
+    },
+    
+    // Add pin buttons to existing chat items
+    async addPinButtonsToChats() {
+      const sidebar = this.getSidebar();
+      if (!sidebar) return;
+      
+      const chatItems = this.getChatItems(sidebar);
+      
+      for (const chatItem of chatItems) {
+        // Skip if already has pin button
+        if (chatItem.querySelector('.zeroeka-pin-button')) continue;
+        
+        const chatId = chatPinManager.getChatId(chatItem);
+        if (!chatId) continue;
+        
+        const isPinned = await chatPinManager.isChatPinned(chatId);
+        const pinButton = this.createPinButton(chatItem, isPinned);
+        
+        // Add class for styling
+        chatItem.classList.add('zeroeka-chat-item');
+        
+        // Position pin button
+        chatItem.style.position = 'relative';
+        pinButton.style.cssText = `
+          position: absolute;
+          top: 50%;
+          right: 8px;
+          transform: translateY(-50%);
+          z-index: 10;
+        `;
+        
+        chatItem.appendChild(pinButton);
+      }
+    },
+    
+    // Get chat items from sidebar
+    getChatItems(sidebar) {
+      if (isGemini) {
+        return Array.from(sidebar.querySelectorAll('[role="button"]')).filter(item => {
+          const link = item.querySelector('a[href*="/chat/"]');
+          return link && !item.closest('.zeroeka-pinned-section');
+        });
+      } else {
+        return Array.from(sidebar.querySelectorAll('li')).filter(item => {
+          const link = item.querySelector('a[href*="/c/"]');
+          return link && !item.closest('.zeroeka-pinned-section');
+        });
+      }
+    },
+    
+    // Initialize pin UI
+    async init() {
+      this.addPinStyles();
+      await this.createPinnedSection();
+      await this.addPinButtonsToChats();
+      
+      // Set up mutation observer to handle dynamic content
+      const sidebar = this.getSidebar();
+      if (sidebar) {
+        const observer = new MutationObserver(() => {
+          setTimeout(() => {
+            this.addPinButtonsToChats();
+          }, 100);
+        });
+        
+        observer.observe(sidebar, {
+          childList: true,
+          subtree: true
+        });
+      }
+    }
+  };
   
   const e=e=>new Promise(t=>{setTimeout(()=>{t()},e)}),t=(e,t,l=1e3)=>{const n=setInterval(()=>{e.isConnected||(clearInterval(n),t())},l);return()=>{clearInterval(n)}},l=(e,t,l)=>{const n=new MutationObserver((e,l)=>{t(e,l)});return n.observe(e,{childList:!0,subtree:l}),n},n=(e="")=>/[：:\uFF1A\u003A\u0903]/.test(e),a=Alert2(()=>document.querySelector(o.floatbar)),s=({action:e,data:t})=>{chrome.runtime.sendMessage({type:"ga-event",action:e,data:t}).catch(e=>{})};let r=0;lang("syncFold");
   
@@ -86,7 +650,10 @@
     console.error('Error opening jsMind window:', error);
   }
 });
-  H=e=>{let n=e.__reply;if(!n&&(n=t(e.__ref.deref()).answerArticle,n)){const t=n.querySelector(o.markdown);if(t)return v(e,Array.from(t.children)),e.__reply=n,n.setAttribute(l,"reply"),n}}}})(),document.body.appendChild(r);const R=()=>{t(r,()=>{document.body.appendChild(r),R()},2e3)};return R(),r}}})();window.addEventListener("load",function e(){r=0,h(null),h(),m()?(y(),createZeroEkaIconButton(),(()=>{const floatbar=document.querySelector('.catalogeu-navigation-plugin-floatbar');if(floatbar){const buttons=floatbar.querySelector('.buttons');if(buttons){buttons.style.display='none'}}})(),chrome.runtime.onMessage.addListener((e,t,l)=>{const{type:n,data:s}=e;"logout"===n?location.reload():"error"===n&&("automaticLoginFailure"===s?a(0,lang("automaticLoginFailureTitle"),lang("automaticLoginFailurePrompt")):a(0,lang("operationFailure"),lang(s?.message)||s?.message))})):r<10&&(r++,setTimeout(e,1e3))})})();
+  H=e=>{let n=e.__reply;if(!n&&(n=t(e.__ref.deref()).answerArticle,n)){const t=n.querySelector(o.markdown);if(t)return v(e,Array.from(t.children)),e.__reply=n,n.setAttribute(l,"reply"),n}}}})(),document.body.appendChild(r);const R=()=>{t(r,()=>{document.body.appendChild(r),R()},2e3)};return R(),r}}})();window.addEventListener("load",function e(){r=0,h(null),h(),m()?(y(),createZeroEkaIconButton(),
+// Initialize pin UI
+pinUI.init(),
+(()=>{const floatbar=document.querySelector('.catalogeu-navigation-plugin-floatbar');if(floatbar){const buttons=floatbar.querySelector('.buttons');if(buttons){buttons.style.display='none'}}})(),chrome.runtime.onMessage.addListener((e,t,l)=>{const{type:n,data:s}=e;"logout"===n?location.reload():"error"===n&&("automaticLoginFailure"===s?a(0,lang("automaticLoginFailureTitle"),lang("automaticLoginFailurePrompt")):a(0,lang("operationFailure"),lang(s?.message)||s?.message))})):r<10&&(r++,setTimeout(e,1e3))})})();
 
 // Create ZeroEka icon button for sidebar toggle
 const createZeroEkaIconButton = () => {
@@ -1553,1241 +2120,223 @@ const createZeroEkaIconButton = () => {
     return (el.textContent || '').trim();
   };
 
-  // Enhanced pinning system with folders and better organization
-  const PinningSystem = {
-    // Storage keys
-    STORAGE_KEYS: {
-      PINNED_CHATS: 'pinnedChats',
-      FOLDERS: 'pinFolders',
-      FOLDER_STRUCTURE: 'pinFolderStructure'
-    },
-
-    // Get pinned chats data
-    getPinnedChats() {
-      try {
-        return JSON.parse(localStorage.getItem(this.STORAGE_KEYS.PINNED_CHATS) || '{}');
-      } catch (e) {
-        console.error('Error parsing pinned chats:', e);
-        return {};
-      }
-    },
-
-    // Get folders data
-    getFolders() {
-      try {
-        return JSON.parse(localStorage.getItem(this.STORAGE_KEYS.FOLDERS) || '{}');
-      } catch (e) {
-        console.error('Error parsing folders:', e);
-        return {};
-      }
-    },
-
-    // Save pinned chat
-    pinChat(chatId, chatData, folderId = null) {
-      const pinnedChats = this.getPinnedChats();
-      pinnedChats[chatId] = {
-        ...chatData,
-        pinnedAt: Date.now(),
-        folderId: folderId,
-        platform: isGemini ? 'gemini' : 'chatgpt'
-      };
-      localStorage.setItem(this.STORAGE_KEYS.PINNED_CHATS, JSON.stringify(pinnedChats));
-      this.updateUI();
-    },
-
-    // Unpin chat
-    unpinChat(chatId) {
-      const pinnedChats = this.getPinnedChats();
-      delete pinnedChats[chatId];
-      localStorage.setItem(this.STORAGE_KEYS.PINNED_CHATS, JSON.stringify(pinnedChats));
-      this.updateUI();
-    },
-
-    // Create folder
-    createFolder(name, color = '#3bb910') {
-      const folders = this.getFolders();
-      const folderId = 'folder_' + Date.now();
-      folders[folderId] = {
-        id: folderId,
-        name: name,
-        color: color,
-        createdAt: Date.now(),
-        expanded: true
-      };
-      localStorage.setItem(this.STORAGE_KEYS.FOLDERS, JSON.stringify(folders));
-      return folderId;
-    },
-
-    // Delete folder
-    deleteFolder(folderId) {
-      const folders = this.getFolders();
-      const pinnedChats = this.getPinnedChats();
+  // Function to add bookmark mode to ChatGPT sidebar chats
+  const addPinButtonsToChats = () => {
+    try {
+      // Find ChatGPT sidebar chat items with more specific selectors (only left sidebar)
+      const chatItems = document.querySelectorAll('nav[data-testid="chat-history"] a, nav[data-testid="chat-history"] [role="button"], nav[data-testid="chat-history"] .conversation-item, nav[data-testid="chat-history"] [data-testid="conversation-turn-2"], nav[data-testid="chat-history"] [data-testid="conversation-item"], nav[data-testid="chat-history"] .conversation-turn-2, nav[data-testid="chat-history"] a[href*="/c/"], nav a[href*="/c/"], aside a[href*="/c/"], [data-testid="chat-history"] a, [data-testid="chat-history"] [role="button"]');
       
-      // Move all chats from this folder to root
-      Object.keys(pinnedChats).forEach(chatId => {
-        if (pinnedChats[chatId].folderId === folderId) {
-          pinnedChats[chatId].folderId = null;
-        }
-      });
-      
-      delete folders[folderId];
-      localStorage.setItem(this.STORAGE_KEYS.FOLDERS, JSON.stringify(folders));
-      localStorage.setItem(this.STORAGE_KEYS.PINNED_CHATS, JSON.stringify(pinnedChats));
-      this.updateUI();
-    },
-
-    // Check if chat is pinned
-    isPinned(chatId) {
-      const pinnedChats = this.getPinnedChats();
-      return !!pinnedChats[chatId];
-    },
-
-    // Update UI after changes
-    updateUI() {
-      if (window.bookmarkModeActive) {
-        this.addPinButtonsToChats();
-      }
-      this.reorderPinnedChats();
-    },
-
-    // Enhanced function to add pin buttons to chats
-    addPinButtonsToChats() {
-      try {
-        // Platform-specific selectors
-        let chatSelector;
-        if (isGemini) {
-          chatSelector = '[aria-label="Conversations"] a, [aria-label="Chat history"] a, aside a, nav a';
-        } else {
-          chatSelector = 'nav[data-testid="chat-history"] a, nav[data-testid="chat-history"] [role="button"], nav[data-testid="chat-history"] .conversation-item, nav[data-testid="chat-history"] [data-testid="conversation-turn-2"], nav[data-testid="chat-history"] [data-testid="conversation-item"], nav[data-testid="chat-history"] .conversation-turn-2, nav[data-testid="chat-history"] a[href*="/c/"], nav a[href*="/c/"], aside a[href*="/c/"], [data-testid="chat-history"] a, [data-testid="chat-history"] [role="button"]';
+      chatItems.forEach((chatItem, index) => {
+        // Skip if bookmark mode already added
+        if (chatItem.classList.contains('bookmark-mode-enabled')) {
+          return;
         }
         
-        const chatItems = document.querySelectorAll(chatSelector);
+        // Additional check to ensure we're only targeting sidebar elements
+        const isInSidebar = chatItem.closest('nav[data-testid="chat-history"]') || 
+                           chatItem.closest('aside') || 
+                           chatItem.closest('[data-testid="chat-history"]');
         
-        chatItems.forEach((chatItem, index) => {
-          // Skip if pin mode already added
-          if (chatItem.classList.contains('pin-mode-enabled')) {
-            return;
-          }
-          
-          // Platform-specific sidebar check
-          let isInSidebar;
-          if (isGemini) {
-            isInSidebar = chatItem.closest('[aria-label="Conversations"]') || 
-                         chatItem.closest('[aria-label="Chat history"]') || 
-                         chatItem.closest('aside') || 
-                         chatItem.closest('nav');
-          } else {
-            isInSidebar = chatItem.closest('nav[data-testid="chat-history"]') || 
-                         chatItem.closest('aside') || 
-                         chatItem.closest('[data-testid="chat-history"]');
-          }
-          
-          // Skip if not in sidebar or if it's in the main conversation area
-          if (!isInSidebar || chatItem.closest('main') || chatItem.closest('[role="main"]')) {
-            return;
-          }
-          
-          // Mark as pin mode enabled
-          chatItem.classList.add('pin-mode-enabled');
-          
-          // Get container and chat ID for persistence
-          const itemEl = this.getChatItemContainer(chatItem);
-          const chatId = this.getChatIdFromEl(chatItem) || this.getChatIdFromEl(itemEl);
-          const chatTitle = this.getChatTitle(chatItem);
-          
-          // Check if this chat is already pinned
-          const isPinned = this.isPinned(chatId);
-          
-          if (isPinned) {
-            itemEl.classList.add('pinned');
-            // Add pin indicator
-            this.addPinIndicator(itemEl, true);
-          }
-          
-          // Add hover effect for pin mode
-          chatItem.addEventListener('mouseenter', () => {
-            if (window.bookmarkModeActive) {
-              const isPinned = itemEl.classList.contains('pinned');
-              
-              // Show pin border for all chats in pin mode
-              chatItem.style.border = isPinned ? '2px solid #ff6b6b' : '2px solid #3bb910';
+        // Skip if not in sidebar or if it's in the main conversation area
+        if (!isInSidebar || chatItem.closest('main') || chatItem.closest('[role="main"]')) {
+          return; // Skip if not in sidebar or if in main content
+        }
+        
+        // Mark as bookmark mode enabled
+        chatItem.classList.add('bookmark-mode-enabled');
+        
+        // Get container and chat ID for persistence
+        const itemEl = getChatItemContainer(chatItem);
+        const chatId = getChatIdFromEl(chatItem) || getChatIdFromEl(itemEl);
+        
+        // Check if this chat is already bookmarked
+        const bookmarkedChats = JSON.parse(localStorage.getItem('bookmarkedChats') || '[]');
+        const isBookmarked = bookmarkedChats.includes(chatId);
+        
+        if (isBookmarked) {
+          itemEl.classList.add('bookmarked');
+        }
+        
+        // Add hover effect for bookmark mode
+        chatItem.addEventListener('mouseenter', () => {
+          if (window.bookmarkModeActive) {
+            const isBookmarked = itemEl.classList.contains('bookmarked');
+            
+            if (isBookmarked) {
+              // Show green border for bookmarked chats (for unbookmarking)
+              chatItem.style.border = '2px solid #3bb910';
               chatItem.style.borderRadius = '8px';
               chatItem.style.cursor = 'pointer';
               chatItem.style.transition = 'all 0.3s ease';
-              
-              // Show tooltip
-              this.showPinTooltip(chatItem, isPinned);
+            } else {
+              // Show green border for unbookmarked chats (for bookmarking)
+              chatItem.style.border = '2px solid #3bb910';
+              chatItem.style.borderRadius = '8px';
+              chatItem.style.cursor = 'pointer';
+              chatItem.style.transition = 'all 0.3s ease';
             }
-          });
-          
-          chatItem.addEventListener('mouseleave', () => {
-            if (window.bookmarkModeActive) {
+          }
+        });
+        
+        chatItem.addEventListener('mouseleave', () => {
+          if (window.bookmarkModeActive) {
+            const isBookmarked = itemEl.classList.contains('bookmarked');
+            
+            if (isBookmarked) {
+              // Remove border for bookmarked chats when mouse leaves
               chatItem.style.border = '';
               chatItem.style.borderRadius = '';
               chatItem.style.cursor = '';
               chatItem.style.transition = '';
-              
-              // Hide tooltip
-              this.hidePinTooltip();
-            }
-          });
-          
-          // Add click functionality for pinning
-          chatItem.addEventListener('click', (e) => {
-            if (!window.bookmarkModeActive) return;
-            
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const isPinned = itemEl.classList.contains('pinned');
-            
-            if (!isPinned) {
-              // Show folder selection popup
-              this.showFolderSelectionPopup(chatId, chatTitle, itemEl);
             } else {
-              // Unpin the chat
-              this.unpinChat(chatId);
-              itemEl.classList.remove('pinned');
-              this.removePinIndicator(itemEl);
-              
-              // Refresh the page to reflect changes consistently
-              try { setTimeout(() => window.location.reload(), 300); } catch (_) {}
-            }
-          });
-        });
-        
-        console.log(`Enhanced pin mode added to ${chatItems.length} chat items`);
-      } catch (error) {
-        console.error('Error adding pin mode to chats:', error);
-      }
-    },
-
-    // Get chat item container
-    getChatItemContainer(chatItem) {
-      return chatItem.closest('li, .conversation-item, [data-testid="conversation-item"], [data-testid="conversation-turn-2"]') || chatItem;
-    },
-
-    // Get chat ID from element
-    getChatIdFromEl(el) {
-      try {
-        const directId = el.getAttribute && (el.getAttribute('href') || el.getAttribute('data-testid'));
-        if (directId) return directId;
-        const a = el.querySelector && el.querySelector('a[href*="/c/"]');
-        if (a) return a.getAttribute('href');
-        return (el.textContent || '').trim();
-      } catch (e) {
-        return null;
-      }
-    },
-
-    // Get chat title
-    getChatTitle(chatItem) {
-      try {
-        // Try to get title from text content
-        const titleEl = chatItem.querySelector('[data-testid="conversation-title"], .conversation-title, .conversation-item-title') || chatItem;
-        return titleEl.textContent.trim() || 'Untitled Chat';
-      } catch (e) {
-        return 'Untitled Chat';
-      }
-    },
-
-    // Add pin indicator to chat item
-    addPinIndicator(itemEl, isPinned) {
-      // Remove existing indicator
-      const existing = itemEl.querySelector('.pin-indicator');
-      if (existing) existing.remove();
-      
-      if (!isPinned) return;
-      
-      const indicator = document.createElement('div');
-      indicator.className = 'pin-indicator';
-      indicator.innerHTML = `
-        <svg viewBox="0 0 24 24" fill="currentColor" style="width: 16px; height: 16px; color: #3bb910;">
-          <path d="M12 17v5l-2-1.5L8 22v-5l-4-3V7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7l-4 3z"/>
-        </svg>
-      `;
-      indicator.style.cssText = `
-        position: absolute;
-        top: 4px;
-        right: 4px;
-        background: rgba(0,0,0,0.7);
-        border-radius: 50%;
-        padding: 2px;
-        z-index: 10;
-      `;
-      
-      itemEl.style.position = 'relative';
-      itemEl.appendChild(indicator);
-    },
-
-    // Remove pin indicator
-    removePinIndicator(itemEl) {
-      const indicator = itemEl.querySelector('.pin-indicator');
-      if (indicator) indicator.remove();
-    },
-
-    // Show pin tooltip
-    showPinTooltip(chatItem, isPinned) {
-      this.hidePinTooltip(); // Remove any existing tooltip
-      
-      const tooltip = document.createElement('div');
-      tooltip.className = 'pin-tooltip';
-      tooltip.textContent = isPinned ? 'Click to unpin' : 'Click to pin';
-      tooltip.style.cssText = `
-        position: fixed;
-        background: #333;
-        color: white;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 12px;
-        z-index: 10000;
-        pointer-events: none;
-        white-space: nowrap;
-      `;
-      
-      document.body.appendChild(tooltip);
-      
-      // Position tooltip near mouse
-      const rect = chatItem.getBoundingClientRect();
-      tooltip.style.left = rect.right + 10 + 'px';
-      tooltip.style.top = rect.top + (rect.height / 2) - (tooltip.offsetHeight / 2) + 'px';
-    },
-
-    // Hide pin tooltip
-    hidePinTooltip() {
-      const tooltip = document.querySelector('.pin-tooltip');
-      if (tooltip) tooltip.remove();
-    },
-
-    // Show folder selection popup
-    showFolderSelectionPopup(chatId, chatTitle, itemEl) {
-      const overlay = document.createElement('div');
-      overlay.className = 'folder-selection-overlay';
-      overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.5);
-        z-index: 10000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      `;
-      
-      const popup = document.createElement('div');
-      popup.className = 'folder-selection-popup';
-      popup.style.cssText = `
-        background: #1a1a1a;
-        color: white;
-        border-radius: 12px;
-        padding: 20px;
-        min-width: 300px;
-        max-width: 90vw;
-        max-height: 80vh;
-        overflow-y: auto;
-        border: 1px solid #333;
-      `;
-      
-      const folders = this.getFolders();
-      
-      popup.innerHTML = `
-        <h3 style="margin: 0 0 15px 0; color: #3bb910;">Pin Chat</h3>
-        <p style="margin: 0 0 15px 0; color: #ccc; font-size: 14px;">"${chatTitle}"</p>
-        
-        <div style="margin-bottom: 15px;">
-          <label style="display: block; margin-bottom: 5px; font-size: 14px;">Select folder:</label>
-          <select class="folder-select" style="width: 100%; padding: 8px; background: #333; color: white; border: 1px solid #555; border-radius: 4px;">
-            <option value="">📌 Root (No folder)</option>
-            ${Object.values(folders).map(folder => 
-              `<option value="${folder.id}">📁 ${folder.name}</option>`
-            ).join('')}
-          </select>
-        </div>
-        
-        <div style="margin-bottom: 15px;">
-          <button class="create-folder-btn" style="background: #555; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">
-            ➕ Create New Folder
-          </button>
-        </div>
-        
-        <div class="new-folder-section" style="display: none; margin-bottom: 15px;">
-          <input type="text" class="folder-name-input" placeholder="Folder name" style="width: 100%; padding: 8px; background: #333; color: white; border: 1px solid #555; border-radius: 4px; margin-bottom: 10px;">
-          <div style="display: flex; gap: 10px;">
-            <button class="save-folder-btn" style="background: #3bb910; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Save</button>
-            <button class="cancel-folder-btn" style="background: #666; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Cancel</button>
-          </div>
-        </div>
-        
-        <div style="display: flex; gap: 10px; justify-content: flex-end;">
-          <button class="cancel-pin-btn" style="background: #666; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Cancel</button>
-          <button class="confirm-pin-btn" style="background: #3bb910; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Pin Chat</button>
-        </div>
-      `;
-      
-      overlay.appendChild(popup);
-      document.body.appendChild(overlay);
-      
-      // Event listeners
-      const folderSelect = popup.querySelector('.folder-select');
-      const createFolderBtn = popup.querySelector('.create-folder-btn');
-      const newFolderSection = popup.querySelector('.new-folder-section');
-      const folderNameInput = popup.querySelector('.folder-name-input');
-      const saveFolderBtn = popup.querySelector('.save-folder-btn');
-      const cancelFolderBtn = popup.querySelector('.cancel-folder-btn');
-      const cancelPinBtn = popup.querySelector('.cancel-pin-btn');
-      const confirmPinBtn = popup.querySelector('.confirm-pin-btn');
-      
-      // Create folder toggle
-      createFolderBtn.addEventListener('click', () => {
-        newFolderSection.style.display = newFolderSection.style.display === 'none' ? 'block' : 'none';
-        if (newFolderSection.style.display === 'block') {
-          folderNameInput.focus();
-        }
-      });
-      
-      // Save new folder
-      saveFolderBtn.addEventListener('click', () => {
-        const folderName = folderNameInput.value.trim();
-        if (folderName) {
-          const folderId = this.createFolder(folderName);
-          
-          // Add to select and select it
-          const option = document.createElement('option');
-          option.value = folderId;
-          option.textContent = `📁 ${folderName}`;
-          folderSelect.appendChild(option);
-          folderSelect.value = folderId;
-          
-          // Hide new folder section
-          newFolderSection.style.display = 'none';
-          folderNameInput.value = '';
-        }
-      });
-      
-      // Cancel new folder
-      cancelFolderBtn.addEventListener('click', () => {
-        newFolderSection.style.display = 'none';
-        folderNameInput.value = '';
-      });
-      
-      // Cancel pin
-      cancelPinBtn.addEventListener('click', () => {
-        overlay.remove();
-      });
-      
-      // Confirm pin
-      confirmPinBtn.addEventListener('click', () => {
-        const selectedFolderId = folderSelect.value || null;
-        const chatData = {
-          title: chatTitle,
-          url: window.location.href,
-          timestamp: Date.now()
-        };
-        
-        this.pinChat(chatId, chatData, selectedFolderId);
-        itemEl.classList.add('pinned');
-        this.addPinIndicator(itemEl, true);
-        
-        overlay.remove();
-        
-        // Refresh the page to reflect changes consistently
-        try { setTimeout(() => window.location.reload(), 300); } catch (_) {}
-      });
-      
-      // Close on overlay click
-      overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) {
-          overlay.remove();
-        }
-      });
-      
-      // Enter key on folder name input
-      folderNameInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-          saveFolderBtn.click();
-        }
-      });
-    },
-
-    // Reorder pinned chats (similar to existing function but enhanced)
-    reorderPinnedChats() {
-      const pinnedChats = this.getPinnedChats();
-      const pinnedIds = Object.keys(pinnedChats);
-      
-      if (pinnedIds.length === 0) return;
-
-      const idSet = new Set(pinnedIds);
-
-      // Platform-specific selectors
-      let chatSelector;
-      if (isGemini) {
-        chatSelector = '[aria-label="Conversations"] a, [aria-label="Chat history"] a, aside a, nav a';
-      } else {
-        chatSelector = 'nav[data-testid="chat-history"] a, nav[data-testid="chat-history"] [role="button"], nav[data-testid="chat-history"] .conversation-item, nav[data-testid="chat-history"] [data-testid="conversation-turn-2"], nav[data-testid="chat-history"] [data-testid="conversation-item"], nav[data-testid="chat-history"] .conversation-turn-2, nav[data-testid="chat-history"] a[href*="/c/"], nav a[href*="/c/"], aside a[href*="/c/"], [data-testid="chat-history"] a, [data-testid="chat-history"] [role="button"]';
-      }
-
-      const chatItems = Array.from(document.querySelectorAll(chatSelector));
-
-      // Determine current DOM-ordered list of pinned elements
-      const getId = (el) => {
-        return this.getChatIdFromEl(el);
-      };
-      
-      const pinnedEls = chatItems.map(el => this.getChatItemContainer(el))
-                                .filter((el) => idSet.has(getId(el)));
-      
-      if (pinnedEls.length === 0) return;
-
-      // Group by folder and reorder
-      const folders = this.getFolders();
-      const pinnedByFolder = {};
-      
-      pinnedEls.forEach(el => {
-        const chatId = getId(el);
-        const chat = pinnedChats[chatId];
-        const folderId = chat?.folderId || 'root';
-        
-        if (!pinnedByFolder[folderId]) {
-          pinnedByFolder[folderId] = [];
-        }
-        pinnedByFolder[folderId].push(el);
-      });
-
-      // Reorder elements by folder
-      const parents = new Set(pinnedEls.map(el => el.parentElement).filter(Boolean));
-      parents.forEach((parent) => {
-        // Insert root items first, then folder items
-        const rootItems = pinnedByFolder['root'] || [];
-        const folderItems = Object.keys(folders).flatMap(folderId => pinnedByFolder[folderId] || []);
-        
-        const allPinnedInOrder = [...rootItems, ...folderItems];
-        
-        // Insert in reverse order to maintain proper sequence
-        for (let i = allPinnedInOrder.length - 1; i >= 0; i--) {
-          const el = allPinnedInOrder[i];
-          if (el.parentElement === parent) {
-            el.classList.add('pinned');
-            this.addPinIndicator(el, true);
-            if (parent.firstChild !== el) {
-              parent.insertBefore(el, parent.firstChild);
+              // Remove border for unbookmarked chats
+              chatItem.style.border = '';
+              chatItem.style.borderRadius = '';
+              chatItem.style.cursor = '';
+              chatItem.style.transition = '';
             }
           }
-        }
-      });
-    },
-
-    // Remove pin buttons from chats
-    removePinButtonsFromChats() {
-      try {
-        const chatItems = document.querySelectorAll('.pin-mode-enabled');
-        chatItems.forEach(chatItem => {
-          chatItem.classList.remove('pin-mode-enabled');
-          chatItem.style.border = '';
-          chatItem.style.borderRadius = '';
-          chatItem.style.cursor = '';
-          
-          // Remove pin indicators
-          const container = this.getChatItemContainer(chatItem);
-          this.removePinIndicator(container);
         });
-        console.log(`Removed pin mode from ${chatItems.length} chat items`);
-      } catch (error) {
-        console.error('Error removing pin mode from chats:', error);
-      }
-    },
-
-    // Add search and filter functionality for pinned chats
-    filterPinnedChats(query) {
-      const pinnedChats = this.getPinnedChats();
-      const searchTerm = query.toLowerCase().trim();
-      
-      // Platform-specific selectors
-      let chatSelector;
-      if (isGemini) {
-        chatSelector = '[aria-label="Conversations"] .pinned, [aria-label="Chat history"] .pinned';
-      } else {
-        chatSelector = 'nav[data-testid="chat-history"] .pinned, [data-testid="chat-history"] .pinned';
-      }
-      
-      const pinnedElements = document.querySelectorAll(chatSelector);
-      
-      pinnedElements.forEach(element => {
-        const chatId = this.getChatIdFromEl(element);
-        const chatData = pinnedChats[chatId];
         
-        if (!chatData) {
-          return;
-        }
-        
-        const searchableText = [
-          chatData.title || '',
-          chatData.url || '',
-          element.textContent || ''
-        ].join(' ').toLowerCase();
-        
-        const matches = !searchTerm || searchableText.includes(searchTerm);
-        
-        // Show/hide based on search
-        element.style.display = matches ? '' : 'none';
-      });
-    },
-
-    // Export pins to JSON
-    exportPins() {
-      try {
-        const pinnedChats = this.getPinnedChats();
-        const folders = this.getFolders();
-        
-        const exportData = {
-          version: '1.0',
-          exportDate: new Date().toISOString(),
-          pinnedChats: pinnedChats,
-          folders: folders,
-          platform: isGemini ? 'gemini' : 'chatgpt'
-        };
-        
-        const dataStr = JSON.stringify(exportData, null, 2);
-        const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(dataBlob);
-        
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `pinned-chats-${new Date().toISOString().split('T')[0]}.json`;
-        link.click();
-        
-        URL.revokeObjectURL(url);
-        
-        console.log('Pins exported successfully!');
-      } catch (error) {
-        console.error('Error exporting pins:', error);
-      }
-    },
-
-    // Import pins from JSON
-    importPins() {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.json';
-      
-      input.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          try {
-            const importData = JSON.parse(e.target.result);
+        // Add click functionality for bookmarking
+        chatItem.addEventListener('click', (e) => {
+          if (!window.bookmarkModeActive) return;
+          
+          e.preventDefault();
+          e.stopPropagation();
+          
+          const isBookmarked = itemEl.classList.contains('bookmarked');
+          
+          if (!isBookmarked) {
+            // Bookmark the chat
+            itemEl.classList.add('bookmarked');
+            chatItem.style.border = '2px solid #3bb910';
+            chatItem.style.borderRadius = '8px';
             
-            if (importData.pinnedChats) {
-              // Merge with existing pins
-              const existingPins = this.getPinnedChats();
-              const mergedPins = { ...existingPins, ...importData.pinnedChats };
-              localStorage.setItem(this.STORAGE_KEYS.PINNED_CHATS, JSON.stringify(mergedPins));
+            // Save to localStorage
+            const bookmarkedChats = JSON.parse(localStorage.getItem('bookmarkedChats') || '[]');
+            if (!bookmarkedChats.includes(chatId)) {
+              bookmarkedChats.push(chatId);
+              localStorage.setItem('bookmarkedChats', JSON.stringify(bookmarkedChats));
             }
             
-            if (importData.folders) {
-              const existingFolders = this.getFolders();
-              const mergedFolders = { ...existingFolders, ...importData.folders };
-              localStorage.setItem(this.STORAGE_KEYS.FOLDERS, JSON.stringify(mergedFolders));
+            // Do not reorder entire list on toggle; only ensure the group stays together
+            try { reorderBookmarkedChatsGroup(); } catch (err) { console.warn('Reorder failed:', err); }
+
+            // Refresh the page to reflect changes consistently
+            try { setTimeout(() => window.location.reload(), 300); } catch (_) {}
+          } else {
+            // Unbookmark the chat
+            const parent = itemEl.parentElement;
+            let insertBeforeNode = null;
+            if (parent) {
+              const siblings = Array.from(parent.children);
+              // Find the first non-bookmarked item other than this one
+              insertBeforeNode = siblings.find(el => el !== itemEl && !el.classList.contains('bookmarked')) || null;
             }
-            
-            this.updateUI();
-            console.log('Pins imported successfully!');
-            
-            // Refresh page to see changes
-            setTimeout(() => window.location.reload(), 1000);
-          } catch (error) {
-            console.error('Error importing pins:', error);
-          }
-        };
-        
-        reader.readAsText(file);
-      });
-      
-      input.click();
-    },
 
-    // Clear all pins
-    clearAllPins() {
-      if (confirm('Are you sure you want to clear all pinned chats and folders? This action cannot be undone.')) {
-        localStorage.removeItem(this.STORAGE_KEYS.PINNED_CHATS);
-        localStorage.removeItem(this.STORAGE_KEYS.FOLDERS);
-        
-        // Remove visual indicators
-        document.querySelectorAll('.pinned').forEach(el => {
-          el.classList.remove('pinned');
-          this.removePinIndicator(el);
-        });
-        
-        console.log('All pins cleared');
-        
-        // Refresh page
-        setTimeout(() => window.location.reload(), 1000);
-      }
-    }
-  };
+            // Remove from localStorage first so monitors don't bring it back
+            const bookmarkedChats = JSON.parse(localStorage.getItem('bookmarkedChats') || '[]');
+            const updatedBookmarks = bookmarkedChats.filter(id => id !== chatId);
+            localStorage.setItem('bookmarkedChats', JSON.stringify(updatedBookmarks));
 
-  // Update existing functions to use new pinning system
-  const addPinButtonsToChats = () => PinningSystem.addPinButtonsToChats();
-  const removePinButtonsFromChats = () => PinningSystem.removePinButtonsFromChats();
-  const reorderBookmarkedChatsGroup = () => PinningSystem.reorderPinnedChats();
-
-  // Embedded Pinned Section for Sidebar
-  const EmbeddedPinnedSection = {
-    // Create and inject the pinned section into the sidebar
-    createPinnedSection() {
-      try {
-        // Platform-specific sidebar selectors
-        let sidebarSelector;
-        if (isGemini) {
-          sidebarSelector = '[aria-label="Conversations"], [aria-label="Chat history"], aside nav, nav';
-        } else {
-          sidebarSelector = 'nav[data-testid="chat-history"], [data-testid="chat-history"], nav';
-        }
-        
-        const sidebar = document.querySelector(sidebarSelector);
-        if (!sidebar) {
-          console.log('Sidebar not found, retrying...');
-          return false;
-        }
-
-        // Check if pinned section already exists
-        if (sidebar.querySelector('.embedded-pinned-section')) {
-          console.log('Pinned section already exists');
-          return true;
-        }
-
-        // Create the pinned section container
-        const pinnedSection = document.createElement('div');
-        pinnedSection.className = 'embedded-pinned-section';
-        pinnedSection.style.cssText = `
-          background: ${isGemini ? '#1a1a1a' : '#212121'};
-          border-bottom: 1px solid #333;
-          padding: 12px 16px;
-          margin-bottom: 8px;
-          border-radius: 8px;
-          margin: 8px;
-        `;
-
-        // Create header with title and controls
-        const header = this.createHeader();
-        const pinnedChatsContainer = this.createPinnedChatsContainer();
-
-        // Assemble the section
-        pinnedSection.appendChild(header);
-        pinnedSection.appendChild(pinnedChatsContainer);
-
-        // Insert at the top of the sidebar
-        const firstChild = sidebar.firstElementChild;
-        if (firstChild) {
-          sidebar.insertBefore(pinnedSection, firstChild);
-        } else {
-          sidebar.appendChild(pinnedSection);
-        }
-
-        console.log('Pinned section created successfully');
-        this.updatePinnedChatsDisplay();
-        return true;
-      } catch (error) {
-        console.error('Error creating pinned section:', error);
-        return false;
-      }
-    },
-
-    // Create header with controls
-    createHeader() {
-      const header = document.createElement('div');
-      header.className = 'pinned-header';
-      header.style.cssText = `
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 12px;
-      `;
-
-      // Create title
-      const title = document.createElement('div');
-      title.className = 'pinned-title';
-      title.innerHTML = `📌 Pinned`;
-      title.style.cssText = `
-        font-weight: 600;
-        font-size: 14px;
-        color: #e5e5e5;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      `;
-
-      // Create controls container
-      const controls = document.createElement('div');
-      controls.className = 'pinned-controls';
-      controls.style.cssText = `
-        display: flex;
-        gap: 4px;
-        align-items: center;
-      `;
-
-      // Create buttons
-      const pinButton = this.createControlButton('📌', 'Pin selected chat', () => this.handlePinAction());
-      const folderButton = this.createControlButton('📁', 'Create folder', () => this.handleFolderAction());
-      const searchButton = this.createControlButton('🔍', 'Search pinned chats', () => this.handleSearchAction());
-
-      controls.appendChild(pinButton);
-      controls.appendChild(folderButton);
-      controls.appendChild(searchButton);
-
-      header.appendChild(title);
-      header.appendChild(controls);
-      return header;
-    },
-
-    // Create pinned chats container
-    createPinnedChatsContainer() {
-      const container = document.createElement('div');
-      container.className = 'pinned-chats-container';
-      container.style.cssText = `
-        min-height: 40px;
-        max-height: 300px;
-        overflow-y: auto;
-      `;
-
-      // Create empty state
-      const emptyState = document.createElement('div');
-      emptyState.className = 'pinned-empty-state';
-      emptyState.style.cssText = `
-        text-align: center;
-        color: #888;
-        font-size: 12px;
-        padding: 16px 8px;
-        font-style: italic;
-      `;
-      emptyState.textContent = 'No pinned chats yet. Select a chat and click the pin button.';
-
-      container.appendChild(emptyState);
-      return container;
-    },
-
-    // Create a control button
-    createControlButton(icon, tooltip, onClick) {
-      const button = document.createElement('button');
-      button.innerHTML = icon;
-      button.title = tooltip;
-      button.style.cssText = `
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 4px;
-        color: #e5e5e5;
-        width: 24px;
-        height: 24px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 12px;
-        transition: all 0.2s ease;
-      `;
-
-      button.addEventListener('mouseenter', () => {
-        button.style.background = 'rgba(255, 255, 255, 0.2)';
-        button.style.transform = 'scale(1.1)';
-      });
-
-      button.addEventListener('mouseleave', () => {
-        button.style.background = 'rgba(255, 255, 255, 0.1)';
-        button.style.transform = 'scale(1)';
-      });
-
-      button.addEventListener('click', onClick);
-      return button;
-    },
-
-    // Handle pin action
-    handlePinAction() {
-      try {
-        const selectedChat = this.getSelectedChat();
-        if (!selectedChat) {
-          alert('Please select a chat first by clicking on it.');
-          return;
-        }
-
-        const chatId = PinningSystem.getChatIdFromEl(selectedChat);
-        const chatTitle = PinningSystem.getChatTitle(selectedChat);
-
-        if (PinningSystem.isPinned(chatId)) {
-          PinningSystem.unpinChat(chatId);
-          this.updatePinnedChatsDisplay();
-          console.log('Chat unpinned:', chatTitle);
-        } else {
-          this.showInlineFolderSelection(chatId, chatTitle, selectedChat);
-        }
-      } catch (error) {
-        console.error('Error in pin action:', error);
-      }
-    },
-
-    // Handle folder action
-    handleFolderAction() {
-      const folderName = prompt('Enter folder name:');
-      if (folderName && folderName.trim()) {
-        PinningSystem.createFolder(folderName.trim());
-        this.updatePinnedChatsDisplay();
-        console.log('Folder created:', folderName);
-      }
-    },
-
-    // Handle search action
-    handleSearchAction() {
-      if (typeof window.createSearchPopup === 'function') {
-        window.createSearchPopup();
-        setTimeout(() => {
-          const searchModeSelect = document.querySelector('#search-popup select');
-          if (searchModeSelect) {
-            searchModeSelect.value = 'pinned';
-            searchModeSelect.dispatchEvent(new Event('change'));
-          }
-        }, 100);
-      }
-    },
-
-    // Get currently selected chat
-    getSelectedChat() {
-      let selectedSelectors;
-      if (isGemini) {
-        selectedSelectors = [
-          '[aria-current="true"]',
-          '.selected',
-          '[data-selected="true"]',
-          'a[href*="/chat/"]:hover'
-        ];
-      } else {
-        selectedSelectors = [
-          '[aria-current="page"]',
-          '.bg-token-sidebar-surface-secondary',
-          '.selected',
-          '[data-selected="true"]'
-        ];
-      }
-
-      for (const selector of selectedSelectors) {
-        const element = document.querySelector(selector);
-        if (element) {
-          const chatContainer = element.closest('li, .conversation-item, [data-testid="conversation-item"]') || element;
-          if (chatContainer) return chatContainer;
-        }
-      }
-
-      return null;
-    },
-
-    // Show inline folder selection
-    showInlineFolderSelection(chatId, chatTitle, chatElement) {
-      const folders = PinningSystem.getFolders();
-      const folderOptions = ['📌 Root (No folder)'];
-      Object.values(folders).forEach(folder => {
-        folderOptions.push(`📁 ${folder.name}`);
-      });
-
-      let selectedFolder = null;
-      
-      if (Object.keys(folders).length === 0) {
-        selectedFolder = null;
-      } else {
-        const selection = prompt(
-          `Pin "${chatTitle}" to:\n\n` +
-          folderOptions.map((opt, i) => `${i + 1}. ${opt}`).join('\n') +
-          '\n\nEnter number (or 0 to cancel):'
-        );
-
-        if (!selection || selection === '0') return;
-
-        const index = parseInt(selection) - 1;
-        if (index === 0) {
-          selectedFolder = null;
-        } else if (index > 0 && index <= Object.keys(folders).length) {
-          selectedFolder = Object.keys(folders)[index - 1];
-        } else {
-          alert('Invalid selection');
-          return;
-        }
-      }
-
-      const chatData = {
-        title: chatTitle,
-        url: window.location.href,
-        timestamp: Date.now()
-      };
-
-      PinningSystem.pinChat(chatId, chatData, selectedFolder);
-      this.updatePinnedChatsDisplay();
-      console.log('Chat pinned:', chatTitle);
-    },
-
-    // Initialize the embedded section
-    init() {
-      if (!this.createPinnedSection()) {
-        setTimeout(() => this.init(), 2000);
-        return;
-      }
-      this.setupMonitoring();
-    },
-
-    // Update the display of pinned chats
-    updatePinnedChatsDisplay() {
-      try {
-        const container = document.querySelector('.pinned-chats-container');
-        const emptyState = document.querySelector('.pinned-empty-state');
-        
-        if (!container) return;
-
-        const pinnedChats = PinningSystem.getPinnedChats();
-        const folders = PinningSystem.getFolders();
-        const pinnedIds = Object.keys(pinnedChats);
-
-        // Clear existing content except empty state
-        const children = Array.from(container.children);
-        children.forEach(child => {
-          if (!child.classList.contains('pinned-empty-state')) {
-            child.remove();
-          }
-        });
-
-        if (pinnedIds.length === 0) {
-          emptyState.style.display = 'block';
-          return;
-        }
-
-        emptyState.style.display = 'none';
-
-        // Group pinned chats by folder
-        const pinnedByFolder = { root: [] };
-        Object.keys(folders).forEach(folderId => {
-          pinnedByFolder[folderId] = [];
-        });
-
-        pinnedIds.forEach(chatId => {
-          const chat = pinnedChats[chatId];
-          const folderId = chat.folderId || 'root';
-          if (!pinnedByFolder[folderId]) {
-            pinnedByFolder[folderId] = [];
-          }
-          pinnedByFolder[folderId].push({ chatId, ...chat });
-        });
-
-        // Display root pinned chats first
-        if (pinnedByFolder.root.length > 0) {
-          pinnedByFolder.root.forEach(chat => {
-            const chatItem = this.createPinnedChatItem(chat);
-            container.appendChild(chatItem);
-          });
-        }
-
-        // Display folder-organized chats
-        Object.keys(folders).forEach(folderId => {
-          const folder = folders[folderId];
-          const folderChats = pinnedByFolder[folderId] || [];
-          
-          if (folderChats.length > 0) {
-            // Create folder header
-            const folderHeader = this.createFolderHeader(folder, folderId);
-            container.appendChild(folderHeader);
-
-            // Add folder chats
-            folderChats.forEach(chat => {
-              const chatItem = this.createPinnedChatItem(chat, true);
-              container.appendChild(chatItem);
+            // Remove bookmarked visuals
+            itemEl.classList.remove('bookmarked');
+            [itemEl, chatItem].forEach(el => {
+              try {
+                el.style.border = '';
+                el.style.borderRadius = '';
+                el.style.cursor = '';
+                el.style.transition = '';
+              } catch (_) {}
             });
-          }
-        });
 
-        console.log(`Updated pinned chats display with ${pinnedIds.length} chats`);
-      } catch (error) {
-        console.error('Error updating pinned chats display:', error);
-      }
-    },
-
-    // Create folder header
-    createFolderHeader(folder, folderId) {
-      const folderHeader = document.createElement('div');
-      folderHeader.className = 'folder-header';
-      folderHeader.style.cssText = `
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 6px 8px;
-        margin: 8px 0 4px 0;
-        background: rgba(59, 185, 16, 0.1);
-        border-radius: 4px;
-        border-left: 3px solid #3bb910;
-      `;
-
-      const folderTitle = document.createElement('span');
-      folderTitle.textContent = `📁 ${folder.name}`;
-      folderTitle.style.cssText = `
-        font-size: 12px;
-        font-weight: 500;
-        color: #3bb910;
-      `;
-
-      const deleteBtn = document.createElement('button');
-      deleteBtn.innerHTML = '🗑️';
-      deleteBtn.title = 'Delete folder';
-      deleteBtn.style.cssText = `
-        background: none;
-        border: none;
-        color: #ff6b6b;
-        cursor: pointer;
-        font-size: 10px;
-        padding: 2px;
-        border-radius: 2px;
-      `;
-      deleteBtn.addEventListener('click', () => {
-        if (confirm(`Delete folder "${folder.name}"? Chats will be moved to root.`)) {
-          PinningSystem.deleteFolder(folderId);
-          this.updatePinnedChatsDisplay();
-        }
-      });
-
-      folderHeader.appendChild(folderTitle);
-      folderHeader.appendChild(deleteBtn);
-      return folderHeader;
-    },
-
-    // Create a pinned chat item
-    createPinnedChatItem(chat, isInFolder = false) {
-      const item = document.createElement('div');
-      item.className = 'pinned-chat-item';
-      item.style.cssText = `
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 6px ${isInFolder ? '16px' : '8px'};
-        margin: 2px 0;
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        border-left: 2px solid ${isInFolder ? '#3bb910' : 'transparent'};
-      `;
-
-      const title = document.createElement('span');
-      title.textContent = chat.title || 'Untitled Chat';
-      title.style.cssText = `
-        font-size: 12px;
-        color: #e5e5e5;
-        flex: 1;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      `;
-
-      const unpinBtn = document.createElement('button');
-      unpinBtn.innerHTML = '📌';
-      unpinBtn.title = 'Unpin chat';
-      unpinBtn.style.cssText = `
-        background: none;
-        border: none;
-        color: #ff6b6b;
-        cursor: pointer;
-        font-size: 10px;
-        padding: 2px;
-        opacity: 0;
-        transition: opacity 0.2s ease;
-      `;
-      unpinBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        PinningSystem.unpinChat(chat.chatId);
-        this.updatePinnedChatsDisplay();
-      });
-
-      item.appendChild(title);
-      item.appendChild(unpinBtn);
-
-      // Hover effects
-      item.addEventListener('mouseenter', () => {
-        item.style.background = 'rgba(255, 255, 255, 0.1)';
-        unpinBtn.style.opacity = '1';
-      });
-
-      item.addEventListener('mouseleave', () => {
-        item.style.background = 'rgba(255, 255, 255, 0.05)';
-        unpinBtn.style.opacity = '0';
-      });
-
-      // Click to navigate to chat
-      item.addEventListener('click', () => {
-        this.navigateToChat(chat.chatId, chat.url);
-      });
-
-      return item;
-    },
-
-    // Navigate to a specific chat
-    navigateToChat(chatId, chatUrl) {
-      try {
-        // Try to find the chat in the sidebar and click it
-        const chatSelectors = [
-          `a[href="${chatId}"]`,
-          `a[href*="${chatId}"]`,
-          `[data-message-id="${chatId}"]`,
-        ];
-
-        for (const selector of chatSelectors) {
-          const chatElement = document.querySelector(selector);
-          if (chatElement) {
-            chatElement.click();
-            return;
-          }
-        }
-
-        // If not found, navigate via URL
-        if (chatUrl && chatUrl !== window.location.href) {
-          window.location.href = chatUrl;
-        } else {
-          console.log('Could not navigate to chat:', chatId);
-        }
-      } catch (error) {
-        console.error('Error navigating to chat:', error);
-      }
-    },
-
-    // Setup monitoring for sidebar changes
-    setupMonitoring() {
-      const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-          if (mutation.type === 'childList') {
-            const pinnedSection = document.querySelector('.embedded-pinned-section');
-            if (!pinnedSection) {
-              console.log('Pinned section removed, recreating...');
-              setTimeout(() => this.createPinnedSection(), 500);
+            // Move this item to just after the bookmarked group (start of non-bookmarked region)
+            if (parent) {
+              if (insertBeforeNode) {
+                parent.insertBefore(itemEl, insertBeforeNode);
+              } else {
+                // No non-bookmarked items yet; append to end
+                parent.appendChild(itemEl);
+              }
             }
+
+            // Keep remaining bookmarks grouped without reshuffling
+            try { reorderBookmarkedChatsGroup(); } catch (err) { console.warn('Reorder failed:', err); }
+
+            // Refresh the page to reflect changes consistently
+            try { setTimeout(() => window.location.reload(), 300); } catch (_) {}
           }
         });
       });
-
-      let sidebarSelector;
-      if (isGemini) {
-        sidebarSelector = '[aria-label="Conversations"], [aria-label="Chat history"], aside nav, nav';
-      } else {
-        sidebarSelector = 'nav[data-testid="chat-history"], [data-testid="chat-history"], nav';
-      }
       
-      const sidebar = document.querySelector(sidebarSelector);
-      if (sidebar) {
-        observer.observe(sidebar, { childList: true, subtree: true });
-      }
-
-      // Update display periodically
-      setInterval(() => {
-        this.updatePinnedChatsDisplay();
-      }, 5000);
-
-      console.log('Embedded pinned section monitoring setup complete');
+      console.log(`Added bookmark mode to ${chatItems.length} chat items`);
+    } catch (error) {
+      console.error('Error adding bookmark mode to chats:', error);
     }
   };
 
+  // Reorder all bookmarked chats to the top while preserving their current on-screen order
+  const reorderBookmarkedChatsGroup = () => {
+    const bookmarkedIds = JSON.parse(localStorage.getItem('bookmarkedChats') || '[]');
+    if (!Array.isArray(bookmarkedIds) || bookmarkedIds.length === 0) return;
 
+    const idSet = new Set(bookmarkedIds);
+
+    // Collect all sidebar chat items in current DOM order
+    const chatItems = Array.from(document.querySelectorAll('nav[data-testid="chat-history"] a, nav[data-testid="chat-history"] [role="button"], nav[data-testid="chat-history"] .conversation-item, nav[data-testid="chat-history"] [data-testid="conversation-turn-2"], nav[data-testid="chat-history"] [data-testid="conversation-item"], nav[data-testid="chat-history"] .conversation-turn-2, nav[data-testid="chat-history"] a[href*="/c/"], nav a[href*="/c/"], aside a[href*="/c/"], [data-testid="chat-history"] a, [data-testid="chat-history"] [role="button"]'));
+
+    // Determine current DOM-ordered list of bookmarked elements
+    const getId = (el) => {
+      const id = el.getAttribute && (el.getAttribute('href') || el.getAttribute('data-testid'));
+      if (id) return id;
+      const a = el.querySelector && el.querySelector('a[href*="/c/"]');
+      if (a) return a.getAttribute('href');
+      return (el.textContent || '').trim();
+    };
+    const bookmarkedEls = chatItems.map(el => el.closest('li, .conversation-item, [data-testid="conversation-item"], [data-testid="conversation-turn-2"]') || el)
+                                   .filter((el) => idSet.has(getId(el)));
+    if (bookmarkedEls.length === 0) return;
+
+    // For each parent container, check if its leading children already match bookmarkedEls (in order)
+    // If yes, do nothing; else, move elements to top WHILE PRESERVING their current relative order
+    const parents = new Set(bookmarkedEls.map(el => el.parentElement).filter(Boolean));
+    parents.forEach((parent) => {
+      const group = bookmarkedEls.filter(el => el.parentElement === parent);
+      if (group.length === 0) return;
+
+      // Early exit if already at top in same order
+      let alreadyAtTop = true;
+      for (let i = 0; i < group.length; i += 1) {
+        if (parent.children[i] !== group[i]) { alreadyAtTop = false; break; }
+      }
+      if (alreadyAtTop) return;
+
+      // Insert in reverse so the final order at the top matches current DOM order
+      for (let i = group.length - 1; i >= 0; i -= 1) {
+        const el = group[i];
+        el.classList.add('bookmarked');
+        if (parent.firstChild !== el) parent.insertBefore(el, parent.firstChild);
+      }
+    });
+  };
+
+  // Function to remove bookmark mode from ChatGPT sidebar chats
+  const removePinButtonsFromChats = () => {
+    try {
+      // Remove bookmark mode from all chats
+      const chatItems = document.querySelectorAll('.bookmark-mode-enabled');
+      chatItems.forEach(chatItem => {
+        chatItem.classList.remove('bookmark-mode-enabled');
+        chatItem.style.border = '';
+        chatItem.style.borderRadius = '';
+        chatItem.style.cursor = '';
+      });
+      console.log(`Removed bookmark mode from ${chatItems.length} chat items`);
+    } catch (error) {
+      console.error('Error removing bookmark mode from chats:', error);
+    }
+  };
 
   // Create Profile button at the bottom of contracted sidebar
   const profileButton = document.createElement('div');
@@ -2967,42 +2516,6 @@ const createZeroEkaIconButton = () => {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     `;
 
-    // Create search mode toggle
-    const searchModeContainer = document.createElement('div');
-    searchModeContainer.style.cssText = `
-      display: flex;
-      gap: 10px;
-      margin: 15px 0;
-      align-items: center;
-    `;
-
-    const searchModeLabel = document.createElement('label');
-    searchModeLabel.textContent = 'Search in:';
-    searchModeLabel.style.cssText = `
-      color: #ccc;
-      font-size: 14px;
-      font-weight: 500;
-    `;
-
-    const searchModeSelect = document.createElement('select');
-    searchModeSelect.style.cssText = `
-      padding: 6px 10px;
-      background: #2a2a2a;
-      color: white;
-      border: 1px solid #444;
-      border-radius: 4px;
-      font-size: 14px;
-    `;
-    
-    searchModeSelect.innerHTML = `
-      <option value="conversation">Current Conversation</option>
-      <option value="pinned">Pinned Chats Only</option>
-      <option value="all">All (Conversation + Pinned)</option>
-    `;
-
-    searchModeContainer.appendChild(searchModeLabel);
-    searchModeContainer.appendChild(searchModeSelect);
-
     // Create search input (textarea for multi-line support)
     const searchInput = document.createElement('textarea');
     searchInput.placeholder = 'Search in conversation...';
@@ -3015,6 +2528,7 @@ const createZeroEkaIconButton = () => {
       color: #ffffff;
       font-size: 16px;
       outline: none;
+      margin-top: 20px;
       margin-bottom: 20px;
       transition: all 0.3s ease;
       resize: vertical;
@@ -3025,18 +2539,6 @@ const createZeroEkaIconButton = () => {
       white-space: pre-wrap;
       word-wrap: break-word;
     `;
-
-    // Update placeholder based on search mode
-    searchModeSelect.addEventListener('change', () => {
-      const mode = searchModeSelect.value;
-      if (mode === 'pinned') {
-        searchInput.placeholder = 'Search in pinned chats...';
-      } else if (mode === 'all') {
-        searchInput.placeholder = 'Search in conversation and pinned chats...';
-      } else {
-        searchInput.placeholder = 'Search in conversation...';
-      }
-    });
 
     // Create search button container for centering
     const searchButtonContainer = document.createElement('div');
@@ -3095,7 +2597,6 @@ const createZeroEkaIconButton = () => {
 
     // Add elements to popup
     searchPopup.appendChild(closeBtn);
-    searchPopup.appendChild(searchModeContainer);
     searchPopup.appendChild(searchInput);
     searchButtonContainer.appendChild(searchBtn);
     searchPopup.appendChild(searchButtonContainer);
@@ -3176,271 +2677,20 @@ const createZeroEkaIconButton = () => {
         return highlightedText;
       }
 
-      // Search in pinned chats
-      function searchInPinnedChats(query, results) {
-        try {
-          const pinnedChats = PinningSystem.getPinnedChats();
-          const pinnedIds = Object.keys(pinnedChats);
-          
-          if (pinnedIds.length === 0) {
-            return;
-          }
-          
-          // Platform-specific selectors
-          let chatSelector;
-          if (isGemini) {
-            chatSelector = '[aria-label="Conversations"] .pinned, [aria-label="Chat history"] .pinned';
-          } else {
-            chatSelector = 'nav[data-testid="chat-history"] .pinned, [data-testid="chat-history"] .pinned';
-          }
-          
-          const pinnedElements = document.querySelectorAll(chatSelector);
-          
-          pinnedElements.forEach((element, index) => {
-            const chatId = PinningSystem.getChatIdFromEl(element);
-            const chatData = pinnedChats[chatId];
-            
-            if (!chatData) return;
-            
-            const searchableText = [
-              chatData.title || '',
-              element.textContent || ''
-            ].join(' ');
-            
-            const lowerContent = searchableText.toLowerCase();
-            const lowerQuery = query.toLowerCase();
-            
-            if (lowerContent.includes(lowerQuery)) {
-              const highlightedText = highlightAllWordsInText(searchableText, query);
-              
-              results.push({
-                content: highlightedText,
-                element: element,
-                messageId: `pinned-${chatId}`,
-                author: 'Pinned Chat',
-                index: `pin-${index}`,
-                score: 100, // High priority for pinned chats
-                type: 'pinned',
-                chatData: chatData
-              });
-            }
-          });
-          
-          console.log(`Found ${results.filter(r => r.type === 'pinned').length} matches in pinned chats`);
-        } catch (error) {
-          console.error('Error searching pinned chats:', error);
-        }
-      }
-
-      // Search in current conversation
-      function searchInCurrentConversation(query, results, messages) {
-        try {
-          // This will be the existing search logic from the original function
-          searchInContent = (content, query, messageId, author, index, element) => {
-            // ... existing searchInContent logic will go here
-            // For now, let's add basic search
-            const lowerContent = content.toLowerCase();
-            const lowerQuery = query.toLowerCase();
-            
-            if (lowerContent.includes(lowerQuery)) {
-              const highlightedText = highlightAllWordsInText(content, query);
-              
-              results.push({
-                content: highlightedText,
-                element: element,
-                messageId: messageId,
-                author: author,
-                index: index,
-                score: 50, // Medium priority for conversation
-                type: 'conversation'
-              });
-            }
-          };
-          
-          // Process messages
-          messages.forEach((message, index) => {
-            const content = message.textContent || '';
-            const messageId = message.getAttribute('data-message-id') || `msg-${index}`;
-            const author = message.querySelector('[data-message-author-role]')?.getAttribute('data-message-author-role') || 'Unknown';
-            
-            if (content.trim()) {
-              searchInContent(content, query, messageId, author, index, message);
-            }
-          });
-          
-          console.log(`Found ${results.filter(r => r.type === 'conversation').length} matches in conversation`);
-        } catch (error) {
-          console.error('Error searching conversation:', error);
-        }
-      }
-
-      // Display search results
-      function displaySearchResults(results, query) {
-        resultsContainer.innerHTML = '';
-        
-        if (results.length === 0) {
-          const noResults = document.createElement('div');
-          noResults.style.cssText = `
-            text-align: center;
-            color: #888;
-            font-style: italic;
-            padding: 20px;
-          `;
-          noResults.textContent = 'No results found';
-          resultsContainer.appendChild(noResults);
-          return;
-        }
-
-        // Group results by type
-        const pinnedResults = results.filter(r => r.type === 'pinned');
-        const conversationResults = results.filter(r => r.type === 'conversation');
-
-        // Add pinned results section
-        if (pinnedResults.length > 0) {
-          const pinnedHeader = document.createElement('div');
-          pinnedHeader.style.cssText = `
-            color: #3bb910;
-            font-weight: bold;
-            font-size: 14px;
-            margin: 10px 0 5px 0;
-            padding-bottom: 5px;
-            border-bottom: 1px solid #333;
-          `;
-          pinnedHeader.innerHTML = `📌 Pinned Chats (${pinnedResults.length})`;
-          resultsContainer.appendChild(pinnedHeader);
-
-          pinnedResults.forEach((result, index) => {
-            const resultItem = createSearchResultItem(result, index, 'pinned');
-            resultsContainer.appendChild(resultItem);
-          });
-        }
-
-        // Add conversation results section
-        if (conversationResults.length > 0) {
-          const conversationHeader = document.createElement('div');
-          conversationHeader.style.cssText = `
-            color: #007bff;
-            font-weight: bold;
-            font-size: 14px;
-            margin: 15px 0 5px 0;
-            padding-bottom: 5px;
-            border-bottom: 1px solid #333;
-          `;
-          conversationHeader.innerHTML = `💬 Current Conversation (${conversationResults.length})`;
-          resultsContainer.appendChild(conversationHeader);
-
-          conversationResults.forEach((result, index) => {
-            const resultItem = createSearchResultItem(result, index, 'conversation');
-            resultsContainer.appendChild(resultItem);
-          });
-        }
-
-        console.log(`Displayed ${results.length} total search results`);
-      }
-
-      // Create individual search result item
-      function createSearchResultItem(result, index, type) {
-        const resultItem = document.createElement('div');
-        resultItem.style.cssText = `
-          padding: 12px 16px;
-          border-bottom: 1px solid #333333;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          border-radius: 6px;
-          margin: 4px 0;
-          background: ${type === 'pinned' ? 'rgba(59, 185, 16, 0.05)' : 'rgba(0, 123, 255, 0.05)'};
-        `;
-
-        let displayContent = result.content;
-        
-        // For pinned chats, show additional metadata
-        if (type === 'pinned' && result.chatData) {
-          const chatTitle = result.chatData.title || 'Untitled Chat';
-          const pinnedDate = new Date(result.chatData.pinnedAt).toLocaleDateString();
-          
-          displayContent = `
-            <div style="color: #3bb910; font-weight: bold; margin-bottom: 4px;">
-              📌 ${chatTitle}
-            </div>
-            <div style="color: #888; font-size: 12px; margin-bottom: 6px;">
-              Pinned on ${pinnedDate}
-            </div>
-            <div>${result.content}</div>
-          `;
-        }
-
-        resultItem.innerHTML = `
-          <div style="font-size: 14px; line-height: 1.4;">
-            ${displayContent}
-          </div>
-          <div style="color: #666666; font-size: 12px; margin-top: 6px;">
-            ${result.author} • Result ${index + 1}
-          </div>
-        `;
-
-        // Add click handler
-        resultItem.addEventListener('click', () => {
-          if (type === 'pinned') {
-            // For pinned chats, click to navigate to that chat
-            result.element.click();
-            searchPopup.remove();
-          } else {
-            // For conversation results, scroll to the element
-            if (result.element) {
-              result.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              searchPopup.remove();
-            }
-          }
-        });
-
-        // Add hover effects
-        resultItem.addEventListener('mouseenter', () => {
-          resultItem.style.background = type === 'pinned' ? 'rgba(59, 185, 16, 0.1)' : 'rgba(0, 123, 255, 0.1)';
-          resultItem.style.transform = 'translateX(4px)';
-        });
-
-        resultItem.addEventListener('mouseleave', () => {
-          resultItem.style.background = type === 'pinned' ? 'rgba(59, 185, 16, 0.05)' : 'rgba(0, 123, 255, 0.05)';
-          resultItem.style.transform = 'translateX(0)';
-        });
-
-        return resultItem;
-      }
-
-      // Enhanced search functionality with pinned chat support
+      // Search functionality
       function performSearch() {
         const query = searchInput.value.trim();
         if (!query) return;
 
-        const searchMode = searchModeSelect.value;
-        console.log('Performing search for:', query, 'in mode:', searchMode);
+        console.log('Performing search for:', query);
 
         // Clear previous results
         resultsContainer.innerHTML = '';
+
+        // Search in conversation content
+        const messages = document.querySelectorAll('[data-message-id]');
+        console.log('Found messages:', messages.length);
         const results = [];
-
-        // Search in pinned chats if requested
-        if (searchMode === 'pinned' || searchMode === 'all') {
-          searchInPinnedChats(query, results);
-        }
-
-        // Search in current conversation if requested
-        if (searchMode === 'conversation' || searchMode === 'all') {
-          const messages = document.querySelectorAll('[data-message-id]');
-          console.log('Found messages:', messages.length);
-          searchInCurrentConversation(query, results, messages);
-        }
-
-        // Sort results by score and type
-        results.sort((a, b) => {
-          if (a.score !== b.score) return b.score - a.score;
-          if (a.type === 'pinned' && b.type !== 'pinned') return -1;
-          if (a.type !== 'pinned' && b.type === 'pinned') return 1;
-          return 0;
-        });
-
-        // Display results
-        displaySearchResults(results, query);
 
       // Enhanced search with partial matching and priority scoring
       const searchInContent = (content, query, messageId, author, index, element) => {
@@ -5310,69 +4560,59 @@ const updateTextSize = (container, size) => {
     }
   });
 
-  // Function to restore pinned chats on page load
-  const restorePinnedChats = () => {
+  // Function to restore bookmarked chats on page load (without changing their relative order if already grouped)
+  const restoreBookmarkedChats = () => {
     try {
-      // First check for legacy bookmarked chats and migrate them
-      const legacyBookmarks = JSON.parse(localStorage.getItem('bookmarkedChats') || '[]');
-      if (legacyBookmarks.length > 0) {
-        console.log('Migrating legacy bookmarks to new pinning system:', legacyBookmarks);
-        
-        // Migrate to new system
-        const pinnedChats = PinningSystem.getPinnedChats();
-        legacyBookmarks.forEach(chatId => {
-          if (!pinnedChats[chatId]) {
-            PinningSystem.pinChat(chatId, {
-              title: 'Migrated Chat',
-              url: window.location.href,
-              timestamp: Date.now()
-            }, null);
-          }
-        });
-        
-        // Clear legacy storage
-        localStorage.removeItem('bookmarkedChats');
-      }
+      const bookmarkedChats = JSON.parse(localStorage.getItem('bookmarkedChats') || '[]');
+      if (bookmarkedChats.length === 0) return;
 
-      const pinnedChats = PinningSystem.getPinnedChats();
-      const pinnedIds = Object.keys(pinnedChats);
-      if (pinnedIds.length === 0) return;
+      console.log('Restoring bookmarked chats:', bookmarkedChats);
 
-      console.log('Restoring pinned chats:', pinnedIds);
-
-      // Wait for sidebar to load with multiple retry strategies
+      // Wait for ChatGPT sidebar to load with multiple retry strategies
       let retryCount = 0;
       const maxRetries = 10;
       
       const checkForSidebar = () => {
-        // Platform-specific selectors
-        let chatSelector;
-        if (isGemini) {
-          chatSelector = '[aria-label="Conversations"] a, [aria-label="Chat history"] a, aside a, nav a';
-        } else {
-          chatSelector = 'nav[data-testid="chat-history"] a, nav[data-testid="chat-history"] [role="button"], nav[data-testid="chat-history"] .conversation-item, nav[data-testid="chat-history"] [data-testid="conversation-turn-2"], nav[data-testid="chat-history"] [data-testid="conversation-item"], nav[data-testid="chat-history"] .conversation-turn-2, nav[data-testid="chat-history"] a[href*="/c/"], nav a[href*="/c/"], aside a[href*="/c/"], [data-testid="chat-history"] a, [data-testid="chat-history"] [role="button"]';
-        }
-        
-        const chatItems = document.querySelectorAll(chatSelector);
+        const chatItems = document.querySelectorAll('nav[data-testid="chat-history"] a, nav[data-testid="chat-history"] [role="button"], nav[data-testid="chat-history"] .conversation-item, nav[data-testid="chat-history"] [data-testid="conversation-turn-2"], nav[data-testid="chat-history"] [data-testid="conversation-item"], nav[data-testid="chat-history"] .conversation-turn-2, nav[data-testid="chat-history"] a[href*="/c/"], nav a[href*="/c/"], aside a[href*="/c/"], [data-testid="chat-history"] a, [data-testid="chat-history"] [role="button"]');
         
         console.log(`Checking for sidebar (attempt ${retryCount + 1}/${maxRetries}), found ${chatItems.length} chat items`);
         
         if (chatItems.length > 0) {
-          // Restore pinned chats using the new system
-          PinningSystem.reorderPinnedChats();
-          
-          // Add pin indicators to already pinned chats
-          Array.from(chatItems).forEach(chatItem => {
-            const container = PinningSystem.getChatItemContainer(chatItem);
-            const chatId = PinningSystem.getChatIdFromEl(chatItem) || PinningSystem.getChatIdFromEl(container);
+           // Ensure bookmarked chats are grouped at the top without changing their current relative order
+           const found = [];
+           bookmarkedChats.forEach(chatId => {
+            const chatItem = Array.from(chatItems).find(item => {
+              const itemId = item.getAttribute('href') || item.getAttribute('data-testid') || item.textContent.trim();
+              return itemId === chatId;
+            });
             
-            if (PinningSystem.isPinned(chatId)) {
-              container.classList.add('pinned');
-              PinningSystem.addPinIndicator(container, true);
+            if (chatItem) {
+              // Add bookmarked class (no visual indicator by default)
+              chatItem.classList.add('bookmarked');
+               found.push(chatItem);
+              
+
+            } else {
+              console.warn('Bookmarked chat not found in sidebar:', chatId);
             }
           });
-          
-          console.log(`Successfully restored ${pinnedIds.length} pinned chats`);
+           if (found.length) {
+             const parent = found[0].parentElement;
+             if (parent) {
+               // If already at the top in correct order, skip
+               let alreadyAtTop = true;
+               for (let i = 0; i < found.length; i += 1) {
+                 if (parent.children[i] !== found[i]) { alreadyAtTop = false; break; }
+               }
+               if (!alreadyAtTop) {
+                 // Move in reverse so top order matches current DOM order
+                 for (let i = found.length - 1; i >= 0; i -= 1) {
+                   const el = found[i];
+                   if (parent.firstChild !== el) parent.insertBefore(el, parent.firstChild);
+                 }
+               }
+             }
+           }
         } else if (retryCount < maxRetries) {
           retryCount++;
           // Retry with increasing delays
@@ -5386,69 +4626,41 @@ const updateTextSize = (container, size) => {
       // Start checking for sidebar with initial delay
       setTimeout(checkForSidebar, 1000);
     } catch (error) {
-      console.error('Error restoring pinned chats:', error);
+      console.error('Error restoring bookmarked chats:', error);
     }
   };
-
-  // Legacy function name for backward compatibility
-  const restoreBookmarkedChats = restorePinnedChats;
 
   // Call restore function on page load
   window.addEventListener('load', restoreBookmarkedChats);
   document.addEventListener('DOMContentLoaded', restoreBookmarkedChats);
-
-  // Initialize embedded pinned section
-  window.addEventListener('load', () => {
-    setTimeout(() => {
-      EmbeddedPinnedSection.init();
-    }, 3000); // Wait a bit for the page to fully load
-  });
   
-  document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-      EmbeddedPinnedSection.init();
-    }, 3000);
-  });
-  
-  // Monitor pinned chat positions and fix if needed
-  const monitorPinnedPositions = () => {
+  // Monitor bookmark positions and fix if needed
+  const monitorBookmarkPositions = () => {
     try {
-      const pinnedChats = PinningSystem.getPinnedChats();
-      const pinnedIds = Object.keys(pinnedChats);
-      if (pinnedIds.length === 0) return;
+      const bookmarkedChats = JSON.parse(localStorage.getItem('bookmarkedChats') || '[]');
+      if (bookmarkedChats.length === 0) return;
       
-      // Platform-specific selectors
-      let chatSelector;
-      if (isGemini) {
-        chatSelector = '[aria-label="Conversations"] a, [aria-label="Chat history"] a, aside a, nav a';
-      } else {
-        chatSelector = 'nav[data-testid="chat-history"] a, nav[data-testid="chat-history"] [role="button"], nav[data-testid="chat-history"] .conversation-item, nav[data-testid="chat-history"] [data-testid="conversation-turn-2"], nav[data-testid="chat-history"] [data-testid="conversation-item"], nav[data-testid="chat-history"] .conversation-turn-2, nav[data-testid="chat-history"] a[href*="/c/"], nav a[href*="/c/"], aside a[href*="/c/"], [data-testid="chat-history"] a, [data-testid="chat-history"] [role="button"]';
-      }
+      const chatItems = document.querySelectorAll('nav[data-testid="chat-history"] a, nav[data-testid="chat-history"] [role="button"], nav[data-testid="chat-history"] .conversation-item, nav[data-testid="chat-history"] [data-testid="conversation-turn-2"], nav[data-testid="chat-history"] [data-testid="conversation-item"], nav[data-testid="chat-history"] .conversation-turn-2, nav[data-testid="chat-history"] a[href*="/c/"], nav a[href*="/c/"], aside a[href*="/c/"], [data-testid="chat-history"] a, [data-testid="chat-history"] [role="button"]');
       
-      const chatItems = document.querySelectorAll(chatSelector);
-      
-      Array.from(chatItems).forEach(chatItem => {
-        const container = PinningSystem.getChatItemContainer(chatItem);
-        const chatId = PinningSystem.getChatIdFromEl(chatItem) || PinningSystem.getChatIdFromEl(container);
+      bookmarkedChats.forEach(chatId => {
+        const chatItem = Array.from(chatItems).find(item => {
+          const itemId = item.getAttribute('href') || item.getAttribute('data-testid') || item.textContent.trim();
+          return itemId === chatId;
+        });
         
-        if (chatId) {
-          // Ensure class reflects pinned status
-          if (PinningSystem.isPinned(chatId)) {
-            container.classList.add('pinned');
-            PinningSystem.addPinIndicator(container, true);
+        if (chatItem) {
+          // Ensure class reflects storage truth
+          if (bookmarkedChats.includes(chatId)) {
+            chatItem.classList.add('bookmarked');
           } else {
-            container.classList.remove('pinned');
-            PinningSystem.removePinIndicator(container);
+            chatItem.classList.remove('bookmarked');
           }
         }
       });
     } catch (error) {
-      console.error('Error monitoring pinned positions:', error);
+      console.error('Error monitoring bookmark positions:', error);
     }
   };
-
-  // Legacy function name for backward compatibility
-  const monitorBookmarkPositions = monitorPinnedPositions;
   
   // Monitor bookmark positions periodically
   setInterval(monitorBookmarkPositions, 5000);
