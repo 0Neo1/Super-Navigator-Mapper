@@ -1571,6 +1571,7 @@ const createZeroEkaIconButton = () => {
         color: #10b981;
         opacity: 0.95;
         pointer-events: none;
+        z-index: 10;
       `;
       wrapper.innerHTML = `
         <svg viewBox="0 0 24 24" fill="currentColor" style="width: 16px; height: 16px;">
@@ -1607,6 +1608,32 @@ const createZeroEkaIconButton = () => {
     items.forEach((item) => {
       try { addPinnedStarBadge(item); } catch (_) {}
     });
+  };
+
+  // Keep stars in sync with sidebar DOM mutations
+  const initPinnedStarObserver = () => {
+    let sidebar = document.querySelector('nav[data-testid="chat-history"]') || document.querySelector('aside');
+    if (!sidebar) return;
+    let decorateTimer = null;
+    const scheduleDecorate = () => {
+      if (decorateTimer) clearTimeout(decorateTimer);
+      decorateTimer = setTimeout(() => {
+        try { decorateBookmarkedChats(); } catch (_) {}
+      }, 150);
+    };
+    const obs = new MutationObserver((muts) => {
+      for (const m of muts) {
+        if (m.type === 'childList' || m.type === 'attributes') {
+          scheduleDecorate();
+          break;
+        }
+      }
+    });
+    obs.observe(sidebar, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    // Store for possible cleanup
+    window.__zeroekaPinnedStarObserver = obs;
+    // Initial decorate
+    scheduleDecorate();
   };
 
   // Helper to extract a stable chat id from an item/container
@@ -4172,6 +4199,7 @@ const updateTextSize = (container, size) => {
       console.log('Page became visible, checking sidebar...');
       setTimeout(ensureContractedSidebar, 500);
       try { decorateBookmarkedChats(); } catch (_) {}
+      try { initPinnedStarObserver(); } catch (_) {}
     }
   });
 
@@ -5346,4 +5374,10 @@ const updateTextSize = (container, size) => {
       }
     });
   };
+
+  // Initialize pinned star decorations and observer shortly after load
+  setTimeout(() => {
+    try { decorateBookmarkedChats(); } catch (_) {}
+    try { initPinnedStarObserver(); } catch (_) {}
+  }, 1000);
 })();
