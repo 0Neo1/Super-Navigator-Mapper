@@ -3,771 +3,6 @@
   const isGemini = window.location.hostname.includes('gemini.google.com');
   const isChatGPT = window.location.hostname.includes('chatgpt.com');
   const platform = isGemini ? 'gemini' : 'chatgpt';
-
-  // Chat pinning functionality
-  const chatPinManager = {
-    // Storage keys
-    STORAGE_KEY: 'zeroeka_pinned_chats',
-    FOLDERS_KEY: 'zeroeka_pin_folders',
-    
-    // Get pinned chats for current platform
-    async getPinnedChats() {
-      const stored = await chrome.storage.local.get(this.STORAGE_KEY);
-      const pinnedChats = stored[this.STORAGE_KEY] || {};
-      return pinnedChats[platform] || { chats: [], folders: {} };
-    },
-    
-    // Save pinned chats for current platform
-    async savePinnedChats(data) {
-      const stored = await chrome.storage.local.get(this.STORAGE_KEY);
-      const pinnedChats = stored[this.STORAGE_KEY] || {};
-      pinnedChats[platform] = data;
-      await chrome.storage.local.set({ [this.STORAGE_KEY]: pinnedChats });
-    },
-    
-    // Pin a chat
-    async pinChat(chatId, chatTitle, chatUrl) {
-      const data = await this.getPinnedChats();
-      const existingIndex = data.chats.findIndex(chat => chat.id === chatId);
-      
-      if (existingIndex === -1) {
-        data.chats.unshift({
-          id: chatId,
-          title: chatTitle,
-          url: chatUrl,
-          timestamp: Date.now(),
-          folderId: null
-        });
-        await this.savePinnedChats(data);
-        return true;
-      }
-      return false;
-    },
-    
-    // Unpin a chat
-    async unpinChat(chatId) {
-      const data = await this.getPinnedChats();
-      const index = data.chats.findIndex(chat => chat.id === chatId);
-      
-      if (index !== -1) {
-        data.chats.splice(index, 1);
-        await this.savePinnedChats(data);
-        return true;
-      }
-      return false;
-    },
-    
-    // Check if chat is pinned
-    async isChatPinned(chatId) {
-      const data = await this.getPinnedChats();
-      return data.chats.some(chat => chat.id === chatId);
-    },
-    
-    // Create folder
-    async createFolder(folderName) {
-      const data = await this.getPinnedChats();
-      const folderId = 'folder_' + Date.now();
-      data.folders[folderId] = {
-        id: folderId,
-        name: folderName,
-        timestamp: Date.now()
-      };
-      await this.savePinnedChats(data);
-      return folderId;
-    },
-    
-    // Move chat to folder
-    async moveChatToFolder(chatId, folderId) {
-      const data = await this.getPinnedChats();
-      const chat = data.chats.find(c => c.id === chatId);
-      if (chat) {
-        chat.folderId = folderId;
-        await this.savePinnedChats(data);
-        return true;
-      }
-      return false;
-    },
-    
-    // Get chat ID from element
-    getChatId(chatElement) {
-      let link, match;
-      
-      if (isGemini) {
-        // For Gemini, extract from URL or data attributes
-        link = chatElement.href && chatElement.href.includes('/chat/') ? chatElement : 
-               chatElement.querySelector('a[href*="/chat/"]');
-        
-        if (link) {
-          match = link.href.match(/\/chat\/([^?&#]+)/);
-          if (match) return match[1];
-        }
-        
-        // Try other methods for Gemini
-        const dataId = chatElement.getAttribute('data-conversation-id') || 
-                      chatElement.getAttribute('data-id') ||
-                      chatElement.closest('[data-conversation-id]')?.getAttribute('data-conversation-id');
-        if (dataId) return dataId;
-        
-        // Extract from current URL if this is the active chat
-        if (window.location.pathname.includes('/chat/')) {
-          match = window.location.pathname.match(/\/chat\/([^?&#]+)/);
-          if (match) return match[1];
-        }
-      } else {
-        // For ChatGPT, extract from URL or data attributes
-        link = chatElement.href && chatElement.href.includes('/c/') ? chatElement : 
-               chatElement.querySelector('a[href*="/c/"]');
-        
-        if (link) {
-          match = link.href.match(/\/c\/([^?&#]+)/);
-          if (match) return match[1];
-        }
-        
-        // Try other methods for ChatGPT
-        const dataId = chatElement.getAttribute('data-conversation-id') || 
-                      chatElement.getAttribute('data-id') ||
-                      chatElement.closest('[data-conversation-id]')?.getAttribute('data-conversation-id');
-        if (dataId) return dataId;
-        
-        // Extract from current URL if this is the active chat
-        if (window.location.pathname.includes('/c/')) {
-          match = window.location.pathname.match(/\/c\/([^?&#]+)/);
-          if (match) return match[1];
-        }
-      }
-      
-      // Fallback: generate ID from element position and text
-      const text = this.getChatTitle(chatElement);
-      const index = Array.from(chatElement.parentElement?.children || []).indexOf(chatElement);
-      return `fallback_${platform}_${btoa(text.substring(0, 20))}_${index}`;
-    },
-    
-    // Get chat title from element
-    getChatTitle(chatElement) {
-      let title = '';
-      
-      if (isGemini) {
-        // Try multiple selectors for Gemini
-        const selectors = [
-          '[role="button"] span:not([class])',
-          'span:not([class])',
-          'div:not([class])',
-          'a[href*="/chat/"]',
-          '.conversation-title',
-          '.chat-title'
-        ];
-        
-        for (const selector of selectors) {
-          const element = chatElement.querySelector(selector);
-          if (element && element.textContent?.trim()) {
-            title = element.textContent.trim();
-            break;
-          }
-        }
-        
-        // If direct text content
-        if (!title && chatElement.textContent?.trim()) {
-          title = chatElement.textContent.trim();
-        }
-      } else {
-        // Try multiple selectors for ChatGPT
-        const selectors = [
-          'div[title]',
-          'span[title]',
-          'a[href*="/c/"]',
-          '.conversation-title',
-          '.chat-title',
-          'div:last-child',
-          'span:last-child'
-        ];
-        
-        for (const selector of selectors) {
-          const element = chatElement.querySelector(selector);
-          if (element && element.textContent?.trim()) {
-            title = element.textContent.trim();
-            break;
-          }
-        }
-        
-        // Try title attribute
-        if (!title && chatElement.title) {
-          title = chatElement.title;
-        }
-        
-        // If direct text content
-        if (!title && chatElement.textContent?.trim()) {
-          title = chatElement.textContent.trim();
-        }
-      }
-      
-      // Clean up title
-      title = title.replace(/^\s*[\d\-\.\s]*/, '').trim(); // Remove leading dates/numbers
-      return title || 'Untitled Chat';
-    },
-    
-    // Get chat URL from element
-    getChatUrl(chatElement) {
-      if (isGemini) {
-        const link = chatElement.querySelector('a[href*="/chat/"]');
-        return link ? link.href : window.location.href;
-      } else {
-        const link = chatElement.querySelector('a[href*="/c/"]');
-        return link ? link.href : window.location.href;
-      }
-    }
-  };
-
-  // Pin UI Manager
-  const pinUI = {
-    // CSS styles for pin elements
-    addPinStyles() {
-      if (document.getElementById('zeroeka-pin-styles')) return;
-      
-      const style = document.createElement('style');
-      style.id = 'zeroeka-pin-styles';
-      style.textContent = `
-        .zeroeka-pinned-section {
-          padding: 8px 12px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-          margin-bottom: 8px;
-        }
-        
-        .zeroeka-pinned-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 8px;
-          font-size: 14px;
-          font-weight: 600;
-          color: ${isGemini ? '#9aa0a6' : '#8e8ea0'};
-        }
-        
-        .zeroeka-pin-button {
-          opacity: 0;
-          transition: opacity 0.2s;
-          padding: 4px;
-          border-radius: 4px;
-          cursor: pointer;
-          color: ${isGemini ? '#9aa0a6' : '#8e8ea0'};
-          background: none;
-          border: none;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 24px;
-          height: 24px;
-        }
-        
-        .zeroeka-pin-button:hover {
-          background: ${isGemini ? 'rgba(154, 160, 166, 0.1)' : 'rgba(142, 142, 160, 0.1)'};
-          color: ${isGemini ? '#e8eaed' : '#ececf1'};
-        }
-        
-        .zeroeka-pin-button.pinned {
-          opacity: 1;
-          color: ${isGemini ? '#1a73e8' : '#10a37f'};
-        }
-        
-        .zeroeka-chat-item:hover .zeroeka-pin-button {
-          opacity: 1;
-        }
-        
-        .zeroeka-folder-button {
-          padding: 2px 6px;
-          background: ${isGemini ? 'rgba(154, 160, 166, 0.1)' : 'rgba(142, 142, 160, 0.1)'};
-          border: 1px solid ${isGemini ? 'rgba(154, 160, 166, 0.2)' : 'rgba(142, 142, 160, 0.2)'};
-          border-radius: 4px;
-          color: ${isGemini ? '#9aa0a6' : '#8e8ea0'};
-          font-size: 12px;
-          cursor: pointer;
-        }
-        
-        .zeroeka-folder-button:hover {
-          background: ${isGemini ? 'rgba(154, 160, 166, 0.2)' : 'rgba(142, 142, 160, 0.2)'};
-        }
-        
-        .zeroeka-pinned-chat {
-          position: relative;
-          margin-bottom: 2px;
-        }
-        
-        .zeroeka-folder {
-          margin-bottom: 4px;
-        }
-        
-        .zeroeka-folder-header {
-          display: flex;
-          align-items: center;
-          padding: 4px 8px;
-          background: ${isGemini ? 'rgba(154, 160, 166, 0.05)' : 'rgba(142, 142, 160, 0.05)'};
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 13px;
-          color: ${isGemini ? '#9aa0a6' : '#8e8ea0'};
-        }
-        
-        .zeroeka-folder-content {
-          margin-left: 16px;
-          margin-top: 4px;
-        }
-        
-        .zeroeka-folder-toggle {
-          margin-right: 6px;
-          transition: transform 0.2s;
-        }
-        
-        .zeroeka-folder-toggle.expanded {
-          transform: rotate(90deg);
-        }
-        
-        .zeroeka-drag-over {
-          background: ${isGemini ? 'rgba(26, 115, 232, 0.1)' : 'rgba(16, 163, 127, 0.1)'} !important;
-          border: 1px dashed ${isGemini ? '#1a73e8' : '#10a37f'} !important;
-        }
-      `;
-      document.head.appendChild(style);
-    },
-    
-    // Create pin button for chat item
-    createPinButton(chatElement, isPinned = false) {
-      const pinButton = document.createElement('button');
-      pinButton.className = `zeroeka-pin-button ${isPinned ? 'pinned' : ''}`;
-      pinButton.innerHTML = isPinned ? '📌' : '📌';
-      pinButton.title = isPinned ? 'Unpin chat' : 'Pin chat';
-      
-      pinButton.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        
-        const chatId = chatPinManager.getChatId(chatElement);
-        if (!chatId) return;
-        
-        if (isPinned) {
-          await chatPinManager.unpinChat(chatId);
-          pinButton.classList.remove('pinned');
-          pinButton.title = 'Pin chat';
-        } else {
-          const chatTitle = chatPinManager.getChatTitle(chatElement);
-          const chatUrl = chatPinManager.getChatUrl(chatElement);
-          await chatPinManager.pinChat(chatId, chatTitle, chatUrl);
-          pinButton.classList.add('pinned');
-          pinButton.title = 'Unpin chat';
-        }
-        
-        // Refresh pinned section
-        this.refreshPinnedSection();
-      });
-      
-      return pinButton;
-    },
-    
-    // Create pinned section in sidebar
-    async createPinnedSection() {
-      const sidebar = this.getSidebar();
-      if (!sidebar) return;
-      
-      // Remove existing pinned section
-      const existingSection = document.querySelector('.zeroeka-pinned-section');
-      if (existingSection) existingSection.remove();
-      
-      const pinnedData = await chatPinManager.getPinnedChats();
-      if (pinnedData.chats.length === 0) return;
-      
-      const pinnedSection = document.createElement('div');
-      pinnedSection.className = 'zeroeka-pinned-section';
-      
-      const header = document.createElement('div');
-      header.className = 'zeroeka-pinned-header';
-      header.innerHTML = `
-        <span>Pinned</span>
-        <button class="zeroeka-folder-button" id="zeroeka-add-folder">+ Folder</button>
-      `;
-      
-      pinnedSection.appendChild(header);
-      
-      // Add folder creation handler
-      const addFolderBtn = header.querySelector('#zeroeka-add-folder');
-      addFolderBtn.addEventListener('click', () => this.showCreateFolderDialog());
-      
-      // Create folders and ungrouped chats
-      await this.createFoldersAndChats(pinnedSection, pinnedData);
-      
-      // Insert at the top of sidebar
-      const firstChild = sidebar.firstElementChild;
-      if (firstChild) {
-        sidebar.insertBefore(pinnedSection, firstChild);
-      } else {
-        sidebar.appendChild(pinnedSection);
-      }
-    },
-    
-    // Create folders and ungrouped chats
-    async createFoldersAndChats(container, pinnedData) {
-      // Group chats by folder
-      const folders = {};
-      const ungroupedChats = [];
-      
-      pinnedData.chats.forEach(chat => {
-        if (chat.folderId && pinnedData.folders[chat.folderId]) {
-          if (!folders[chat.folderId]) {
-            folders[chat.folderId] = {
-              folder: pinnedData.folders[chat.folderId],
-              chats: []
-            };
-          }
-          folders[chat.folderId].chats.push(chat);
-        } else {
-          ungroupedChats.push(chat);
-        }
-      });
-      
-      // Create folder elements
-      Object.values(folders).forEach(({ folder, chats }) => {
-        const folderElement = this.createFolderElement(folder, chats);
-        container.appendChild(folderElement);
-      });
-      
-      // Create ungrouped chat elements
-      ungroupedChats.forEach(chat => {
-        const chatElement = this.createPinnedChatElement(chat);
-        container.appendChild(chatElement);
-      });
-    },
-    
-    // Create folder element
-    createFolderElement(folder, chats) {
-      const folderDiv = document.createElement('div');
-      folderDiv.className = 'zeroeka-folder';
-      folderDiv.dataset.folderId = folder.id;
-      
-      const header = document.createElement('div');
-      header.className = 'zeroeka-folder-header';
-      header.innerHTML = `
-        <span class="zeroeka-folder-toggle">▶</span>
-        <span>${folder.name}</span>
-      `;
-      
-      const content = document.createElement('div');
-      content.className = 'zeroeka-folder-content';
-      content.style.display = 'none';
-      
-      // Add chats to folder
-      chats.forEach(chat => {
-        const chatElement = this.createPinnedChatElement(chat);
-        content.appendChild(chatElement);
-      });
-      
-      // Toggle folder
-      header.addEventListener('click', () => {
-        const toggle = header.querySelector('.zeroeka-folder-toggle');
-        const isExpanded = content.style.display !== 'none';
-        
-        if (isExpanded) {
-          content.style.display = 'none';
-          toggle.classList.remove('expanded');
-        } else {
-          content.style.display = 'block';
-          toggle.classList.add('expanded');
-        }
-      });
-      
-      // Enable drop functionality
-      this.enableFolderDrop(header, folder.id);
-      
-      folderDiv.appendChild(header);
-      folderDiv.appendChild(content);
-      
-      return folderDiv;
-    },
-    
-    // Create pinned chat element
-    createPinnedChatElement(chat) {
-      const chatDiv = document.createElement('div');
-      chatDiv.className = 'zeroeka-pinned-chat';
-      chatDiv.dataset.chatId = chat.id;
-      
-      // Create chat link
-      const link = document.createElement('a');
-      link.href = chat.url;
-      link.textContent = chat.title;
-      link.style.cssText = `
-        display: block;
-        padding: 6px 8px;
-        text-decoration: none;
-        color: inherit;
-        border-radius: 4px;
-        font-size: 14px;
-        line-height: 1.2;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      `;
-      
-      // Add hover effect
-      link.addEventListener('mouseenter', () => {
-        link.style.background = isGemini ? 'rgba(154, 160, 166, 0.1)' : 'rgba(142, 142, 160, 0.1)';
-      });
-      
-      link.addEventListener('mouseleave', () => {
-        link.style.background = 'transparent';
-      });
-      
-      // Enable drag functionality
-      this.enableChatDrag(chatDiv, chat);
-      
-      chatDiv.appendChild(link);
-      
-      return chatDiv;
-    },
-    
-    // Get sidebar element
-    getSidebar() {
-      if (isGemini) {
-        return document.querySelector('nav[aria-label="Chat history"]') || 
-               document.querySelector('[role="navigation"]') ||
-               document.querySelector('nav') ||
-               document.querySelector('aside');
-      } else {
-        return document.querySelector('nav[aria-label="Chat history"]') || 
-               document.querySelector('[data-testid="sidebar"]') ||
-               document.querySelector('nav') ||
-               document.querySelector('.flex-shrink-0.overflow-x-hidden') ||
-               document.querySelector('.dark\\:bg-gray-900');
-      }
-    },
-    
-    // Show create folder dialog
-    showCreateFolderDialog() {
-      const folderName = prompt('Enter folder name:');
-      if (folderName && folderName.trim()) {
-        chatPinManager.createFolder(folderName.trim()).then(() => {
-          this.refreshPinnedSection();
-        });
-      }
-    },
-    
-    // Enable folder drop functionality
-    enableFolderDrop(folderElement, folderId) {
-      folderElement.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        folderElement.classList.add('zeroeka-drag-over');
-      });
-      
-      folderElement.addEventListener('dragleave', () => {
-        folderElement.classList.remove('zeroeka-drag-over');
-      });
-      
-      folderElement.addEventListener('drop', async (e) => {
-        e.preventDefault();
-        folderElement.classList.remove('zeroeka-drag-over');
-        
-        const chatId = e.dataTransfer.getData('chatId');
-        if (chatId) {
-          await chatPinManager.moveChatToFolder(chatId, folderId);
-          this.refreshPinnedSection();
-        }
-      });
-    },
-    
-    // Enable chat drag functionality
-    enableChatDrag(chatElement, chat) {
-      chatElement.draggable = true;
-      
-      chatElement.addEventListener('dragstart', (e) => {
-        e.dataTransfer.setData('chatId', chat.id);
-        chatElement.style.opacity = '0.5';
-      });
-      
-      chatElement.addEventListener('dragend', () => {
-        chatElement.style.opacity = '1';
-      });
-    },
-    
-    // Refresh pinned section
-    async refreshPinnedSection() {
-      await this.createPinnedSection();
-    },
-    
-    // Add pin buttons to existing chat items
-    async addPinButtonsToChats() {
-      const sidebar = this.getSidebar();
-      if (!sidebar) {
-        console.log('❌ ZeroEka Pin UI: No sidebar found for adding pin buttons');
-        return;
-      }
-      
-      const chatItems = this.getChatItems(sidebar);
-      console.log(`🔍 ZeroEka Pin UI: Found ${chatItems.length} chat items`);
-      
-      if (chatItems.length === 0) {
-        console.log('⚠️ ZeroEka Pin UI: No chat items found in sidebar');
-        return;
-      }
-      
-      let buttonsAdded = 0;
-      
-      for (const chatItem of chatItems) {
-        try {
-          // Skip if already has pin button
-          if (chatItem.querySelector('.zeroeka-pin-button')) continue;
-          
-          const chatId = chatPinManager.getChatId(chatItem);
-          if (!chatId) {
-            console.log('⚠️ ZeroEka Pin UI: Could not extract chat ID from item:', chatItem);
-            continue;
-          }
-          
-          const isPinned = await chatPinManager.isChatPinned(chatId);
-          const pinButton = this.createPinButton(chatItem, isPinned);
-          
-          // Add class for styling
-          chatItem.classList.add('zeroeka-chat-item');
-          
-          // Find the best container for the pin button
-          let container = chatItem;
-          
-          // Try to find a better container if this is a link element
-          if (chatItem.tagName === 'A') {
-            container = chatItem.closest('li') || chatItem.parentElement || chatItem;
-          }
-          
-          // Position pin button
-          container.style.position = 'relative';
-          pinButton.style.cssText = `
-            position: absolute;
-            top: 50%;
-            right: 8px;
-            transform: translateY(-50%);
-            z-index: 10;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 4px;
-          `;
-          
-          container.appendChild(pinButton);
-          buttonsAdded++;
-          
-          console.log(`✅ ZeroEka Pin UI: Added pin button to chat "${chatPinManager.getChatTitle(chatItem)}" (ID: ${chatId})`);
-        } catch (error) {
-          console.error('❌ ZeroEka Pin UI: Error adding pin button to chat item:', error, chatItem);
-        }
-      }
-      
-      console.log(`✅ ZeroEka Pin UI: Added ${buttonsAdded} pin buttons total`);
-    },
-    
-    // Get chat items from sidebar
-    getChatItems(sidebar) {
-      if (isGemini) {
-        // Multiple selectors for Gemini chat items
-        const selectors = [
-          '[role="button"]',
-          'a[href*="/chat/"]',
-          'li a[href*="/chat/"]',
-          '.conversation-item',
-          '[data-test-id*="conversation"]'
-        ];
-        
-        let items = [];
-        selectors.forEach(selector => {
-          const found = Array.from(sidebar.querySelectorAll(selector));
-          items = items.concat(found);
-        });
-        
-        // Filter unique items and those with chat links
-        return items.filter((item, index, self) => {
-          const isDuplicate = self.indexOf(item) !== index;
-          const isInPinnedSection = item.closest('.zeroeka-pinned-section');
-          const hasValidLink = item.href?.includes('/chat/') || item.querySelector('a[href*="/chat/"]');
-          
-          return !isDuplicate && !isInPinnedSection && hasValidLink;
-        });
-      } else {
-        // Multiple selectors for ChatGPT chat items
-        const selectors = [
-          'li a[href*="/c/"]',
-          'ol li',
-          '[data-testid*="conversation"]',
-          '.conversation-item',
-          'a[href*="/c/"]'
-        ];
-        
-        let items = [];
-        selectors.forEach(selector => {
-          const found = Array.from(sidebar.querySelectorAll(selector));
-          items = items.concat(found);
-        });
-        
-        // Filter unique items and those with chat links
-        return items.filter((item, index, self) => {
-          const isDuplicate = self.indexOf(item) !== index;
-          const isInPinnedSection = item.closest('.zeroeka-pinned-section');
-          const hasValidLink = item.href?.includes('/c/') || item.querySelector('a[href*="/c/"]');
-          
-          return !isDuplicate && !isInPinnedSection && hasValidLink;
-        });
-      }
-    },
-    
-    // Initialize pin UI
-    async init() {
-      console.log('🔧 ZeroEka Pin UI: Initializing...');
-      
-      // Add styles immediately
-      this.addPinStyles();
-      console.log('✅ ZeroEka Pin UI: Styles added');
-      
-      // Wait for sidebar to be available
-      let attempts = 0;
-      const maxAttempts = 20;
-      
-      const initializeWhenReady = async () => {
-        attempts++;
-        const sidebar = this.getSidebar();
-        
-        if (sidebar) {
-          console.log('✅ ZeroEka Pin UI: Sidebar found:', sidebar);
-          
-          // Initialize pinned section and buttons
-          await this.createPinnedSection();
-          await this.addPinButtonsToChats();
-          
-          console.log('✅ ZeroEka Pin UI: Initialization complete');
-          
-          // Set up mutation observer to handle dynamic content
-          const observer = new MutationObserver(() => {
-            setTimeout(() => {
-              this.addPinButtonsToChats();
-            }, 100);
-          });
-          
-          observer.observe(sidebar, {
-            childList: true,
-            subtree: true
-          });
-          
-          console.log('✅ ZeroEka Pin UI: Mutation observer setup complete');
-        } else {
-          console.log(`⏳ ZeroEka Pin UI: Waiting for sidebar... (${attempts}/${maxAttempts})`);
-          if (attempts < maxAttempts) {
-            setTimeout(initializeWhenReady, 500);
-          } else {
-            console.error('❌ ZeroEka Pin UI: Failed to find sidebar after', maxAttempts, 'attempts');
-          }
-        }
-      };
-      
-      // Start initialization
-      initializeWhenReady();
-      
-      // Also try again after page fully loads
-      setTimeout(() => {
-        if (attempts >= maxAttempts) {
-          console.log('🔄 ZeroEka Pin UI: Retrying initialization after page load...');
-          initializeWhenReady();
-        }
-      }, 3000);
-    }
-  };
   
   const e=e=>new Promise(t=>{setTimeout(()=>{t()},e)}),t=(e,t,l=1e3)=>{const n=setInterval(()=>{e.isConnected||(clearInterval(n),t())},l);return()=>{clearInterval(n)}},l=(e,t,l)=>{const n=new MutationObserver((e,l)=>{t(e,l)});return n.observe(e,{childList:!0,subtree:l}),n},n=(e="")=>/[：:\uFF1A\u003A\u0903]/.test(e),a=Alert2(()=>document.querySelector(o.floatbar)),s=({action:e,data:t})=>{chrome.runtime.sendMessage({type:"ga-event",action:e,data:t}).catch(e=>{})};let r=0;lang("syncFold");
   
@@ -851,36 +86,7 @@
     console.error('Error opening jsMind window:', error);
   }
 });
-  H=e=>{let n=e.__reply;if(!n&&(n=t(e.__ref.deref()).answerArticle,n)){const t=n.querySelector(o.markdown);if(t)return v(e,Array.from(t.children)),e.__reply=n,n.setAttribute(l,"reply"),n}}}})(),document.body.appendChild(r);const R=()=>{t(r,()=>{document.body.appendChild(r),R()},2e3)};return R(),r}}})();window.addEventListener("load",function e(){r=0,h(null),h(),m()?(y(),createZeroEkaIconButton(),
-// Initialize pin UI
-pinUI.init(),
-// Add debug test button for pinning
-(() => {
-  const testButton = document.createElement('button');
-  testButton.innerHTML = '🔧 Test Pin';
-  testButton.style.cssText = `
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    z-index: 10000;
-    background: #10a37f;
-    color: white;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 12px;
-  `;
-  testButton.addEventListener('click', () => {
-    console.log('🔧 Manual Pin Test Triggered');
-    pinUI.addPinButtonsToChats();
-  });
-  document.body.appendChild(testButton);
-  
-  // Remove after 10 seconds
-  setTimeout(() => testButton.remove(), 10000);
-})(),
-(()=>{const floatbar=document.querySelector('.catalogeu-navigation-plugin-floatbar');if(floatbar){const buttons=floatbar.querySelector('.buttons');if(buttons){buttons.style.display='none'}}})(),chrome.runtime.onMessage.addListener((e,t,l)=>{const{type:n,data:s}=e;"logout"===n?location.reload():"error"===n&&("automaticLoginFailure"===s?a(0,lang("automaticLoginFailureTitle"),lang("automaticLoginFailurePrompt")):a(0,lang("operationFailure"),lang(s?.message)||s?.message))})):r<10&&(r++,setTimeout(e,1e3))})})();
+  H=e=>{let n=e.__reply;if(!n&&(n=t(e.__ref.deref()).answerArticle,n)){const t=n.querySelector(o.markdown);if(t)return v(e,Array.from(t.children)),e.__reply=n,n.setAttribute(l,"reply"),n}}}})(),document.body.appendChild(r);const R=()=>{t(r,()=>{document.body.appendChild(r),R()},2e3)};return R(),r}}})();window.addEventListener("load",function e(){r=0,h(null),h(),m()?(y(),createZeroEkaIconButton(),(()=>{const floatbar=document.querySelector('.catalogeu-navigation-plugin-floatbar');if(floatbar){const buttons=floatbar.querySelector('.buttons');if(buttons){buttons.style.display='none'}}})(),chrome.runtime.onMessage.addListener((e,t,l)=>{const{type:n,data:s}=e;"logout"===n?location.reload():"error"===n&&("automaticLoginFailure"===s?a(0,lang("automaticLoginFailureTitle"),lang("automaticLoginFailurePrompt")):a(0,lang("operationFailure"),lang(s?.message)||s?.message))})):r<10&&(r++,setTimeout(e,1e3))})})();
 
 // Create ZeroEka icon button for sidebar toggle
 const createZeroEkaIconButton = () => {
@@ -2299,7 +1505,7 @@ const createZeroEkaIconButton = () => {
       window.bookmarkModeActive = true;
       
       // Add bookmark mode to ChatGPT sidebar chats
-      addPinButtonsToChats();
+      // addPinButtonsToChats(); // Disabled - pin buttons should only appear in context menu
       
       console.log('Bookmark mode activated');
     } else {
@@ -2316,7 +1522,7 @@ const createZeroEkaIconButton = () => {
       window.bookmarkModeActive = false;
       
       // Remove bookmark mode from ChatGPT sidebar chats
-      removePinButtonsFromChats();
+      // removePinButtonsFromChats(); // Disabled - pin buttons should only appear in context menu
       
       // Remove green borders from all chats (including bookmarked ones)
       const allChats = document.querySelectorAll('nav[data-testid="chat-history"] a, nav[data-testid="chat-history"] [role="button"], nav[data-testid="chat-history"] .conversation-item, nav[data-testid="chat-history"] [data-testid="conversation-turn-2"], nav[data-testid="chat-history"] [data-testid="conversation-item"], nav[data-testid="chat-history"] .conversation-turn-2, nav[data-testid="chat-history"] a[href*="/c/"], nav a[href*="/c/"], aside a[href*="/c/"], [data-testid="chat-history"] a, [data-testid="chat-history"] [role="button"]');
@@ -5661,4 +4867,414 @@ const updateTextSize = (container, size) => {
     }, 1200);
   })();
   
+})();
+
+// Enhanced chat context menu modification for pin/unpin functionality
+(() => {
+  const enhanceChatContextMenus = () => {
+    console.log('[ZeroEka] Setting up context menu observer...');
+    
+    // Use MutationObserver to detect ChatGPT's context menu popups
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            console.log('[ZeroEka] Node added:', node.tagName, node.className, node.getAttribute('role'));
+            
+            // Look for ChatGPT's three-dots context menu specifically
+            let popup = null;
+            
+            // Very specific ChatGPT context menu detection
+            if (node.matches && (
+              (node.matches('[role="menu"]') && node.closest('[data-radix-popper-content-wrapper]')) ||
+              (node.matches('[data-radix-popper-content-wrapper]') && node.querySelector('[role="menu"]'))
+            )) {
+              popup = node.matches('[role="menu"]') ? node : node.querySelector('[role="menu"]');
+            }
+            
+            // Also check if this node contains a ChatGPT context menu
+            if (!popup && node.querySelector) {
+              const menuElement = node.querySelector('[role="menu"]');
+              if (menuElement && menuElement.closest('[data-radix-popper-content-wrapper]')) {
+                popup = menuElement;
+              }
+            }
+
+            if (popup) {
+              // Additional validation - must contain typical ChatGPT menu items AND be in sidebar area
+              const popupText = popup.textContent || '';
+              const hasTypicalMenuItems = popupText.includes('Share') || 
+                                        popupText.includes('Rename') || 
+                                        popupText.includes('Archive') || 
+                                        popupText.includes('Delete');
+              
+              if (hasTypicalMenuItems && isNearChatSidebar(popup)) {
+                console.log('[ZeroEka] Found ChatGPT context menu:', popup);
+                setTimeout(() => addPinButtonToContextMenu(popup), 100);
+              } else {
+                console.log('[ZeroEka] Not a ChatGPT chat context menu, skipping');
+              }
+            }
+          }
+        });
+      });
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+
+    // Also observe the entire document in case popups are added to different containers
+    const documentObserver = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === Node.ELEMENT_NODE && node !== document.body) {
+            // Check if this is a portal container with ChatGPT context menu
+            if (node.querySelector) {
+              const menuElement = node.querySelector('[role="menu"]');
+              if (menuElement && menuElement.closest('[data-radix-popper-content-wrapper]')) {
+                console.log('[ZeroEka] Found ChatGPT context menu in portal:', node);
+                setTimeout(() => {
+                  const popupText = menuElement.textContent || '';
+                  const hasTypicalMenuItems = popupText.includes('Share') || 
+                                            popupText.includes('Rename') || 
+                                            popupText.includes('Archive') || 
+                                            popupText.includes('Delete');
+                  
+                  if (hasTypicalMenuItems && isNearChatSidebar(menuElement)) {
+                    addPinButtonToContextMenu(menuElement);
+                  } else {
+                    console.log('[ZeroEka] Portal menu not a ChatGPT chat context menu, skipping');
+                  }
+                }, 100);
+              }
+            }
+          }
+        });
+      });
+    });
+
+    documentObserver.observe(document.documentElement, {
+      childList: true,
+      subtree: true
+    });
+
+    // Store observer references for cleanup if needed
+    window.__chatContextMenuObserver = observer;
+    window.__chatDocumentObserver = documentObserver;
+  };
+
+  const isNearChatSidebar = (popup) => {
+    if (!popup) return false;
+    try {
+      const rect = popup.getBoundingClientRect();
+      console.log('[ZeroEka] Popup position:', { left: rect.left, top: rect.top, width: rect.width, height: rect.height });
+      // More permissive check - any popup in left 80% could be from sidebar
+      return rect.left < window.innerWidth * 0.8 && rect.width > 0 && rect.height > 0;
+    } catch (e) {
+      console.warn('[ZeroEka] Error checking popup position:', e);
+      return true; // Default to true if we can't check position
+    }
+  };
+
+  const addPinButtonToContextMenu = (popup) => {
+    console.log('[ZeroEka] Attempting to add pin button to popup:', popup);
+    
+    // Avoid duplicate pin buttons
+    if (popup.querySelector('.zeroeka-pin-button')) {
+      console.log('[ZeroEka] Pin button already exists, skipping');
+      return;
+    }
+
+    // Find the chat item this menu belongs to
+    const chatItem = findAssociatedChatItem(popup);
+    console.log('[ZeroEka] Found associated chat item:', chatItem);
+    if (!chatItem) {
+      console.log('[ZeroEka] No chat item found, skipping');
+      return;
+    }
+
+    const chatId = getChatId(chatItem);
+    console.log('[ZeroEka] Chat ID:', chatId);
+    if (!chatId) {
+      console.log('[ZeroEka] No chat ID found, skipping');
+      return;
+    }
+
+    const isBookmarked = isItemBookmarked(chatId);
+    console.log('[ZeroEka] Is bookmarked:', isBookmarked);
+
+    // Create pin/unpin button
+    const pinButton = document.createElement('div');
+    pinButton.className = 'zeroeka-pin-button';
+    pinButton.setAttribute('role', 'menuitem');
+    pinButton.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      color: inherit;
+      font-size: 14px;
+      min-height: 36px;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    `;
+
+    // Add hover effect matching ChatGPT's menu style
+    pinButton.addEventListener('mouseenter', () => {
+      pinButton.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+    });
+    pinButton.addEventListener('mouseleave', () => {
+      pinButton.style.backgroundColor = 'transparent';
+    });
+
+    // Create icon and text
+    const icon = document.createElement('span');
+    icon.style.cssText = `
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    `;
+    
+    const text = document.createElement('span');
+    text.style.cssText = `flex: 1;`;
+
+    if (isBookmarked) {
+      icon.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="currentColor" style="width: 16px; height: 16px; color: #10b981;">
+          <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+        </svg>
+      `;
+      text.textContent = 'Unpin chat';
+    } else {
+      icon.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+          <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+        </svg>
+      `;
+      text.textContent = 'Pin chat';
+    }
+
+    pinButton.appendChild(icon);
+    pinButton.appendChild(text);
+
+    // Add click handler
+    pinButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Re-evaluate current state from storage so multiple chats can be pinned/unpinned independently
+      try {
+        const list = JSON.parse(localStorage.getItem('bookmarkedChats') || '[]');
+        const isNowBookmarked = list.includes(chatId);
+        toggleChatBookmark(chatId, chatItem);
+      } catch (_) {
+        toggleChatBookmark(chatId, chatItem);
+      }
+      
+      // Close the context menu
+      setTimeout(() => {
+        try {
+          const backdrop = document.querySelector('[data-radix-popper-content-wrapper]')?.closest('[data-radix-portal]');
+          if (backdrop) backdrop.click();
+          popup.style.display = 'none';
+          popup.remove();
+        } catch (_) {}
+      }, 100);
+    });
+
+    // Insert the pin button at the top of the menu
+    console.log('[ZeroEka] Inserting pin button into popup. Popup children:', popup.children.length);
+    
+    if (popup.firstChild) {
+      popup.insertBefore(pinButton, popup.firstChild);
+      
+      // Add separator if there are other menu items
+      const separator = document.createElement('div');
+      separator.style.cssText = `
+        height: 1px;
+        background-color: rgba(255, 255, 255, 0.1);
+        margin: 4px 0;
+      `;
+      popup.insertBefore(separator, pinButton.nextSibling);
+      console.log('[ZeroEka] Pin button and separator added at top');
+    } else {
+      popup.appendChild(pinButton);
+      console.log('[ZeroEka] Pin button added as first child');
+    }
+    
+    console.log('[ZeroEka] Pin button successfully added to context menu');
+  };
+
+  const findAssociatedChatItem = (popup) => {
+    console.log('[ZeroEka] Finding associated chat item for popup...');
+
+    // Step 0: Try to resolve via aria-labelledby/controls relationship
+    try {
+      const labelledBy = popup.getAttribute('aria-labelledby');
+      const popupId = popup.getAttribute('id');
+      let trigger = null;
+      if (labelledBy) trigger = document.getElementById(labelledBy);
+      if (!trigger && popupId) trigger = document.querySelector(`[aria-controls="${popupId}"]`);
+      if (trigger) {
+        const container = trigger.closest('li, [data-testid="conversation-item"], .conversation-item');
+        if (container) {
+          const anchor = container.querySelector('a[href*="/c/"]');
+          if (anchor) {
+            console.log('[ZeroEka] Found chat via aria mapping:', anchor);
+            return anchor;
+          }
+        }
+      }
+    } catch (_) {}
+
+    // Prefer mapping via open trigger button state
+    try {
+      const triggers = Array.from(document.querySelectorAll('button[aria-expanded="true"], [role="button"][data-state="open"], button[data-state="open"]'));
+      if (triggers.length > 0) {
+        // Choose trigger closest to popup by vertical distance
+        const menuRect = popup.getBoundingClientRect();
+        let best = null;
+        let bestDist = Infinity;
+        for (const t of triggers) {
+          const r = t.getBoundingClientRect();
+          const d = Math.abs((r.top + r.bottom) / 2 - (menuRect.top + menuRect.bottom) / 2);
+          if (d < bestDist) { bestDist = d; best = t; }
+        }
+        if (best) {
+          const container = best.closest('li, [data-testid="conversation-item"], .conversation-item');
+          if (container) {
+            const anchor = container.querySelector('a[href*="/c/"]') || container.querySelector('a[href]');
+            if (anchor) {
+              console.log('[ZeroEka] Found chat via open trigger mapping:', anchor);
+              return anchor;
+            }
+          }
+          // If not inside a chat container (rare), find nearest anchor by proximity to trigger
+          const allAnchors = Array.from(document.querySelectorAll('nav[data-testid="chat-history"] a[href*="/c/"], aside a[href*="/c/"]'));
+          if (allAnchors.length) {
+            const tr = best.getBoundingClientRect();
+            let nearest = null; let min = Infinity;
+            for (const a of allAnchors) {
+              const ar = a.getBoundingClientRect();
+              if (ar.width <= 0 || ar.height <= 0) continue;
+              const dv = Math.abs((ar.top + ar.bottom) / 2 - (tr.top + tr.bottom) / 2);
+              if (dv < min) { min = dv; nearest = a; }
+            }
+            if (nearest) {
+              console.log('[ZeroEka] Found chat via nearest-anchor-to-trigger:', nearest);
+              return nearest;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[ZeroEka] Error mapping via open trigger:', e);
+    }
+
+    // Fallback: nearest anchor in the chat history nav by position
+    const nav = document.querySelector('nav[data-testid="chat-history"]') || document.querySelector('aside');
+    const anchors = nav ? Array.from(nav.querySelectorAll('a[href*="/c/"]')) : Array.from(document.querySelectorAll('a[href*="/c/"]'));
+    if (anchors.length === 0) return null;
+
+    try {
+      const menuRect = popup.getBoundingClientRect();
+      let closest = null;
+      let minDist = Infinity;
+      for (const a of anchors) {
+        const r = a.getBoundingClientRect();
+        if (r.width <= 0 || r.height <= 0) continue;
+        const d = Math.abs((r.top + r.bottom) / 2 - (menuRect.top + menuRect.bottom) / 2);
+        if (d < minDist) { minDist = d; closest = a; }
+      }
+      if (closest) {
+        console.log('[ZeroEka] Found chat by proximity fallback:', closest);
+        return closest;
+      }
+    } catch (e) {
+      console.warn('[ZeroEka] Error in proximity fallback:', e);
+    }
+
+    return null;
+  };
+
+  const getChatId = (chatItem) => {
+    if (!chatItem) return null;
+    // Always prefer the canonical conversation URL which is stable and unique
+    const anchor = chatItem.matches('a') ? chatItem : (chatItem.querySelector && chatItem.querySelector('a[href*="/c/"]'));
+    const href = anchor && anchor.getAttribute('href');
+    if (href) return href;
+
+    // Fallbacks for rare layouts
+    const dataTestId = chatItem.getAttribute && chatItem.getAttribute('data-testid');
+    if (dataTestId) return dataTestId;
+    const parentAnchor = chatItem.closest && chatItem.closest('a[href*="/c/"]');
+    if (parentAnchor) return parentAnchor.getAttribute('href');
+    const anyAnchor = chatItem.querySelector && chatItem.querySelector('a[href]');
+    if (anyAnchor) return anyAnchor.getAttribute('href');
+    const id = chatItem.getAttribute && chatItem.getAttribute('id');
+    if (id) return id;
+    return (chatItem.textContent || '').trim().slice(0, 100);
+  };
+
+  const isItemBookmarked = (chatId) => {
+    const bookmarkedChats = JSON.parse(localStorage.getItem('bookmarkedChats') || '[]');
+    return bookmarkedChats.includes(chatId);
+  };
+
+  const toggleChatBookmark = (chatId, chatItem) => {
+    const bookmarkedChats = JSON.parse(localStorage.getItem('bookmarkedChats') || '[]');
+    const isCurrentlyBookmarked = bookmarkedChats.includes(chatId);
+    
+    if (isCurrentlyBookmarked) {
+      // Remove from bookmarks
+      const updatedBookmarks = bookmarkedChats.filter(id => id !== chatId);
+      localStorage.setItem('bookmarkedChats', JSON.stringify(updatedBookmarks));
+      console.log('Chat unbookmarked:', chatId);
+    } else {
+      // Add to bookmarks
+      bookmarkedChats.push(chatId);
+      localStorage.setItem('bookmarkedChats', JSON.stringify(bookmarkedChats));
+      console.log('Chat bookmarked:', chatId);
+    }
+    
+    // Refresh page to update bookmark positions
+    setTimeout(() => {
+      try { window.location.reload(); } catch (_) {}
+    }, 200);
+  };
+
+  // Initialize context menu enhancement
+  enhanceChatContextMenus();
+  
+  // Manual testing function - expose globally for debugging (ChatGPT context menus only)
+  window.testZeroekaContextMenu = () => {
+    console.log('[ZeroEka] Manual test triggered - looking for ChatGPT context menus only');
+    const menus = document.querySelectorAll('[role="menu"]');
+    console.log('[ZeroEka] Found menus:', menus.length);
+    menus.forEach((menu, i) => {
+      if (menu.closest('[data-radix-popper-content-wrapper]')) {
+        const popupText = menu.textContent || '';
+        const hasTypicalMenuItems = popupText.includes('Share') || 
+                                  popupText.includes('Rename') || 
+                                  popupText.includes('Archive') || 
+                                  popupText.includes('Delete');
+        
+        if (hasTypicalMenuItems && isNearChatSidebar(menu)) {
+          console.log(`[ZeroEka] Testing ChatGPT context menu ${i}:`, menu);
+          addPinButtonToContextMenu(menu);
+        } else {
+          console.log(`[ZeroEka] Skipping non-ChatGPT menu ${i}:`, menu);
+        }
+      }
+    });
+  };
 })();
