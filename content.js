@@ -4015,18 +4015,34 @@ const updateTextSize = (container, size) => {
     `;
     star.style.cssText = `
       position: absolute;
-      left: -24px;
+      left: -20px;
       top: 50%;
       transform: translateY(-50%);
       z-index: 10;
       pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     `;
     
     // Insert star before the chat item text
     const container = chatItem.closest('li, .conversation-item, [data-testid="conversation-item"]') || chatItem;
     if (container) {
-      container.style.position = 'relative';
+      // Ensure container has relative positioning for absolute star positioning
+      if (getComputedStyle(container).position === 'static') {
+        container.style.position = 'relative';
+      }
+      
+      // Remove existing star if any
+      const existingStar = container.querySelector('.zeroeka-star-indicator');
+      if (existingStar) existingStar.remove();
+      
+      // Add star to container
       container.appendChild(star);
+      
+      console.log('[ZeroEka] Star indicator added to container:', container);
+    } else {
+      console.warn('[ZeroEka] No suitable container found for star indicator');
     }
   };
 
@@ -4034,14 +4050,40 @@ const updateTextSize = (container, size) => {
   const removeStarIndicator = (chatItem) => {
     if (!chatItem) return;
     
+    // Remove star from the chat item itself
     const existingStar = chatItem.querySelector('.zeroeka-star-indicator');
-    if (existingStar) existingStar.remove();
+    if (existingStar) {
+      existingStar.remove();
+      console.log('[ZeroEka] Star removed from chat item');
+    }
     
     // Also check parent container
     const container = chatItem.closest('li, .conversation-item, [data-testid="conversation-item"]');
     if (container) {
       const containerStar = container.querySelector('.zeroeka-star-indicator');
-      if (containerStar) containerStar.remove();
+      if (containerStar) {
+        containerStar.remove();
+        console.log('[ZeroEka] Star removed from container');
+      }
+    }
+    
+    // Also check for any stars in the entire chat history that might be orphaned
+    const allStars = document.querySelectorAll('.zeroeka-star-indicator');
+    if (allStars.length > 0) {
+      console.log('[ZeroEka] Found orphaned stars, cleaning up...');
+      allStars.forEach(star => {
+        const starContainer = star.closest('li, .conversation-item, [data-testid="conversation-item"]');
+        if (starContainer) {
+          const chatId = getChatId(starContainer.querySelector('a[href*="/c/"]') || starContainer);
+          if (chatId) {
+            const bookmarkedChats = JSON.parse(localStorage.getItem('bookmarkedChats') || '[]');
+            if (!bookmarkedChats.includes(chatId)) {
+              star.remove();
+              console.log('[ZeroEka] Removed orphaned star for chat:', chatId);
+            }
+          }
+        }
+      });
     }
   };
 
@@ -4962,6 +5004,15 @@ const updateTextSize = (container, size) => {
                                         popupText.includes('Rename') || 
                                         popupText.includes('Archive') || 
                                         popupText.includes('Delete');
+              
+              console.log('[ZeroEka] Popup validation:', {
+                popup: popup,
+                text: popupText.slice(0, 100),
+                hasMenuItems: hasTypicalMenuItems,
+                nearSidebar: isNearChatSidebar(popup),
+                role: popup.getAttribute('role'),
+                className: popup.className
+              });
               
               if (hasTypicalMenuItems && isNearChatSidebar(popup)) {
                 console.log('[ZeroEka] Found ChatGPT context menu:', popup);
