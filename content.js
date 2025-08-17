@@ -1531,6 +1531,7 @@ const createZeroEkaIconButton = () => {
         chatItem.style.borderRadius = '';
         chatItem.style.cursor = '';
         chatItem.style.transition = '';
+        removeStarIndicator(chatItem);
       });
       
       console.log('Bookmark mode deactivated');
@@ -1541,99 +1542,6 @@ const createZeroEkaIconButton = () => {
   const getChatItemContainer = (el) => {
     if (!el) return el;
     return el.closest('li, .conversation-item, [data-testid="conversation-item"], [data-testid="conversation-turn-2"]') || el;
-  };
-
-  // Add a star badge on the right of pinned chats that switches to three-dots on hover
-  const addPinnedStarBadge = (chatItem) => {
-    try {
-      const container = getChatItemContainer(chatItem);
-      if (!container) return;
-
-      // Prevent duplicates
-      if (container.querySelector('.zeroeka-pinned-star')) return;
-
-      // Locate the right-side actions (three dots) if present
-      const actionButton = container.querySelector('button[aria-label*="More"], button[aria-haspopup], [aria-haspopup="menu"]');
-
-      // Wrapper to position the star at far right
-      const wrapper = document.createElement('div');
-      wrapper.className = 'zeroeka-pinned-star';
-      wrapper.style.cssText = `
-        position: absolute;
-        right: 8px;
-        top: 50%;
-        transform: translateY(-50%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 18px;
-        height: 18px;
-        color: #10b981;
-        opacity: 0.95;
-        pointer-events: none;
-        z-index: 10;
-      `;
-      wrapper.innerHTML = `
-        <svg viewBox="0 0 24 24" fill="currentColor" style="width: 16px; height: 16px;">
-          <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
-        </svg>
-      `;
-
-      // Ensure container is positioned for absolute child
-      const host = container.closest('a, [role="button"], li, .conversation-item, [data-testid="conversation-item"]') || container;
-      const prevPosition = window.getComputedStyle(host).position;
-      if (prevPosition === 'static' || !prevPosition) {
-        host.style.position = 'relative';
-      }
-
-      host.appendChild(wrapper);
-
-      // Swap visibility on hover to show native three-dots
-      if (actionButton) {
-        // Make star non-interactive and hide when hovering over the row
-        host.addEventListener('mouseenter', () => {
-          wrapper.style.display = 'none';
-          // native three-dots stays visible
-        });
-        host.addEventListener('mouseleave', () => {
-          wrapper.style.display = '';
-        });
-      }
-    } catch (_) {}
-  };
-
-  // Decorate all currently marked bookmarked chat items with star badge
-  const decorateBookmarkedChats = () => {
-    const items = document.querySelectorAll('nav[data-testid="chat-history"] a.bookmarked, nav[data-testid="chat-history"] [role="button"].bookmarked, nav[data-testid="chat-history"] .conversation-item.bookmarked, nav[data-testid="chat-history"] [data-testid="conversation-item"].bookmarked');
-    items.forEach((item) => {
-      try { addPinnedStarBadge(item); } catch (_) {}
-    });
-  };
-
-  // Keep stars in sync with sidebar DOM mutations
-  const initPinnedStarObserver = () => {
-    let sidebar = document.querySelector('nav[data-testid="chat-history"]') || document.querySelector('aside');
-    if (!sidebar) return;
-    let decorateTimer = null;
-    const scheduleDecorate = () => {
-      if (decorateTimer) clearTimeout(decorateTimer);
-      decorateTimer = setTimeout(() => {
-        try { decorateBookmarkedChats(); } catch (_) {}
-      }, 150);
-    };
-    const obs = new MutationObserver((muts) => {
-      for (const m of muts) {
-        if (m.type === 'childList' || m.type === 'attributes') {
-          scheduleDecorate();
-          break;
-        }
-      }
-    });
-    obs.observe(sidebar, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-    // Store for possible cleanup
-    window.__zeroekaPinnedStarObserver = obs;
-    // Initial decorate
-    scheduleDecorate();
   };
 
   // Helper to extract a stable chat id from an item/container
@@ -1681,7 +1589,7 @@ const createZeroEkaIconButton = () => {
         
         if (isBookmarked) {
           itemEl.classList.add('bookmarked');
-          try { addPinnedStarBadge(chatItem); } catch (_) {}
+          addStarIndicator(chatItem);
         }
         
         // Add hover effect for bookmark mode
@@ -1737,6 +1645,7 @@ const createZeroEkaIconButton = () => {
           if (!isBookmarked) {
             // Bookmark the chat
             itemEl.classList.add('bookmarked');
+            addStarIndicator(chatItem);
             chatItem.style.border = '2px solid #3bb910';
             chatItem.style.borderRadius = '8px';
             
@@ -1769,6 +1678,7 @@ const createZeroEkaIconButton = () => {
 
             // Remove bookmarked visuals
             itemEl.classList.remove('bookmarked');
+            removeStarIndicator(chatItem);
             [itemEl, chatItem].forEach(el => {
               try {
                 el.style.border = '';
@@ -1846,7 +1756,6 @@ const createZeroEkaIconButton = () => {
         if (parent.firstChild !== el) parent.insertBefore(el, parent.firstChild);
       }
     });
-    try { decorateBookmarkedChats(); } catch (_) {}
   };
 
   // Function to remove bookmark mode from ChatGPT sidebar chats
@@ -4088,6 +3997,54 @@ const updateTextSize = (container, size) => {
     }
   });
 
+  // Function to add star indicator to pinned chats
+  const addStarIndicator = (chatItem) => {
+    if (!chatItem) return;
+    
+    // Remove existing star if any
+    const existingStar = chatItem.querySelector('.zeroeka-star-indicator');
+    if (existingStar) existingStar.remove();
+    
+    // Create star indicator
+    const star = document.createElement('span');
+    star.className = 'zeroeka-star-indicator';
+    star.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="currentColor" style="width: 16px; height: 16px; color: #10b981;">
+        <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+      </svg>
+    `;
+    star.style.cssText = `
+      position: absolute;
+      left: -24px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 10;
+      pointer-events: none;
+    `;
+    
+    // Insert star before the chat item text
+    const container = chatItem.closest('li, .conversation-item, [data-testid="conversation-item"]') || chatItem;
+    if (container) {
+      container.style.position = 'relative';
+      container.appendChild(star);
+    }
+  };
+
+  // Function to remove star indicator from unpinned chats
+  const removeStarIndicator = (chatItem) => {
+    if (!chatItem) return;
+    
+    const existingStar = chatItem.querySelector('.zeroeka-star-indicator');
+    if (existingStar) existingStar.remove();
+    
+    // Also check parent container
+    const container = chatItem.closest('li, .conversation-item, [data-testid="conversation-item"]');
+    if (container) {
+      const containerStar = container.querySelector('.zeroeka-star-indicator');
+      if (containerStar) containerStar.remove();
+    }
+  };
+
   // Function to restore bookmarked chats on page load (without changing their relative order if already grouped)
   const restoreBookmarkedChats = () => {
     try {
@@ -4115,10 +4072,12 @@ const updateTextSize = (container, size) => {
             });
             
             if (chatItem) {
-              // Add bookmarked class and decorate with star badge
+              // Add bookmarked class and star indicator
               chatItem.classList.add('bookmarked');
-              try { addPinnedStarBadge(chatItem); } catch (_) {}
-              found.push(chatItem);
+              addStarIndicator(chatItem);
+               found.push(chatItem);
+              
+
             } else {
               console.warn('Bookmarked chat not found in sidebar:', chatId);
             }
@@ -4179,9 +4138,10 @@ const updateTextSize = (container, size) => {
           // Ensure class reflects storage truth
           if (bookmarkedChats.includes(chatId)) {
             chatItem.classList.add('bookmarked');
-            try { addPinnedStarBadge(chatItem); } catch (_) {}
+            addStarIndicator(chatItem);
           } else {
             chatItem.classList.remove('bookmarked');
+            removeStarIndicator(chatItem);
           }
         }
       });
@@ -4198,8 +4158,6 @@ const updateTextSize = (container, size) => {
     if (!document.hidden) {
       console.log('Page became visible, checking sidebar...');
       setTimeout(ensureContractedSidebar, 500);
-      try { decorateBookmarkedChats(); } catch (_) {}
-      try { initPinnedStarObserver(); } catch (_) {}
     }
   });
 
@@ -5335,11 +5293,13 @@ const updateTextSize = (container, size) => {
       // Remove from bookmarks
       const updatedBookmarks = bookmarkedChats.filter(id => id !== chatId);
       localStorage.setItem('bookmarkedChats', JSON.stringify(updatedBookmarks));
+      removeStarIndicator(chatItem);
       console.log('Chat unbookmarked:', chatId);
     } else {
       // Add to bookmarks
       bookmarkedChats.push(chatId);
       localStorage.setItem('bookmarkedChats', JSON.stringify(bookmarkedChats));
+      addStarIndicator(chatItem);
       console.log('Chat bookmarked:', chatId);
     }
     
@@ -5374,10 +5334,4 @@ const updateTextSize = (container, size) => {
       }
     });
   };
-
-  // Initialize pinned star decorations and observer shortly after load
-  setTimeout(() => {
-    try { decorateBookmarkedChats(); } catch (_) {}
-    try { initPinnedStarObserver(); } catch (_) {}
-  }, 1000);
 })();
