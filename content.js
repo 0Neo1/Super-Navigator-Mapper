@@ -1553,45 +1553,38 @@ const createZeroEkaIconButton = () => {
     return (el.textContent || '').trim();
   };
 
-  // Star indicator helpers for pinned chats
-  const createStarIndicator = () => {
-    const star = document.createElement('span');
-    star.className = 'zeroeka-star-indicator';
-    star.setAttribute('aria-hidden', 'true');
-    star.style.cssText = [
-      'display:inline-flex',
-      'align-items:center',
-      'justify-content:center',
-      'width:16px',
-      'height:16px',
-      'margin-right:6px',
-      'color:#10b981',
-      'flex:0 0 auto',
-      'pointer-events:none',
-    ].join(';');
-    star.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" style="width: 16px; height: 16px;"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>';
-    return star;
-  };
-
-  const ensureStarOnChatItem = (chatItem) => {
+  // Helper: show/hide a star indicator beside a chat row
+  const setPinnedIndicatorForItem = (chatItem, shouldShow) => {
     try {
-      if (!chatItem) return;
-      // Prefer inserting inside the clickable anchor
-      const anchor = chatItem.matches && chatItem.matches('a') ? chatItem : (chatItem.querySelector && chatItem.querySelector('a'));
-      const host = anchor || chatItem;
-      if (!host || host.querySelector('.zeroeka-star-indicator')) return;
-      const star = createStarIndicator();
-      host.insertBefore(star, host.firstChild);
+      const container = getChatItemContainer(chatItem);
+      if (!container) return;
+      let indicator = container.querySelector('.zeroeka-pinned-indicator');
+      if (shouldShow) {
+        if (!indicator) {
+          indicator = document.createElement('span');
+          indicator.className = 'zeroeka-pinned-indicator';
+          indicator.textContent = '★';
+          indicator.style.cssText = 'margin-left: 8px; color: #10b981; opacity: 0.95; font-size: 12px; pointer-events: none;';
+          // Append near the end of the main clickable area
+          const anchor = container.querySelector('a[href], [role="button"][data-testid]') || container;
+          anchor.appendChild(indicator);
+        }
+      } else if (indicator) {
+        indicator.remove();
+      }
     } catch (_) {}
   };
 
-  const removeStarFromChatItem = (chatItem) => {
+  // Apply star indicators to all chats based on storage
+  const applyPinnedIndicators = () => {
     try {
-      if (!chatItem) return;
-      const anchor = chatItem.matches && chatItem.matches('a') ? chatItem : (chatItem.querySelector && chatItem.querySelector('a'));
-      const host = anchor || chatItem;
-      const star = host && host.querySelector && host.querySelector('.zeroeka-star-indicator');
-      if (star) star.remove();
+      const bookmarked = JSON.parse(localStorage.getItem('bookmarkedChats') || '[]');
+      const idSet = new Set(bookmarked);
+      const chatItems = document.querySelectorAll('nav[data-testid="chat-history"] a, nav[data-testid="chat-history"] [role="button"], nav[data-testid="chat-history"] .conversation-item, nav[data-testid="chat-history"] [data-testid="conversation-turn-2"], nav[data-testid="chat-history"] [data-testid="conversation-item"], nav[data-testid="chat-history"] .conversation-turn-2, nav[data-testid="chat-history"] a[href*="/c/"], nav a[href*="/c/"], aside a[href*="/c/"], [data-testid="chat-history"] a, [data-testid="chat-history"] [role="button"]');
+      chatItems.forEach((el) => {
+        const id = getChatIdFromEl(el) || getChatIdFromEl(getChatItemContainer(el));
+        setPinnedIndicatorForItem(el, !!(id && idSet.has(id)));
+      });
     } catch (_) {}
   };
 
@@ -1717,7 +1710,6 @@ const createZeroEkaIconButton = () => {
 
             // Remove bookmarked visuals
             itemEl.classList.remove('bookmarked');
-            removeStarFromChatItem(itemEl);
             [itemEl, chatItem].forEach(el => {
               try {
                 el.style.border = '';
@@ -4063,10 +4055,9 @@ const updateTextSize = (container, size) => {
             });
             
             if (chatItem) {
-              // Add bookmarked class and star indicator
+              // Add bookmarked class (no visual indicator by default)
               chatItem.classList.add('bookmarked');
-              ensureStarOnChatItem(chatItem);
-              found.push(chatItem);
+               found.push(chatItem);
               
 
             } else {
@@ -4110,6 +4101,8 @@ const updateTextSize = (container, size) => {
   // Call restore function on page load
   window.addEventListener('load', restoreBookmarkedChats);
   document.addEventListener('DOMContentLoaded', restoreBookmarkedChats);
+  window.addEventListener('load', applyPinnedIndicators);
+  document.addEventListener('DOMContentLoaded', applyPinnedIndicators);
   
   // Monitor bookmark positions and fix if needed
   const monitorBookmarkPositions = () => {
@@ -4129,10 +4122,8 @@ const updateTextSize = (container, size) => {
           // Ensure class reflects storage truth
           if (bookmarkedChats.includes(chatId)) {
             chatItem.classList.add('bookmarked');
-            ensureStarOnChatItem(chatItem);
           } else {
             chatItem.classList.remove('bookmarked');
-            removeStarFromChatItem(chatItem);
           }
         }
       });
@@ -4143,6 +4134,7 @@ const updateTextSize = (container, size) => {
   
   // Monitor bookmark positions periodically
   setInterval(monitorBookmarkPositions, 5000);
+  setInterval(applyPinnedIndicators, 3000);
 
   // Listen for page visibility changes (when user returns to tab)
   document.addEventListener('visibilitychange', () => {
@@ -5122,12 +5114,6 @@ const updateTextSize = (container, size) => {
         const list = JSON.parse(localStorage.getItem('bookmarkedChats') || '[]');
         const isNowBookmarked = list.includes(chatId);
         toggleChatBookmark(chatId, chatItem);
-        // Update star indicator immediately for better feedback
-        if (!isNowBookmarked) {
-          ensureStarOnChatItem(chatItem);
-        } else {
-          removeStarFromChatItem(chatItem);
-        }
       } catch (_) {
         toggleChatBookmark(chatId, chatItem);
       }
@@ -5291,17 +5277,20 @@ const updateTextSize = (container, size) => {
       const updatedBookmarks = bookmarkedChats.filter(id => id !== chatId);
       localStorage.setItem('bookmarkedChats', JSON.stringify(updatedBookmarks));
       console.log('Chat unbookmarked:', chatId);
+      if (chatItem) setPinnedIndicatorForItem(chatItem, false);
     } else {
       // Add to bookmarks
       bookmarkedChats.push(chatId);
       localStorage.setItem('bookmarkedChats', JSON.stringify(bookmarkedChats));
       console.log('Chat bookmarked:', chatId);
+      if (chatItem) setPinnedIndicatorForItem(chatItem, true);
     }
     
-    // Refresh page to update bookmark positions
-    setTimeout(() => {
-      try { window.location.reload(); } catch (_) {}
-    }, 200);
+    // Update indicators across the list immediately
+    setTimeout(applyPinnedIndicators, 50);
+    
+    // Then refresh page shortly after to maintain group order (as per prior behavior)
+    setTimeout(() => { try { window.location.reload(); } catch (_) {} }, 250);
   };
 
   // Initialize context menu enhancement
