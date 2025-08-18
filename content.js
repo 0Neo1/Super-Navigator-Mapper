@@ -1039,15 +1039,41 @@ const createZeroEkaIconButton = () => {
         iframeDoc.write('</div></body></html>');
         iframeDoc.close();
 
-        const finalize = () => {
-          try { iframe.contentWindow.focus(); } catch(_) {}
-          try { iframe.contentWindow.print(); } catch(_) {}
-          setTimeout(() => { try { document.body.removeChild(iframe); } catch(_) {} }, 1500);
+        // Ensure the print dialog opens only once
+        let hasPrinted = false;
+        const showToast = (text) => {
+          try {
+            const toast = document.createElement('div');
+            toast.textContent = text;
+            toast.style.cssText = `
+              position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+              background: rgba(20,20,20,0.92); color: #fff; padding: 10px 14px; border-radius: 8px;
+              font-size: 13px; z-index: 2147483647; box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => { try { toast.remove(); } catch(_) {} }, 2600);
+          } catch(_) {}
         };
 
-        // Wait a short moment to ensure resources load, then print
-        iframe.onload = () => finalize();
-        setTimeout(finalize, 800);
+        const finalizeOnce = () => {
+          if (hasPrinted) return;
+          hasPrinted = true;
+          try {
+            // Close handler: show success message when the print dialog closes
+            iframe.contentWindow.onafterprint = () => {
+              showToast('Pdf successfully downloaded in storage');
+              try { document.body.removeChild(iframe); } catch(_) {}
+            };
+          } catch(_) {}
+          try { iframe.contentWindow.focus(); } catch(_) {}
+          try { iframe.contentWindow.print(); } catch(_) {}
+          // Safety cleanup in case onafterprint does not fire
+          setTimeout(() => { try { document.body.removeChild(iframe); } catch(_) {} }, 5000);
+        };
+
+        // Wait for iframe load then trigger print; keep a single fallback
+        iframe.onload = () => setTimeout(finalizeOnce, 50);
+        setTimeout(() => { finalizeOnce(); }, 1500);
       } catch (error) {
         console.error('Error during PDF export:', error);
         alert('Error creating PDF export. Please try again.');
