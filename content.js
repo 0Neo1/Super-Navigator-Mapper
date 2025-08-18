@@ -911,8 +911,8 @@ const createZeroEkaIconButton = () => {
   });
 
   // Add click functionality for PDF export button
-  pdfExportButton.addEventListener('click', async () => {
-    const exportToPDF = async () => {
+  pdfExportButton.addEventListener('click', () => {
+    const exportToPDF = () => {
       try {
         const IS_GEMINI = /gemini\.google\.com/.test(location.hostname) || (typeof isGemini !== 'undefined' && isGemini);
 
@@ -1046,125 +1046,30 @@ const createZeroEkaIconButton = () => {
             const toast = document.createElement('div');
             toast.textContent = text;
             toast.style.cssText = `
-              position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+              position: fixed; left: 50%; top: 12px; transform: translateX(-50%);
               background: rgba(20,20,20,0.92); color: #fff; padding: 10px 14px; border-radius: 8px;
               font-size: 13px; z-index: 2147483647; box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+              pointer-events: none;
             `;
             document.body.appendChild(toast);
             setTimeout(() => { try { toast.remove(); } catch(_) {} }, 2600);
           } catch(_) {}
         };
 
-        // Minimal PDF generator (text-only) to ensure a true .pdf file in Downloads
-        const generatePdfFromText = (text) => {
-          const pageWidth = 595.28; // A4 width in pt
-          const pageHeight = 841.89; // A4 height in pt
-          const margin = 36; // 0.5in
-          const fontSize = 12;
-          const lineHeight = 14; // leading
-          const usableWidth = pageWidth - margin * 2;
-          const maxChars = Math.floor(usableWidth / 6); // approx width per char
-          const maxLinesPerPage = Math.floor((pageHeight - margin * 2) / lineHeight);
-
-          const escapePdf = (s) => s.replace(/\\/g, \\\\n+).replace(/\(/g, '\\(').replace(/\)/g, '\\)').replace(/\r?\n/g, '\\r');
-          const wrap = (s) => {
-            const lines = [];
-            String(s || '').split(/\r?\n/).forEach((p) => {
-              if (!p) { lines.push(''); return; }
-              let t = p;
-              while (t.length > maxChars) { lines.push(t.slice(0, maxChars)); t = t.slice(maxChars); }
-              lines.push(t);
-            });
-            return lines;
-          };
-
-          // Split into pages
-          const allLines = wrap(text);
-          const pages = [];
-          for (let i = 0; i < allLines.length; i += maxLinesPerPage) {
-            pages.push(allLines.slice(i, i + maxLinesPerPage));
-          }
-
-          const parts = [];
-          const xref = [];
-          const w = (s) => { parts.push(s); };
-          const bytesLen = (s) => new TextEncoder().encode(s).length;
-          let offset = 0;
-          const push = (s) => { xref.push(offset); w(s); offset += bytesLen(s); };
-          const obj = (n, body) => push(`${n} 0 obj\n${body}\nendobj\n`);
-
-          // Header
-          push('%PDF-1.4\n');
-
-          // Font object 3 0
-          obj(3, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
-
-          // Content streams and page objects
-          const pageObjNums = [];
-          let objNum = 4;
-          pages.forEach((pageLines, idx) => {
-            // Content stream
-            const content = (() => {
-              let s = 'BT\n/F1 ' + fontSize + ' Tf\n' + margin + ' ' + (pageHeight - margin - fontSize) + ' Td\n' + lineHeight + ' TL\n';
-              pageLines.forEach((ln, i) => {
-                const line = escapePdf(ln);
-                s += `(${line}) Tj` + (i < pageLines.length - 1 ? '\nT*\n' : '\n');
-              });
-              s += 'ET\n';
-              return s;
-            })();
-            const contentLen = bytesLen(content);
-            const contentNum = objNum++;
-            obj(contentNum, `<< /Length ${contentLen} >>\nstream\n${content}endstream`);
-
-            // Page object
-            const pageNum = objNum++;
-            pageObjNums.push(pageNum);
-            obj(pageNum, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentNum} 0 R >>`);
-          });
-
-          // Pages tree 2 0
-          obj(2, `<< /Type /Pages /Count ${pageObjNums.length} /Kids [ ${pageObjNums.map(n => n + ' 0 R').join(' ')} ] >>`);
-          // Catalog 1 0
-          obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
-
-          // Xref
-          const xrefStart = offset;
-          let xrefTable = 'xref\n0 ' + (xref.length + 1) + '\n0000000000 65535 f \n';
-          xref.forEach((off) => { xrefTable += (off.toString().padStart(10, '0') + ' 00000 n \n'); });
-          w(xrefTable);
-          w('trailer\n<< /Size ' + (xref.length + 1) + ' /Root 1 0 R >>\nstartxref\n' + xrefStart + '\n%%EOF');
-
-          const blob = new Blob(parts.map(p => new TextEncoder().encode(p)), { type: 'application/pdf' });
-          return URL.createObjectURL(blob);
-        };
-
-        const finalizeOnce = async () => {
+        const finalizeOnce = () => {
           if (hasPrinted) return;
           hasPrinted = true;
-          // Generate data URL from iframe HTML and request background to download
           try {
-            const text = (iframeDoc.querySelector('.ze-content') || iframeDoc.body).innerText || iframeDoc.body.textContent || '';
-            const blobUrl = generatePdfFromText(text);
-            const filename = `ZeroEka_Conversation_${new Date().toISOString().replace(/[:.]/g,'-')}.pdf`;
-            const resp = await new Promise((resolve) => {
-              try {
-                chrome.runtime.sendMessage({ type: 'download-pdf', data: { url: blobUrl, filename } }, resolve);
-              } catch(_) { resolve({ ok: false }); }
-            });
-            if (resp && resp.ok) {
+            // Close handler: show success message when the print dialog closes
+            iframe.contentWindow.onafterprint = () => {
               showToast('Pdf successfully downloaded in storage');
-            } else {
-              // Fallback to print dialog if downloads blocked
-              try { iframe.contentWindow.focus(); } catch(_) {}
-              try { iframe.contentWindow.print(); } catch(_) {}
-            }
-          } catch(_) {
-            try { iframe.contentWindow.focus(); } catch(_) {}
-            try { iframe.contentWindow.print(); } catch(_) {}
-          }
-          // Cleanup iframe and any object URLs after a delay
-          setTimeout(() => { try { document.body.removeChild(iframe); } catch(_) {} }, 3000);
+              try { document.body.removeChild(iframe); } catch(_) {}
+            };
+          } catch(_) {}
+          try { iframe.contentWindow.focus(); } catch(_) {}
+          try { iframe.contentWindow.print(); } catch(_) {}
+          // Safety cleanup in case onafterprint does not fire
+          setTimeout(() => { try { document.body.removeChild(iframe); } catch(_) {} }, 5000);
         };
 
         // Wait for iframe load then trigger print; keep a single fallback
@@ -1176,7 +1081,7 @@ const createZeroEkaIconButton = () => {
       }
     };
 
-    await exportToPDF();
+    exportToPDF();
   });
 
   // Create Fullscreen button below PDF Export button
