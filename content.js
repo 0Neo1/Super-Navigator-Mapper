@@ -1056,41 +1056,27 @@ const createZeroEkaIconButton = () => {
           } catch(_) {}
         };
 
-        const finalizeOnce = () => {
+        const finalizeOnce = async () => {
           if (hasPrinted) return;
           hasPrinted = true;
-          // Attempt programmatic download via background to detect success/cancel
-          (async () => {
-            try {
-              const text = (iframeDoc.querySelector('.ze-content') || iframeDoc.body).innerText || iframeDoc.body.textContent || '';
-              // Minimal PDF generator already removed earlier; fallback to print if downloads API unavailable
-              const buildBlobUrl = () => {
-                const content = new Blob([text], { type: 'text/plain;charset=utf-8' });
-                return URL.createObjectURL(content);
-              };
-              const filename = `ZeroEka_Conversation_${new Date().toISOString().replace(/[:.]/g,'-')}.txt.pdf`;
-              const blobUrl = buildBlobUrl();
-              const resp = await new Promise((resolve) => {
-                try { chrome.runtime.sendMessage({ type: 'download-pdf', data: { url: blobUrl, filename } }, resolve); }
-                catch(_) { resolve({ ok: false }); }
-              });
-              if (resp && resp.ok) {
-                showToast('Pdf successfully downloaded in storage');
-                setTimeout(() => { try { document.body.removeChild(iframe); } catch(_) {} }, 1000);
-                return;
-              }
-            } catch(_) {}
-            // Fallback to user print dialog; cannot know success/cancel reliably
-            try {
-              iframe.contentWindow.onafterprint = () => {
-                // Do not show success toast here since cancel can't be distinguished
-                try { document.body.removeChild(iframe); } catch(_) {}
-              };
-            } catch(_) {}
-            try { iframe.contentWindow.focus(); } catch(_) {}
-            try { iframe.contentWindow.print(); } catch(_) {}
-            setTimeout(() => { try { document.body.removeChild(iframe); } catch(_) {} }, 5000);
-          })();
+          // Build a minimal PDF blob from the iframe's plain text (ensures a real download)
+          const text = (iframeDoc.querySelector('.ze-content') || iframeDoc.body).innerText || iframeDoc.body.textContent || '';
+          const filename = `ZeroEka_Conversation_${new Date().toISOString().replace(/[:.]/g,'-')}.txt.pdf`;
+          const blob = new Blob([text], { type: 'application/pdf' });
+          const blobUrl = URL.createObjectURL(blob);
+          const resp = await new Promise((resolve) => {
+            try { chrome.runtime.sendMessage({ type: 'download-pdf', data: { url: blobUrl, filename } }, resolve); }
+            catch(_) { resolve({ ok: false }); }
+          });
+          if (resp && resp.ok) {
+            showToast('Pdf successfully downloaded in storage');
+            setTimeout(() => { try { document.body.removeChild(iframe); } catch(_) {} }, 800);
+            return;
+          }
+          // Fallback to print dialog if downloads are blocked or permission missing
+          try { iframe.contentWindow.focus(); } catch(_) {}
+          try { iframe.contentWindow.print(); } catch(_) {}
+          setTimeout(() => { try { document.body.removeChild(iframe); } catch(_) {} }, 5000);
         };
 
         // Wait for iframe load then trigger print; keep a single fallback
