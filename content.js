@@ -933,13 +933,24 @@ const createZeroEkaIconButton = () => {
         const logoSrc = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL)
           ? chrome.runtime.getURL('images/ZeroEka_main.png')
           : '';
+        const htmlEscape = (s) => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        const getGeminiConversationTitle = () => {
+          try {
+            const explicit = document.querySelector('[data-test-id="conversation-title"], [data-qa="conversation-title"], header h1');
+            if (explicit && explicit.textContent.trim()) return explicit.textContent.trim();
+            const firstPrompt = document.querySelector('user-query-content .query-text');
+            if (firstPrompt) return (firstPrompt.textContent || '').trim().slice(0, 80).replace(/\s+/g, ' ');
+          } catch(_) {}
+          return 'Gemini Conversation';
+        };
+        const pdfTitle = IS_GEMINI ? getGeminiConversationTitle() : (document.title || 'Conversation');
         iframeDoc.open();
         iframeDoc.write(`
           <!DOCTYPE html>
           <html>
           <head>
             <meta charset="utf-8" />
-            <title>ZeroEka</title>
+            <title>${htmlEscape(pdfTitle)}</title>
             <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@600;700;800&display=swap" rel="stylesheet" />
             <style>
               :root { color-scheme: light; }
