@@ -911,8 +911,8 @@ const createZeroEkaIconButton = () => {
   });
 
   // Add click functionality for PDF export button
-  pdfExportButton.addEventListener('click', () => {
-    const exportToPDF = () => {
+  pdfExportButton.addEventListener('click', async () => {
+    const exportToPDF = async () => {
       try {
         const IS_GEMINI = /gemini\.google\.com/.test(location.hostname) || (typeof isGemini !== 'undefined' && isGemini);
 
@@ -1055,20 +1055,33 @@ const createZeroEkaIconButton = () => {
           } catch(_) {}
         };
 
-        const finalizeOnce = () => {
+        const finalizeOnce = async () => {
           if (hasPrinted) return;
           hasPrinted = true;
+          // Generate data URL from iframe HTML and request background to download
           try {
-            // Close handler: show success message when the print dialog closes
-            iframe.contentWindow.onafterprint = () => {
+            const html = iframeDoc.documentElement.outerHTML;
+            const blob = new Blob([html], { type: 'text/html' });
+            const blobUrl = URL.createObjectURL(blob);
+            const filename = `ZeroEka_Conversation_${new Date().toISOString().replace(/[:.]/g,'-')}.html.pdf`;
+            const resp = await new Promise((resolve) => {
+              try {
+                chrome.runtime.sendMessage({ type: 'download-pdf', data: { url: blobUrl, filename } }, resolve);
+              } catch(_) { resolve({ ok: false }); }
+            });
+            if (resp && resp.ok) {
               showToast('Pdf successfully downloaded in storage');
-              try { document.body.removeChild(iframe); } catch(_) {}
-            };
-          } catch(_) {}
-          try { iframe.contentWindow.focus(); } catch(_) {}
-          try { iframe.contentWindow.print(); } catch(_) {}
-          // Safety cleanup in case onafterprint does not fire
-          setTimeout(() => { try { document.body.removeChild(iframe); } catch(_) {} }, 5000);
+            } else {
+              // Fallback to print dialog if downloads blocked
+              try { iframe.contentWindow.focus(); } catch(_) {}
+              try { iframe.contentWindow.print(); } catch(_) {}
+            }
+          } catch(_) {
+            try { iframe.contentWindow.focus(); } catch(_) {}
+            try { iframe.contentWindow.print(); } catch(_) {}
+          }
+          // Cleanup iframe and any object URLs after a delay
+          setTimeout(() => { try { document.body.removeChild(iframe); } catch(_) {} }, 3000);
         };
 
         // Wait for iframe load then trigger print; keep a single fallback
@@ -1080,7 +1093,7 @@ const createZeroEkaIconButton = () => {
       }
     };
 
-    exportToPDF();
+    await exportToPDF();
   });
 
   // Create Fullscreen button below PDF Export button

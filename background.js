@@ -83,6 +83,25 @@
   // Message handling
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const { type, data } = message;
+    // Direct PDF download from content script via data URL or blob URL
+    if (type === 'download-pdf') {
+      try {
+        const { filename = 'conversation.pdf', url } = data || {};
+        if (!url) { sendResponse({ ok: false, error: 'no_url' }); return true; }
+        chrome.downloads.download({ url, filename, saveAs: false }, (downloadId) => {
+          if (chrome.runtime.lastError || !downloadId) {
+            sendResponse({ ok: false, error: chrome.runtime.lastError?.message || 'download_failed' });
+          } else {
+            sendResponse({ ok: true, id: downloadId });
+          }
+        });
+        return true; // async
+      } catch (e) {
+        sendResponse({ ok: false, error: e?.message || 'download_error' });
+        return true;
+      }
+    }
+
     
     console.log('Background received message:', { type, data: !!data, sender: sender.tab?.url });
     
