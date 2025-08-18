@@ -1056,36 +1056,17 @@ const createZeroEkaIconButton = () => {
         };
 
         let printOpenedAt = 0;
-        let blurAt = 0;
-        let focusBackAt = 0;
         const finalizeOnce = () => {
           if (hasPrinted) return;
           hasPrinted = true;
           try {
             // Close handler: show success message when the print dialog closes
-            const onAfterPrint = () => {
-              // Use window blur/focus duration as an additional signal
-              const elapsed = (focusBackAt || Date.now()) - (blurAt || printOpenedAt || Date.now());
-              // Consider it a save only if the dialog was open for a meaningful time
-              if (elapsed >= 6000) {
-                showToast('Pdf successfully downloaded in storage');
-              }
+            iframe.contentWindow.onafterprint = () => {
               try { document.body.removeChild(iframe); } catch(_) {}
-              try { window.removeEventListener('blur', onBlur, true); } catch(_) {}
-              try { window.removeEventListener('focus', onFocus, true); } catch(_) {}
-              try { iframe.contentWindow.removeEventListener('afterprint', onAfterPrint); } catch(_) {}
             };
-            iframe.contentWindow.onafterprint = onAfterPrint;
           } catch(_) {}
           try { iframe.contentWindow.focus(); } catch(_) {}
-          try {
-            const onBlur = () => { blurAt = Date.now(); };
-            const onFocus = () => { focusBackAt = Date.now(); };
-            window.addEventListener('blur', onBlur, true);
-            window.addEventListener('focus', onFocus, true);
-            printOpenedAt = Date.now();
-            iframe.contentWindow.print();
-          } catch(_) {}
+          try { printOpenedAt = Date.now(); iframe.contentWindow.print(); } catch(_) {}
           // Safety cleanup in case onafterprint does not fire
           setTimeout(() => { try { document.body.removeChild(iframe); } catch(_) {} }, 5000);
         };
