@@ -1039,8 +1039,7 @@ const createZeroEkaIconButton = () => {
         iframeDoc.write('</div></body></html>');
         iframeDoc.close();
 
-        // Ensure the print dialog opens only once
-        let hasPrinted = false;
+        // Downloads-based flow: build a compact text PDF and delegate to background for Save As
         const showToast = (text) => {
           try {
             const toast = document.createElement('div');
@@ -1055,30 +1054,35 @@ const createZeroEkaIconButton = () => {
           } catch(_) {}
         };
 
-        let printOpenedAt = 0;
-        const finalizeOnce = () => {
-          if (hasPrinted) return;
-          hasPrinted = true;
-          try {
-            // Close handler: show success message when the print dialog closes
-            iframe.contentWindow.onafterprint = () => {
-              // Heuristic: if the dialog stayed open for a bit, assume user pressed Save
-              const elapsed = Date.now() - (printOpenedAt || Date.now());
-              if (elapsed > 2000) {
-                showToast('Pdf successfully downloaded in storage');
-              }
-              try { document.body.removeChild(iframe); } catch(_) {}
-            };
-          } catch(_) {}
-          try { iframe.contentWindow.focus(); } catch(_) {}
-          try { printOpenedAt = Date.now(); iframe.contentWindow.print(); } catch(_) {}
-          // Safety cleanup in case onafterprint does not fire
-          setTimeout(() => { try { document.body.removeChild(iframe); } catch(_) {} }, 5000);
+        const text = (iframeDoc.querySelector('.ze-content') || iframeDoc.body).innerText || iframeDoc.body.textContent || '';
+        const buildSimplePdfDataUrl = (plainText) => {
+          const pageWidth = 595.28, pageHeight = 841.89, margin = 36, fontSize = 12, lineHeight = 14;
+          const usableWidth = pageWidth - margin * 2;
+          const maxChars = Math.floor(usableWidth / 6);
+          const maxLinesPerPage = Math.floor((pageHeight - margin * 2) / lineHeight);
+          const escapePdf = (s) => String(s || '').replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)").replace(/\r?\n/g, "\\r");
+          const wrap = (s) => { const lines = []; String(s || '').split(/\r?\n/).forEach((p)=>{ if(!p){lines.push(''); return;} let t=p; while(t.length>maxChars){ lines.push(t.slice(0,maxChars)); t=t.slice(maxChars);} lines.push(t); }); return lines; };
+          const allLines = wrap(plainText);
+          const parts = []; const xref = []; let offset = 0; const w=(s)=>parts.push(s); const bytesLen=(s)=>new TextEncoder().encode(s).length; const push=(s)=>{ xref.push(offset); w(s); offset += bytesLen(s); };
+          const pages = []; for(let i=0;i<allLines.length;i+=maxLinesPerPage){ pages.push(allLines.slice(i,i+maxLinesPerPage)); }
+          push('%PDF-1.4\n');
+          const obj=(n,body)=>push(`${n} 0 obj\n${body}\nendobj\n`);
+          obj(3,'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+          const pageObjNums=[]; let objNum=4; pages.forEach((pageLines)=>{ const content=(()=>{ let s=`BT\n/F1 ${fontSize} Tf\n${margin} ${pageHeight - margin - fontSize} Td\n${lineHeight} TL\n`; pageLines.forEach((ln,i)=>{ const line=escapePdf(ln); s+=`(${line}) Tj` + (i<pageLines.length-1?'\nT*\n':'\n'); }); s+='ET\n'; return s; })(); const contentLen=bytesLen(content); const contentNum=objNum++; obj(contentNum,`<< /Length ${contentLen} >>\nstream\n${content}endstream`); const pageNum=objNum++; pageObjNums.push(pageNum); obj(pageNum,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentNum} 0 R >>`); });
+          obj(2,`<< /Type /Pages /Count ${pageObjNums.length} /Kids [ ${pageObjNums.map(n=>n+' 0 R').join(' ')} ] >>`);
+          obj(1,'<< /Type /Catalog /Pages 2 0 R >>');
+          const xrefStart = offset; let xrefTable = 'xref\n0 ' + (xref.length + 1) + '\n0000000000 65535 f \n'; xref.forEach((off)=>{ xrefTable += (off.toString().padStart(10,'0') + ' 00000 n \n'); }); w(xrefTable); w('trailer\n<< /Size ' + (xref.length + 1) + ' /Root 1 0 R >>\nstartxref\n' + xrefStart + '\n%%EOF');
+          const pdfText = parts.join(''); const base64 = btoa(unescape(encodeURIComponent(pdfText))); return `data:application/pdf;base64,${base64}`;
         };
 
-        // Wait for iframe load then trigger print; keep a single fallback
-        iframe.onload = () => setTimeout(finalizeOnce, 50);
-        setTimeout(() => { finalizeOnce(); }, 1500);
+        const dataUrl = buildSimplePdfDataUrl(text);
+        const filename = `ZeroEka_Conversation_${new Date().toISOString().replace(/[:.]/g,'-')}.pdf`;
+        chrome.runtime.sendMessage({ type: 'download-pdf', data: { url: dataUrl, filename, saveAs: true } }, (resp) => {
+          try { document.body.removeChild(iframe); } catch(_) {}
+          if (resp && resp.ok) {
+            showToast('Pdf successfully downloaded in storage');
+          }
+        });
       } catch (error) {
         console.error('Error during PDF export:', error);
         alert('Error creating PDF export. Please try again.');
