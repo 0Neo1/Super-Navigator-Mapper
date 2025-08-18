@@ -931,7 +931,7 @@ const createZeroEkaIconButton = () => {
 
         const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
         const logoSrc = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL)
-          ? chrome.runtime.getURL('images/ZeroEka_main.png')
+          ? chrome.runtime.getURL('images/icons/icon-128.png')
           : '';
         iframeDoc.open();
         iframeDoc.write(`
@@ -949,9 +949,9 @@ const createZeroEkaIconButton = () => {
                 color: #1f1f1f;
                 background: #ffffff;
               }
-              .ze-header { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 26px; }
-              .ze-header img { width: 84px; height: 84px; object-fit: contain; filter: brightness(0.85) contrast(1.2) saturate(1.05); }
-              .ze-header .ze-title { font-size: 34px; font-weight: 900; letter-spacing: 0.4px; color: #111111; font-family: "Trebuchet MS", "Segoe UI", Montserrat, Poppins, Roboto, Arial, sans-serif; text-rendering: optimizeLegibility; }
+              .ze-header { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 24px; }
+              .ze-header img { width: 72px; height: 72px; object-fit: cover; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,0.12); }
+              .ze-header .ze-title { font-size: 36px; font-weight: 900; letter-spacing: 0.4px; font-family: "Trebuchet MS", "Segoe UI", Montserrat, Poppins, Roboto, Arial, sans-serif; }
               .conversation-item {
                 margin: 0 0 14px;
                 padding: 12px 14px;
