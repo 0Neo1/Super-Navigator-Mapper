@@ -1145,6 +1145,611 @@ const createZeroEkaIconButton = () => {
   pinUnpinButton.appendChild(pinIcon);
   topButtonsContainer.appendChild(pinUnpinButton);
 
+  // ========= Bookmarked Prompts: helpers =========
+  const BOOKMARKED_PROMPTS_KEY = 'zeroeka_bookmarked_prompts_v1';
+
+  const getPlatform = () => {
+    const h = location.hostname;
+    if (h.includes('chatgpt.com') || h.includes('openai.com')) return 'chatgpt';
+    if (h.includes('gemini.google.com')) return 'gemini';
+    return 'unknown';
+  };
+
+  // Conversation identification helpers (for filtering bookmarks per chat)
+  const normalizeUrl = (u) => {
+    try {
+      const url = new URL(u, location.origin);
+      return `${url.origin}${url.pathname}`;
+    } catch (_) {
+      return (u || '').split('#')[0].split('?')[0];
+    }
+  };
+
+  const getConversationKey = () => {
+    const platform = getPlatform();
+    const href = location.href;
+    try {
+      if (platform === 'chatgpt') {
+        const m = href.match(/\/c\/([^/?#]+)/);
+        if (m && m[1]) return `gpt:${m[1]}`;
+        return `gpt:${normalizeUrl(href)}`;
+      }
+      if (platform === 'gemini') {
+        const m = href.match(/conversations?\/([^/?#]+)/i) || href.match(/\/app\/([^/?#]+)/i);
+        if (m && m[1]) return `gem:${m[1]}`;
+        return `gem:${normalizeUrl(href)}`;
+      }
+    } catch (_) {}
+    return `other:${normalizeUrl(href)}`;
+  };
+
+  // Derive a conversation key from any absolute/relative URL
+  const deriveConvKeyFromUrl = (u) => {
+    try {
+      const url = new URL(u, location.origin);
+      const href = `${url.origin}${url.pathname}`;
+      const host = url.hostname || '';
+      if (host.includes('chatgpt.com') || host.includes('openai.com')) {
+        const m = url.pathname.match(/\/c\/([^\/]+)/);
+        if (m && m[1]) return `gpt:${m[1]}`;
+        return `gpt:${href}`;
+      }
+      if (host.includes('gemini.google.com')) {
+        const m = url.pathname.match(/conversations?\/([^\/]+)/i) || url.pathname.match(/\/app\/([^\/]+)/i);
+        if (m && m[1]) return `gem:${m[1]}`;
+        return `gem:${href}`;
+      }
+      return `other:${href}`;
+    } catch (_) {
+      return `other:${normalizeUrl(u)}`;
+    }
+  };
+
+  // Enrich existing bookmarks with missing conversation keys
+  const enrichBookmarksWithConvKey = (list) => {
+    let changed = false;
+    const enriched = (list || []).map((p) => {
+      if (p && !p.convKey) {
+        const key = deriveConvKeyFromUrl(p.url || '');
+        if (key) { p.convKey = key; changed = true; }
+      }
+      return p;
+    });
+    if (changed) { try { saveBookmarkedPrompts(enriched); } catch (_) {} }
+    return enriched;
+  };
+
+  // One-time history hook to detect SPA route changes
+  const ensureRouteChangeHook = (() => {
+    let hooked = false;
+    return () => {
+      if (hooked) return; hooked = true;
+      try {
+        const _ps = history.pushState;
+        history.pushState = function(){ const r = _ps.apply(this, arguments); try{ window.dispatchEvent(new Event('zeroeka-route-change')); }catch(_){} return r; };
+      } catch(_) {}
+      try {
+        const _rs = history.replaceState;
+        history.replaceState = function(){ const r = _rs.apply(this, arguments); try{ window.dispatchEvent(new Event('zeroeka-route-change')); }catch(_){} return r; };
+      } catch(_) {}
+      window.addEventListener('popstate', () => { try { window.dispatchEvent(new Event('zeroeka-route-change')); } catch(_) {} }, { passive: true });
+      window.addEventListener('hashchange', () => { try { window.dispatchEvent(new Event('zeroeka-route-change')); } catch(_) {} }, { passive: true });
+    };
+  })();
+
+  const schedulePageRefresh = (delayMs = 400) => {
+    try { setTimeout(() => { try { window.location.reload(); } catch (_) {} }, delayMs); } catch (_) {}
+  };
+
+  const loadBookmarkedPrompts = () => {
+    try { return JSON.parse(localStorage.getItem(BOOKMARKED_PROMPTS_KEY) || '[]'); } catch (_) { return []; }
+  };
+
+  const saveBookmarkedPrompts = (list) => {
+    try { localStorage.setItem(BOOKMARKED_PROMPTS_KEY, JSON.stringify(list)); } catch (_) {}
+  };
+
+  const addPromptBookmark = (text) => {
+    const clean = (text || '').trim();
+    if (!clean) return false;
+    const list = loadBookmarkedPrompts();
+    // Deduplicate by exact text
+    if (list.some(p => p.text === clean)) return true;
+    list.unshift({ id: `p_${Date.now()}`, text: clean, site: getPlatform(), url: location.href, convKey: getConversationKey(), ts: Date.now() });
+    saveBookmarkedPrompts(list);
+    schedulePageRefresh(500);
+    return true;
+  };
+
+  const removePromptBookmark = (id) => {
+    const list = loadBookmarkedPrompts().filter(p => p.id !== id);
+    saveBookmarkedPrompts(list);
+    schedulePageRefresh(500);
+  };
+
+  // Remove a prompt by its exact text
+  const removePromptBookmarkByText = (text) => {
+    const clean = (text || '').trim();
+    if (!clean) return;
+    const list = loadBookmarkedPrompts().filter(p => (p.text || '') !== clean);
+    saveBookmarkedPrompts(list);
+    schedulePageRefresh(500);
+  };
+
+  const getChatGPTTextarea = () => {
+    const candidates = [
+      'textarea[data-testid="prompt-textarea"]',
+      'textarea#prompt-textarea',
+      'textarea[placeholder*="Message"]',
+      'textarea[placeholder*="message"]',
+      'form textarea',
+    ];
+    for (const sel of candidates) {
+      const el = document.querySelector(sel);
+      if (el) return el;
+    }
+    return null;
+  };
+
+  const getGeminiInput = () => {
+    const selectors = [
+      'footer div[contenteditable="true"][role="textbox"]',
+      'div[contenteditable="true"][role="textbox"]',
+      'div.ql-editor.textarea',
+      'textarea',
+    ];
+    for (const sel of selectors) {
+      const el = document.querySelector(sel);
+      if (el) return el;
+    }
+    return null;
+  };
+
+  const readCurrentPromptText = () => {
+    const platform = getPlatform();
+    if (platform === 'chatgpt') {
+      const ta = getChatGPTTextarea();
+      return (ta && ta.value) ? ta.value : '';
+    }
+    if (platform === 'gemini') {
+      const el = getGeminiInput();
+      if (!el) return '';
+      if (el.tagName === 'TEXTAREA') return el.value || '';
+      // Gemini editor has hidden formatting nodes; prefer innerText
+      return (el.innerText || el.textContent || '').trim();
+    }
+    return '';
+  };
+
+  const insertPromptIntoComposer = (text) => {
+    const platform = getPlatform();
+    if (platform === 'chatgpt') {
+      const ta = getChatGPTTextarea();
+      if (!ta) return false;
+      ta.value = text;
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+      ta.focus();
+      return true;
+    }
+    if (platform === 'gemini') {
+      const el = getGeminiInput();
+      if (!el) return false;
+      if (el.tagName === 'TEXTAREA') {
+        el.value = text;
+      } else {
+        el.textContent = text;
+      }
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.focus();
+      return true;
+    }
+    return false;
+  };
+
+  // Helpers to navigate/scroll to a bookmarked prompt instance on page
+  const normalizeForMatch = (str) => (str || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  const getAllUserPromptNodes = () => {
+    const nodes = [];
+    try {
+      document.querySelectorAll('article [data-message-author-role="user"], [data-message-author-role="user"], div[data-message-author="user"], user-query').forEach(el => nodes.push(el));
+    } catch (_) {}
+    return nodes;
+  };
+
+  const findMessageElementByText = (text) => {
+    const target = normalizeForMatch(text);
+    if (!target) return null;
+    // Use a prefix for faster/robust contains matching
+    const prefix = target.slice(0, Math.min(120, target.length));
+    const nodes = getAllUserPromptNodes();
+    let best = null; let bestScore = -1;
+    for (const node of nodes) {
+      const t = normalizeForMatch(node.innerText || node.textContent || '');
+      if (!t) continue;
+      if (t.includes(prefix)) {
+        // Score by length of overlap; prefer exact/longer
+        const score = Math.min(prefix.length, t.length);
+        if (score > bestScore) { bestScore = score; best = node; }
+      }
+    }
+    return best;
+  };
+
+  const scrollToPromptText = async (text) => {
+    const el = findMessageElementByText(text);
+    if (el) {
+      try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) { el.scrollIntoView(); }
+      return true;
+    }
+    return false;
+  };
+
+  const navigateAndScrollToPrompt = (bookmark) => {
+    const { text, url } = bookmark || {};
+    if (!text) return;
+    const samePage = typeof url === 'string' && url && url.split('#')[0] === location.href.split('#')[0];
+    const doneHere = scrollToPromptText(text);
+    if (doneHere) return;
+    if (!samePage && url) {
+      try {
+        sessionStorage.setItem('zeroeka_scroll_target', JSON.stringify({ text, url, ts: Date.now() }));
+      } catch (_) {}
+      try { window.location.href = url; } catch (_) {}
+    }
+  };
+
+  const createPromptListPopup = () => {
+    let popup = document.getElementById('zeroeka-prompts-popup');
+    if (popup) return popup;
+    popup = document.createElement('div');
+    popup.id = 'zeroeka-prompts-popup';
+    popup.style.cssText = `
+      position: fixed;
+      right: 64px;
+      top: 24px;
+      width: 340px;
+      max-height: 60vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-gutter: stable;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      background: #181818; /* slightly lighter greyish black */
+      color: #e8e8e8;
+      border: 1px solid #333;
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+      z-index: 2147483647;
+      font-size: 13px;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Helvetica Neue", sans-serif;
+      line-height: 1.45;
+    `;
+    const header = document.createElement('div');
+    header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #252525;position:sticky;top:0;z-index:3;background:#161616;border-top-left-radius:10px;border-top-right-radius:10px;box-shadow:0 6px 10px rgba(0,0,0,0.35)';
+    header.innerHTML = '<span style="font-weight:600">Bookmarked Prompts</span>';
+    const headerBtns = document.createElement('div');
+    headerBtns.style.cssText = 'display:flex;gap:8px;';
+    const clearBtn = document.createElement('button');
+    clearBtn.textContent = 'Clear';
+    clearBtn.style.cssText = 'background:#202020;color:#cfcfcf;border:1px solid #3a3a3a;border-radius:6px;padding:4px 8px;cursor:pointer;';
+    clearBtn.addEventListener('click', () => { saveBookmarkedPrompts([]); renderPromptList(); });
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = 'Close';
+    closeBtn.style.cssText = 'background:#202020;color:#cfcfcf;border:1px solid #3a3a3a;border-radius:6px;padding:4px 8px;cursor:pointer;';
+    closeBtn.addEventListener('click', () => popup.remove());
+    headerBtns.appendChild(clearBtn);
+    headerBtns.appendChild(closeBtn);
+    header.appendChild(headerBtns);
+    const list = document.createElement('div');
+    list.id = 'zeroeka-prompts-list';
+    list.style.cssText = 'padding:8px 8px;display:flex;flex-direction:column;gap:8px;';
+    popup.appendChild(header);
+    popup.appendChild(list);
+    document.body.appendChild(popup);
+
+    // Close on outside click
+    const onDocMouseDown = (ev) => {
+      try {
+        if (!popup.contains(ev.target)) {
+          popup.remove();
+          document.removeEventListener('mousedown', onDocMouseDown, true);
+        }
+      } catch (_) {}
+    };
+    // Prevent inside clicks from propagating to the outside handler
+    popup.addEventListener('mousedown', (e) => e.stopPropagation());
+    document.addEventListener('mousedown', onDocMouseDown, true);
+
+    const renderPromptList = () => {
+      const container = document.getElementById('zeroeka-prompts-list');
+      if (!container) return;
+      const dataAll = enrichBookmarksWithConvKey(loadBookmarkedPrompts());
+      const currentKey = getConversationKey();
+      const data = dataAll.filter(p => (p.convKey ? p.convKey === currentKey : true));
+      container.innerHTML = '';
+      if (data.length === 0) {
+        const empty = document.createElement('div');
+        empty.textContent = 'No prompts bookmarked yet for this conversation.';
+        empty.style.cssText = 'color:#888;padding:12px;text-align:center;';
+        container.appendChild(empty);
+        return;
+      }
+      data.forEach((bm) => {
+        const { id, text, url } = bm;
+        const row = document.createElement('div');
+        row.style.cssText = 'position:relative;border:1px solid #2a2a2a;border-radius:8px;padding:10px 66px 10px 10px;background:#1b1b1b;display:flex;gap:8px;';
+        const body = document.createElement('div');
+        body.style.cssText = 'white-space:pre-wrap;word-break:break-word;flex:1;color:#e6e6e6;max-height:56px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;';
+        const fullText = (text || '');
+        const trimmed = fullText.split('\n').slice(0,2).join('\n');
+        const previewText = trimmed + (fullText.trim().length > trimmed.length ? ' …' : '');
+        body.textContent = previewText;
+        // Click row navigates to the prompt on the page
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', (e) => {
+          // ignore clicks on buttons
+          const tag = (e.target && e.target.tagName || '').toLowerCase();
+          if (tag === 'button' || e.target.closest('button')) return;
+          navigateAndScrollToPrompt(bm);
+        });
+
+        // Removed hover tooltip per request
+        // Top-right cross delete button
+        const closeBtn = document.createElement('button');
+        closeBtn.setAttribute('aria-label', 'Remove');
+        closeBtn.style.cssText = 'position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:6px;border:1px solid #3a3a3a;background:#1f1f1f;color:#cfcfcf;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+        closeBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" stroke="#ccc" fill="none" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+        closeBtn.addEventListener('click', (e) => { e.stopPropagation(); removePromptBookmark(id); renderPromptList(); });
+
+        // Enlarge/shrink button (top-right, left of close)
+        const enlargeBtn = document.createElement('button');
+        enlargeBtn.setAttribute('aria-label', 'Enlarge');
+        enlargeBtn.style.cssText = 'position:absolute;top:6px;right:34px;width:22px;height:22px;border-radius:6px;border:1px solid #3a3a3a;background:#1f1f1f;color:#cfcfcf;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+        const expandIcon = '<svg viewBox="0 0 24 24" width="14" height="14" stroke="#ccc" fill="none" stroke-width="2"><polyline points="9 3 3 3 3 9"></polyline><line x1="3" y1="3" x2="10" y2="10"></line><polyline points="15 21 21 21 21 15"></polyline><line x1="14" y1="14" x2="21" y2="21"></line></svg>';
+        const shrinkIcon = '<svg viewBox="0 0 24 24" width="14" height="14" stroke="#ccc" fill="none" stroke-width="2"><polyline points="3 9 3 3 9 3"></polyline><line x1="3" y1="3" x2="9" y2="9"></line><polyline points="21 15 21 21 15 21"></polyline><line x1="21" y1="21" x2="15" y2="15"></line></svg>';
+        enlargeBtn.innerHTML = expandIcon;
+
+        let expanded = false;
+        const applyExpanded = (on) => {
+          expanded = on;
+          if (on) {
+            body.style.maxHeight = 'none';
+            body.style.overflow = 'auto';
+            body.style.display = 'block';
+            try { body.style.removeProperty('-webkit-line-clamp'); } catch(_) {}
+            try { body.style.setProperty('-webkit-line-clamp','unset'); } catch(_) {}
+            try { body.style.setProperty('-webkit-box-orient','vertical'); } catch(_) {}
+            // Ensure full content is shown even for code blocks or markdown
+            body.textContent = fullText;
+            enlargeBtn.innerHTML = shrinkIcon;
+          } else {
+            body.style.maxHeight = '56px';
+            body.style.overflow = 'hidden';
+            body.style.display = '-webkit-box';
+            try { body.style.setProperty('-webkit-line-clamp','2'); } catch(_) {}
+            try { body.style.setProperty('-webkit-box-orient','vertical'); } catch(_) {}
+            body.textContent = previewText;
+            enlargeBtn.innerHTML = expandIcon;
+          }
+        };
+        enlargeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          applyExpanded(!expanded);
+        });
+        row.appendChild(body);
+        row.appendChild(closeBtn);
+        row.appendChild(enlargeBtn);
+        container.appendChild(row);
+      });
+    };
+
+    // expose renderer to outer scope
+    popup.__render = renderPromptList;
+    renderPromptList();
+    return popup;
+  };
+
+  const openPromptsPopup = () => {
+    const popup = createPromptListPopup();
+    // Position near the top area of the screen beside the contracted sidebar star
+    try { popup.style.top = '24px'; } catch (_) {}
+    popup.style.display = 'block';
+    if (typeof popup.__render === 'function') popup.__render();
+    // Re-render when conversation changes (URL/nav changes)
+    try {
+      ensureRouteChangeHook();
+      let lastKey = getConversationKey();
+      const recheck = () => {
+        const now = getConversationKey();
+        if (now !== lastKey) {
+          lastKey = now;
+          if (typeof popup.__render === 'function') popup.__render();
+        }
+      };
+      window.addEventListener('zeroeka-route-change', recheck, { passive: true });
+      const obs = new MutationObserver(() => recheck());
+      obs.observe(document.querySelector('main') || document.body, { childList: true, subtree: true });
+    } catch (_) {}
+    // Try to consume a pending scroll target if we just landed on a new page
+    try {
+      const raw = sessionStorage.getItem('zeroeka_scroll_target');
+      if (raw) {
+        const obj = JSON.parse(raw);
+        // Clear it early to avoid loops
+        sessionStorage.removeItem('zeroeka_scroll_target');
+        if (obj && obj.text) setTimeout(() => { scrollToPromptText(obj.text); }, 600);
+      }
+    } catch (_) {}
+  };
+
+  // Add a star button next to each user prompt message in the conversation (ChatGPT + Gemini)
+  const extractUserMessageText = (block) => {
+    if (!block) return '';
+    // Prefer visible text containers
+    const candidates = [
+      'div.whitespace-pre-wrap',
+      'div.markdown, .prose',
+      '[data-message-id] div',
+      'user-query',
+      'p, li, pre, code',
+      ':scope'
+    ];
+    for (const sel of candidates) {
+      const el = sel === ':scope' ? block : block.querySelector(sel);
+      if (el && (el.innerText || el.textContent)) {
+        const t = (el.innerText || el.textContent || '').trim();
+        if (t) return t;
+      }
+    }
+    return '';
+  };
+
+  const ensureHistoryPromptStars = () => {
+    // Find user messages on both platforms
+    const blocks = new Set();
+    document.querySelectorAll('div[data-message-author="user"], [data-message-author-role="user"], article [data-message-author-role="user"], user-query').forEach(el => blocks.add(el));
+    // ChatGPT new DOM: conversation turns
+    document.querySelectorAll('article[data-testid^="conversation-turn-"] [data-message-author-role="user"]').forEach(el => blocks.add(el));
+
+    const isGemini = getPlatform() === 'gemini';
+    blocks.forEach((block) => {
+      const host = block.closest('article,user-query,[data-message-author],[data-message-id]') || block;
+      if (!host || host.querySelector('.zeroeka-msg-star')) return;
+      host.style.position = host.style.position || 'relative';
+      const btn = document.createElement('button');
+      btn.className = 'zeroeka-msg-star';
+      btn.type = 'button';
+      btn.title = 'Bookmark this prompt';
+      // Larger stars on both platforms
+      const btnSize = isGemini ? 32 : 30;
+      const iconSize = isGemini ? 22 : 20;
+      btn.style.cssText = `position:absolute;left:6px;top:6px;width:${btnSize}px;height:${btnSize}px;border-radius:6px;border:1px solid #2d2d2d;background:#1a1a1a;color:#eee;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2147483000;opacity:0.98;`;
+
+      const text = extractUserMessageText(block);
+      let isBookmarked = loadBookmarkedPrompts().some(p => (p.text || '') === text);
+      const renderStar = (active) => {
+        if (active) {
+          return `<svg viewBox=\"0 0 24 24\" width=\"${iconSize}\" height=\"${iconSize}\" fill=\"#ffffff\" stroke=\"#ffffff\" stroke-width=\"1.5\"><polygon points=\"12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2\"/></svg>`;
+        }
+        return `<svg viewBox=\"0 0 24 24\" width=\"${iconSize}\" height=\"${iconSize}\" fill=\"none\" stroke=\"#dddddd\" stroke-width=\"2\"><polygon points=\"12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2\"/></svg>`;
+      };
+      btn.style.borderColor = '#2d2d2d';
+      btn.innerHTML = renderStar(isBookmarked);
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const t = extractUserMessageText(block);
+        if (!t) return;
+        if (!isBookmarked) {
+          if (addPromptBookmark(t)) {
+            isBookmarked = true;
+            btn.innerHTML = renderStar(true);
+          }
+        } else {
+          removePromptBookmarkByText(t);
+          isBookmarked = false;
+          btn.innerHTML = renderStar(false);
+        }
+      });
+      host.appendChild(btn);
+    });
+  };
+  // initial and observed
+  setTimeout(ensureHistoryPromptStars, 900);
+  // Warm-up interval to handle Gemini's lazy rendering
+  let __zeroekaStarWarmups = 0;
+  const warmTimer = setInterval(() => {
+    try { ensureHistoryPromptStars(); } catch (_) {}
+    __zeroekaStarWarmups += 1;
+    if (__zeroekaStarWarmups > 12) clearInterval(warmTimer);
+  }, 800);
+  const starMo = new MutationObserver((muts) => {
+    let changed = false;
+    for (const m of muts) { if (m.addedNodes && m.addedNodes.length) { changed = true; break; } }
+    if (changed) ensureHistoryPromptStars();
+  });
+  starMo.observe(document.documentElement, { subtree: true, childList: true });
+
+  // ====================== ChatGPT sidebar: pinned chat star/dots button ======================
+  const ensurePinnedStarButtons = () => {
+    try {
+      // Find the chat history nav in a resilient way
+      const navCandidates = Array.from(document.querySelectorAll('nav[data-testid="chat-history"], nav[aria-label*="history" i], aside nav'));
+      const nav = navCandidates.find(n => n.querySelector('a[href*="/c/"]')) || navCandidates[0];
+      if (!nav) return;
+
+      const bookmarkedSet = new Set((JSON.parse(localStorage.getItem('bookmarkedChats') || '[]')));
+
+      // Collect only actual chat conversation nodes (must have /c/ in href)
+      const nodes = Array.from(nav.querySelectorAll('a[href*="/c/"]'));
+      nodes.forEach((anchor) => {
+        const container = getChatItemContainer(anchor);
+        if (!container) return;
+
+        const chatId = getChatIdFromEl(anchor) || getChatIdFromEl(container);
+        const isMarked = (chatId && bookmarkedSet.has(chatId)) || container.classList.contains('bookmarked');
+        if (!isMarked) return; // only show star for pinned/bookmarked chats
+
+        if (container.querySelector('.zeroeka-pinned-star')) return; // already added
+
+        // Ensure container has room at right edge
+        if (!container.style.position || container.style.position === '') container.style.position = 'relative';
+        if (!container.style.paddingRight) container.style.paddingRight = '30px';
+
+        const btn = document.createElement('button');
+        btn.className = 'zeroeka-pinned-star';
+        btn.type = 'button';
+        btn.title = 'Bookmarked';
+        btn.style.cssText = `
+          position: absolute;
+          right: 6px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 22px;
+          height: 22px;
+          border: 1px solid #3a3a3a;
+          background: #1f1f1f;
+          border-radius: 4px;
+          color: inherit;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          opacity: 0.95;
+          z-index: 3;
+        `;
+        const starIcon = '<svg viewBox="0 0 24 24" width="16" height="16" fill="#ffffff" stroke="#ffffff" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+        const dotsIcon = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg>';
+        btn.innerHTML = starIcon;
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          
+          // Unpin/unbookmark the chat by calling toggleChatBookmark
+          const chatId = getChatIdFromEl(anchor) || getChatIdFromEl(container);
+          if (chatId) {
+            try {
+              toggleChatBookmark(chatId, container);
+            } catch (err) {
+              console.log('Failed to toggle chat bookmark:', err);
+            }
+          }
+        });
+
+        container.appendChild(btn);
+      });
+    } catch (_) {}
+  };
+
+  // Observe the chat sidebar for dynamic changes
+  const sidebarMo = new MutationObserver(() => { try { ensurePinnedStarButtons(); } catch (_) {} });
+  sidebarMo.observe(document.documentElement, { subtree: true, childList: true });
+  setTimeout(ensurePinnedStarButtons, 1000);
+
   // Create ZeroEka extension button below Pin/Unpin button
   const zeroekaExtensionButton = document.createElement('div');
   zeroekaExtensionButton.id = 'zeroeka-extension-button';
@@ -1484,57 +2089,9 @@ const createZeroEkaIconButton = () => {
     pinIcon.style.transform = 'scale(1)';
   });
 
-  // Add click functionality for pin/unpin button
+  // Click: open Bookmarked Prompts popup
   pinUnpinButton.addEventListener('click', () => {
-    console.log('Pin/Unpin button clicked');
-    
-    // Toggle bookmark mode
-    const isPinModeActive = pinUnpinButton.classList.contains('pin-mode-active');
-    
-    if (!isPinModeActive) {
-      // Activate bookmark mode
-      pinUnpinButton.classList.add('pin-mode-active');
-      pinIcon.innerHTML = `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 24px; height: 24px; color: #3bb910;">
-          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="#3bb910"/>
-        </svg>
-      `;
-      pinUnpinButton.style.borderColor = '#3bb910';
-      
-      // Set global bookmark mode state
-      window.bookmarkModeActive = true;
-      
-      // Add bookmark mode to ChatGPT sidebar chats
-      // addPinButtonsToChats(); // Disabled - pin buttons should only appear in context menu
-      
-      console.log('Bookmark mode activated');
-    } else {
-      // Deactivate bookmark mode
-      pinUnpinButton.classList.remove('pin-mode-active');
-      pinIcon.innerHTML = `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 24px; height: 24px; color: #fff;">
-          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-        </svg>
-      `;
-      pinUnpinButton.style.borderColor = '#333';
-      
-      // Clear global bookmark mode state
-      window.bookmarkModeActive = false;
-      
-      // Remove bookmark mode from ChatGPT sidebar chats
-      // removePinButtonsFromChats(); // Disabled - pin buttons should only appear in context menu
-      
-      // Remove green borders from all chats (including bookmarked ones)
-      const allChats = document.querySelectorAll('nav[data-testid="chat-history"] a, nav[data-testid="chat-history"] [role="button"], nav[data-testid="chat-history"] .conversation-item, nav[data-testid="chat-history"] [data-testid="conversation-turn-2"], nav[data-testid="chat-history"] [data-testid="conversation-item"], nav[data-testid="chat-history"] .conversation-turn-2, nav[data-testid="chat-history"] a[href*="/c/"], nav a[href*="/c/"], aside a[href*="/c/"], [data-testid="chat-history"] a, [data-testid="chat-history"] [role="button"]');
-      allChats.forEach(chatItem => {
-        chatItem.style.border = '';
-        chatItem.style.borderRadius = '';
-        chatItem.style.cursor = '';
-        chatItem.style.transition = '';
-      });
-      
-      console.log('Bookmark mode deactivated');
-    }
+    openPromptsPopup();
   });
 
   // Helper to get the container element representing a chat row in the sidebar
@@ -1551,41 +2108,6 @@ const createZeroEkaIconButton = () => {
     const a = el.querySelector && el.querySelector('a[href*="/c/"]');
     if (a) return a.getAttribute('href');
     return (el.textContent || '').trim();
-  };
-
-  // Helper: show/hide a star indicator beside a chat row
-  const setPinnedIndicatorForItem = (chatItem, shouldShow) => {
-    try {
-      const container = getChatItemContainer(chatItem);
-      if (!container) return;
-      let indicator = container.querySelector('.zeroeka-pinned-indicator');
-      if (shouldShow) {
-        if (!indicator) {
-          indicator = document.createElement('span');
-          indicator.className = 'zeroeka-pinned-indicator';
-          indicator.textContent = '★';
-          indicator.style.cssText = 'margin-left: 8px; color: #10b981; opacity: 0.95; font-size: 12px; pointer-events: none;';
-          // Append near the end of the main clickable area
-          const anchor = container.querySelector('a[href], [role="button"][data-testid]') || container;
-          anchor.appendChild(indicator);
-        }
-      } else if (indicator) {
-        indicator.remove();
-      }
-    } catch (_) {}
-  };
-
-  // Apply star indicators to all chats based on storage
-  const applyPinnedIndicators = () => {
-    try {
-      const bookmarked = JSON.parse(localStorage.getItem('bookmarkedChats') || '[]');
-      const idSet = new Set(bookmarked);
-      const chatItems = document.querySelectorAll('nav[data-testid="chat-history"] a, nav[data-testid="chat-history"] [role="button"], nav[data-testid="chat-history"] .conversation-item, nav[data-testid="chat-history"] [data-testid="conversation-turn-2"], nav[data-testid="chat-history"] [data-testid="conversation-item"], nav[data-testid="chat-history"] .conversation-turn-2, nav[data-testid="chat-history"] a[href*="/c/"], nav a[href*="/c/"], aside a[href*="/c/"], [data-testid="chat-history"] a, [data-testid="chat-history"] [role="button"]');
-      chatItems.forEach((el) => {
-        const id = getChatIdFromEl(el) || getChatIdFromEl(getChatItemContainer(el));
-        setPinnedIndicatorForItem(el, !!(id && idSet.has(id)));
-      });
-    } catch (_) {}
   };
 
   // Function to add bookmark mode to ChatGPT sidebar chats
@@ -4101,8 +4623,6 @@ const updateTextSize = (container, size) => {
   // Call restore function on page load
   window.addEventListener('load', restoreBookmarkedChats);
   document.addEventListener('DOMContentLoaded', restoreBookmarkedChats);
-  window.addEventListener('load', applyPinnedIndicators);
-  document.addEventListener('DOMContentLoaded', applyPinnedIndicators);
   
   // Monitor bookmark positions and fix if needed
   const monitorBookmarkPositions = () => {
@@ -4134,7 +4654,6 @@ const updateTextSize = (container, size) => {
   
   // Monitor bookmark positions periodically
   setInterval(monitorBookmarkPositions, 5000);
-  setInterval(applyPinnedIndicators, 3000);
 
   // Listen for page visibility changes (when user returns to tab)
   document.addEventListener('visibilitychange', () => {
@@ -5277,20 +5796,17 @@ const updateTextSize = (container, size) => {
       const updatedBookmarks = bookmarkedChats.filter(id => id !== chatId);
       localStorage.setItem('bookmarkedChats', JSON.stringify(updatedBookmarks));
       console.log('Chat unbookmarked:', chatId);
-      if (chatItem) setPinnedIndicatorForItem(chatItem, false);
     } else {
       // Add to bookmarks
       bookmarkedChats.push(chatId);
       localStorage.setItem('bookmarkedChats', JSON.stringify(bookmarkedChats));
       console.log('Chat bookmarked:', chatId);
-      if (chatItem) setPinnedIndicatorForItem(chatItem, true);
     }
     
-    // Update indicators across the list immediately
-    setTimeout(applyPinnedIndicators, 50);
-    
-    // Then refresh page shortly after to maintain group order (as per prior behavior)
-    setTimeout(() => { try { window.location.reload(); } catch (_) {} }, 250);
+    // Refresh page to update bookmark positions
+    setTimeout(() => {
+      try { window.location.reload(); } catch (_) {}
+    }, 200);
   };
 
   // Initialize context menu enhancement
