@@ -1039,10 +1039,8 @@ const createZeroEkaIconButton = () => {
         iframeDoc.write('</div></body></html>');
         iframeDoc.close();
 
-        // Track print state and user interaction
+        // Ensure the print dialog opens only once
         let hasPrinted = false;
-        let printDialogOpened = false;
-        let userInteractedWithPrint = false;
         const showToast = (text) => {
           try {
             const toast = document.createElement('div');
@@ -1058,60 +1056,103 @@ const createZeroEkaIconButton = () => {
           } catch(_) {}
         };
 
+        // Minimal PDF generator (text-only) to ensure a true .pdf file with reliable success detection
+        const generatePdfFromTextDataUrl = (text) => {
+          const pageWidth = 595.28; // A4 width (pt)
+          const pageHeight = 841.89; // A4 height (pt)
+          const margin = 36; // 0.5in
+          const fontSize = 12;
+          const lineHeight = 14;
+          const usableWidth = pageWidth - margin * 2;
+          const maxChars = Math.floor(usableWidth / 6); // approx width per char
+          const maxLinesPerPage = Math.floor((pageHeight - margin * 2) / lineHeight);
+
+          const escapePdf = (s) => String(s || '')
+            .replace(/\\/g, "\\\\")
+            .replace(/\(/g, "\\(")
+            .replace(/\)/g, "\\)")
+            .replace(/\r?\n/g, "\\r");
+          const wrap = (s) => {
+            const lines = [];
+            String(s || '').split(/\r?\n/).forEach((p) => {
+              if (!p) { lines.push(''); return; }
+              let t = p;
+              while (t.length > maxChars) { lines.push(t.slice(0, maxChars)); t = t.slice(maxChars); }
+              lines.push(t);
+            });
+            return lines;
+          };
+
+          const allLines = wrap(text);
+          const pages = [];
+          for (let i = 0; i < allLines.length; i += maxLinesPerPage) {
+            pages.push(allLines.slice(i, i + maxLinesPerPage));
+          }
+
+          const parts = [];
+          const xref = [];
+          const w = (s) => { parts.push(s); };
+          const bytesLen = (s) => new TextEncoder().encode(s).length;
+          let offset = 0;
+          const push = (s) => { xref.push(offset); w(s); offset += bytesLen(s); };
+          const obj = (n, body) => push(`${n} 0 obj\n${body}\nendobj\n`);
+
+          push('%PDF-1.4\n');
+          obj(3, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+
+          const pageObjNums = [];
+          let objNum = 4;
+          pages.forEach((pageLines) => {
+            const content = (() => {
+              let s = 'BT\n/F1 ' + fontSize + ' Tf\n' + margin + ' ' + (pageHeight - margin - fontSize) + ' Td\n' + lineHeight + ' TL\n';
+              pageLines.forEach((ln, i) => {
+                const line = escapePdf(ln);
+                s += `(${line}) Tj` + (i < pageLines.length - 1 ? '\nT*\n' : '\n');
+              });
+              s += 'ET\n';
+              return s;
+            })();
+            const contentLen = bytesLen(content);
+            const contentNum = objNum++;
+            obj(contentNum, `<< /Length ${contentLen} >>\nstream\n${content}endstream`);
+            const pageNum = objNum++;
+            pageObjNums.push(pageNum);
+            obj(pageNum, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentNum} 0 R >>`);
+          });
+
+          obj(2, `<< /Type /Pages /Count ${pageObjNums.length} /Kids [ ${pageObjNums.map(n => n + ' 0 R').join(' ')} ] >>`);
+          obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
+
+          const xrefStart = offset;
+          let xrefTable = 'xref\n0 ' + (xref.length + 1) + '\n0000000000 65535 f \n';
+          xref.forEach((off) => { xrefTable += (off.toString().padStart(10, '0') + ' 00000 n \n'); });
+          w(xrefTable);
+          w('trailer\n<< /Size ' + (xref.length + 1) + ' /Root 1 0 R >>\nstartxref\n' + xrefStart + '\n%%EOF');
+
+          const pdfText = parts.join('');
+          const base64 = btoa(unescape(encodeURIComponent(pdfText)));
+          return `data:application/pdf;base64,${base64}`;
+        };
+
         const finalizeOnce = () => {
           if (hasPrinted) return;
           hasPrinted = true;
-          printDialogOpened = true;
-          
           try {
-            // Track when print dialog opens and closes
-            iframe.contentWindow.onbeforeprint = () => {
-              printDialogOpened = true;
-            };
-            
-            // Only show success if user actually interacted with print dialog
-            iframe.contentWindow.onafterprint = () => {
-              // Check if user actually saved/downloaded by looking for file download indicators
-              // or wait a bit to see if any download activity occurred
-              setTimeout(() => {
-                // Only show success if we have some indication the user actually saved
-                if (printDialogOpened && userInteractedWithPrint) {
-                  showToast('Pdf successfully downloaded in storage');
-                }
-                try { document.body.removeChild(iframe); } catch(_) {}
-              }, 1000);
-            };
-            
-            // Listen for print dialog focus/blur to detect user interaction
-            iframe.contentWindow.addEventListener('focus', () => {
-              if (printDialogOpened) userInteractedWithPrint = true;
-            });
-            
-            // Alternative: detect if user actually saved by checking for download activity
-            const checkForDownload = () => {
-              // If user cancelled, they likely didn't interact much with the dialog
-              if (printDialogOpened && !userInteractedWithPrint) {
-                // User probably cancelled - don't show success message
-                try { document.body.removeChild(iframe); } catch(_) {}
-                return;
+            const text = (iframeDoc.querySelector('.ze-content') || iframeDoc.body).innerText || iframeDoc.body.textContent || '';
+            const dataUrl = generatePdfFromTextDataUrl(text);
+            const filename = `ZeroEka_Conversation_${new Date().toISOString().replace(/[:.]/g,'-')}.pdf`;
+            chrome.runtime.sendMessage({ type: 'download-pdf', data: { url: dataUrl, filename, saveAs: true } }, (resp) => {
+              if (resp && resp.ok) {
+                showToast('Pdf successfully downloaded in storage');
               }
-            };
-            
-            // Set a timeout to check download status
-            setTimeout(checkForDownload, 3000);
-            
-          } catch(_) {}
-          
-          try { iframe.contentWindow.focus(); } catch(_) {}
-          try { iframe.contentWindow.print(); } catch(_) {}
-          
-          // Safety cleanup
-          setTimeout(() => { 
-            try { document.body.removeChild(iframe); } catch(_) {} 
-          }, 8000);
+              setTimeout(() => { try { document.body.removeChild(iframe); } catch(_) {} }, 500);
+            });
+          } catch(_) {
+            try { document.body.removeChild(iframe); } catch(_) {}
+          }
         };
 
-        // Wait for iframe load then trigger print; keep a single fallback
+        // Wait for iframe load then trigger generation
         iframe.onload = () => setTimeout(finalizeOnce, 50);
         setTimeout(() => { finalizeOnce(); }, 1500);
       } catch (error) {

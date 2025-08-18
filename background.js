@@ -83,7 +83,25 @@
   // Message handling
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const { type, data } = message;
-    
+    // Save a provided data URL/pdf URL using downloads API
+    if (type === 'download-pdf') {
+      try {
+        const { url, filename, saveAs } = data || {};
+        if (!url) { sendResponse({ ok: false, error: 'no_url' }); return true; }
+        if (!chrome.downloads || !chrome.downloads.download) {
+          sendResponse({ ok: false, error: 'no_downloads_api' });
+          return true;
+        }
+        chrome.downloads.download({ url, filename: filename || 'ZeroEka_Conversation.pdf', saveAs: !!saveAs }, (downloadId) => {
+          if (chrome.runtime.lastError || !downloadId) { sendResponse({ ok: false, error: chrome.runtime.lastError?.message || 'failed' }); return; }
+          sendResponse({ ok: true, id: downloadId });
+        });
+        return true;
+      } catch (e) {
+        sendResponse({ ok: false, error: e?.message || 'exception' });
+        return true;
+      }
+    }
     console.log('Background received message:', { type, data: !!data, sender: sender.tab?.url });
     
     // Handle error reporting (locally logged only)
