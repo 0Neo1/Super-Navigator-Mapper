@@ -931,7 +931,7 @@ const createZeroEkaIconButton = () => {
 
         const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
         const logoSrc = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL)
-          ? chrome.runtime.getURL('images/icons/icon-128.png')
+          ? chrome.runtime.getURL('images/ZeroEka_main.png')
           : '';
         iframeDoc.open();
         iframeDoc.write(`
@@ -950,7 +950,7 @@ const createZeroEkaIconButton = () => {
                 background: #ffffff;
               }
               .ze-header { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 22px; }
-              .ze-header img { width: 64px; height: 64px; object-fit: contain; }
+              .ze-header img { width: 56px; height: 56px; object-fit: contain; }
               .ze-header .ze-title { font-size: 28px; font-weight: 800; letter-spacing: 0.3px; }
               .conversation-item {
                 margin: 0 0 14px;
