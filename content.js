@@ -912,19 +912,11 @@ const createZeroEkaIconButton = () => {
 
   // Add click functionality for PDF export button
   pdfExportButton.addEventListener('click', () => {
-    console.log('PDF Export button clicked');
-    
-    // Create PDF export function
     const exportToPDF = () => {
       try {
-        // Get the main conversation container
-        const main = document.querySelector('main') || document.querySelector('[role="main"]') || document.body;
-        if (!main) {
-          console.error('No main container found for PDF export');
-          return;
-        }
+        const IS_GEMINI = /gemini\.google\.com/.test(location.hostname) || (typeof isGemini !== 'undefined' && isGemini);
 
-        // Create an iframe for printing
+        // Create print iframe
         const iframe = document.createElement('iframe');
         iframe.style.cssText = `
           position: fixed;
@@ -933,94 +925,110 @@ const createZeroEkaIconButton = () => {
           width: 210mm;
           height: 297mm;
           border: none;
+          visibility: hidden;
         `;
         document.body.appendChild(iframe);
 
-        // Clone the main content and add to iframe
         const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
         iframeDoc.open();
         iframeDoc.write(`
           <!DOCTYPE html>
           <html>
           <head>
-            <title>ChatGPT Conversation Export</title>
+            <meta charset="utf-8" />
+            <title>Conversation Export</title>
             <style>
+              :root { color-scheme: light; }
               body {
-                font-family: Arial, sans-serif;
-                line-height: 1.6;
-                margin: 20px;
-                color: #333;
+                font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+                line-height: 1.55;
+                margin: 18px;
+                color: #1f1f1f;
+                background: #ffffff;
               }
+              h1 { font-size: 18px; margin: 0 0 6px; }
+              .meta { color: #555; font-size: 12px; margin-bottom: 14px; }
               .conversation-item {
-                margin-bottom: 20px;
-                padding: 15px;
-                border: 1px solid #ddd;
+                margin: 0 0 14px;
+                padding: 12px 14px;
+                border: 1px solid #e5e5e5;
                 border-radius: 8px;
-                background: #f9f9f9;
+                background: #fafafa;
               }
-              .user-message {
-                background: #e3f2fd;
-                border-left: 4px solid #2196f3;
-              }
-              .assistant-message {
-                background: #f3e5f5;
-                border-left: 4px solid #9c27b0;
-              }
-              .message-header {
-                font-weight: bold;
-                margin-bottom: 10px;
-                color: #666;
-              }
-              .message-content {
-                white-space: pre-wrap;
-                word-wrap: break-word;
-              }
-              @media print {
-                body { margin: 0; }
-                .conversation-item { page-break-inside: avoid; }
-              }
+              .user-message { background: #eef6ff; border-left: 4px solid #2b7be4; }
+              .assistant-message { background: #f8f1ff; border-left: 4px solid #8b5cf6; }
+              .message-header { font-weight: 600; color: #444; margin-bottom: 8px; }
+              .message-content { white-space: normal; overflow-wrap: anywhere; }
+              pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+              pre { background: #f4f4f5; padding: 10px; border-radius: 6px; overflow: auto; }
+              img, svg, canvas, video { max-width: 100%; height: auto; }
+              table { border-collapse: collapse; }
+              table, th, td { border: 1px solid #ddd; }
+              th, td { padding: 6px 8px; }
+              @page { size: auto; margin: 10mm; }
+              @media print { body { margin: 0; } .conversation-item { page-break-inside: avoid; } }
             </style>
           </head>
           <body>
-            <h1>ChatGPT Conversation Export</h1>
-            <p>Generated on: ${new Date().toLocaleString()}</p>
-            <hr>
+            <h1>Conversation Export</h1>
+            <div class="meta">Generated on ${new Date().toLocaleString()}</div>
+            <hr />
         `);
 
-        // Extract conversation messages
-        const messages = document.querySelectorAll('[data-message-id]');
-        messages.forEach((message, index) => {
-          const messageId = message.getAttribute('data-message-id');
-          const author = message.getAttribute('data-message-author-role') || 'unknown';
-          const content = message.textContent.trim();
-          
+        const writeBlock = (role, html, index) => {
+          const safeHtml = html || '';
           iframeDoc.write(`
-            <div class="conversation-item ${author === 'user' ? 'user-message' : 'assistant-message'}">
-              <div class="message-header">${author === 'user' ? 'User' : 'Assistant'} (Message ${index + 1})</div>
-              <div class="message-content">${content}</div>
+            <div class="conversation-item ${role === 'user' ? 'user-message' : 'assistant-message'}">
+              <div class="message-header">${role === 'user' ? 'User' : 'Assistant'} (Message ${index + 1})</div>
+              <div class="message-content">${safeHtml}</div>
             </div>
           `);
-        });
+        };
+
+        let index = 0;
+
+        if (IS_GEMINI) {
+          // Gemini: sequence user prompts and model responses by DOM order
+          const nodes = Array.from(document.querySelectorAll('user-query-content .query-text, .model-response-text'));
+          nodes.forEach((node) => {
+            const isUser = node.matches('user-query-content .query-text');
+            // Prefer HTML content, fallback to text
+            const html = node.innerHTML || (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+            writeBlock(isUser ? 'user' : 'assistant', html, index++);
+          });
+        } else {
+          // ChatGPT: try attribute-based messages first; fallback to markdown/article content
+          let messages = Array.from(document.querySelectorAll('[data-message-id]'));
+          if (!messages.length) {
+            messages = Array.from(document.querySelectorAll('article'));
+          }
+          messages.forEach((message) => {
+            const role = message.getAttribute && message.getAttribute('data-message-author-role') ||
+              (message.querySelector('[data-message-author-role="user"]') ? 'user' : (message.querySelector('.markdown, .prose') ? 'assistant' : 'assistant'));
+            const contentEl = message.querySelector && (message.querySelector('.markdown, .prose') || message.querySelector('div[tabindex="-1"], [data-message-author-role]')) || message;
+            const html = (contentEl && contentEl.innerHTML) || (message.innerHTML) || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+            writeBlock(role === 'user' ? 'user' : 'assistant', html, index++);
+          });
+        }
 
         iframeDoc.write('</body></html>');
         iframeDoc.close();
 
-        // Print the iframe content
-        setTimeout(() => {
-          iframe.contentWindow.print();
-          setTimeout(() => {
-            document.body.removeChild(iframe);
-          }, 1000);
-        }, 500);
+        const finalize = () => {
+          try { iframe.contentWindow.focus(); } catch(_) {}
+          try { iframe.contentWindow.print(); } catch(_) {}
+          setTimeout(() => { try { document.body.removeChild(iframe); } catch(_) {} }, 1500);
+        };
 
-        console.log('PDF export initiated successfully');
+        // Wait a short moment to ensure resources load, then print
+        iframe.onload = () => finalize();
+        setTimeout(finalize, 800);
       } catch (error) {
         console.error('Error during PDF export:', error);
         alert('Error creating PDF export. Please try again.');
       }
     };
 
-    // Execute PDF export
     exportToPDF();
   });
 
