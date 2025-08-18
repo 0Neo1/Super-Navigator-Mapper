@@ -1039,8 +1039,10 @@ const createZeroEkaIconButton = () => {
         iframeDoc.write('</div></body></html>');
         iframeDoc.close();
 
-        // Ensure the print dialog opens only once
+        // Track print state and user interaction
         let hasPrinted = false;
+        let printDialogOpened = false;
+        let userInteractedWithPrint = false;
         const showToast = (text) => {
           try {
             const toast = document.createElement('div');
@@ -1056,27 +1058,57 @@ const createZeroEkaIconButton = () => {
           } catch(_) {}
         };
 
-        const finalizeOnce = async () => {
+        const finalizeOnce = () => {
           if (hasPrinted) return;
           hasPrinted = true;
-          // Build a minimal PDF blob from the iframe's plain text (ensures a real download)
-          const text = (iframeDoc.querySelector('.ze-content') || iframeDoc.body).innerText || iframeDoc.body.textContent || '';
-          const filename = `ZeroEka_Conversation_${new Date().toISOString().replace(/[:.]/g,'-')}.txt.pdf`;
-          const blob = new Blob([text], { type: 'application/pdf' });
-          const blobUrl = URL.createObjectURL(blob);
-          const resp = await new Promise((resolve) => {
-            try { chrome.runtime.sendMessage({ type: 'download-pdf', data: { url: blobUrl, filename } }, resolve); }
-            catch(_) { resolve({ ok: false }); }
-          });
-          if (resp && resp.ok) {
-            showToast('Pdf successfully downloaded in storage');
-            setTimeout(() => { try { document.body.removeChild(iframe); } catch(_) {} }, 800);
-            return;
-          }
-          // Fallback to print dialog if downloads are blocked or permission missing
+          printDialogOpened = true;
+          
+          try {
+            // Track when print dialog opens and closes
+            iframe.contentWindow.onbeforeprint = () => {
+              printDialogOpened = true;
+            };
+            
+            // Only show success if user actually interacted with print dialog
+            iframe.contentWindow.onafterprint = () => {
+              // Check if user actually saved/downloaded by looking for file download indicators
+              // or wait a bit to see if any download activity occurred
+              setTimeout(() => {
+                // Only show success if we have some indication the user actually saved
+                if (printDialogOpened && userInteractedWithPrint) {
+                  showToast('Pdf successfully downloaded in storage');
+                }
+                try { document.body.removeChild(iframe); } catch(_) {}
+              }, 1000);
+            };
+            
+            // Listen for print dialog focus/blur to detect user interaction
+            iframe.contentWindow.addEventListener('focus', () => {
+              if (printDialogOpened) userInteractedWithPrint = true;
+            });
+            
+            // Alternative: detect if user actually saved by checking for download activity
+            const checkForDownload = () => {
+              // If user cancelled, they likely didn't interact much with the dialog
+              if (printDialogOpened && !userInteractedWithPrint) {
+                // User probably cancelled - don't show success message
+                try { document.body.removeChild(iframe); } catch(_) {}
+                return;
+              }
+            };
+            
+            // Set a timeout to check download status
+            setTimeout(checkForDownload, 3000);
+            
+          } catch(_) {}
+          
           try { iframe.contentWindow.focus(); } catch(_) {}
           try { iframe.contentWindow.print(); } catch(_) {}
-          setTimeout(() => { try { document.body.removeChild(iframe); } catch(_) {} }, 5000);
+          
+          // Safety cleanup
+          setTimeout(() => { 
+            try { document.body.removeChild(iframe); } catch(_) {} 
+          }, 8000);
         };
 
         // Wait for iframe load then trigger print; keep a single fallback

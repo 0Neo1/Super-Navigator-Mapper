@@ -83,30 +83,6 @@
   // Message handling
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const { type, data } = message;
-    // Programmatic PDF download with success callback
-    if (type === 'download-pdf' && data && data.url) {
-      try {
-        const filename = data.filename || ('ZeroEka_Conversation_' + Date.now() + '.pdf');
-        chrome.downloads.download({ url: data.url, filename }, (downloadId) => {
-          if (chrome.runtime.lastError || !downloadId) { sendResponse({ ok: false }); return; }
-          const onChanged = (delta) => {
-            if (delta.id !== downloadId) return;
-            if (delta.state && delta.state.current === 'complete') {
-              chrome.downloads.onChanged.removeListener(onChanged);
-              sendResponse({ ok: true });
-            } else if (delta.state && delta.state.current === 'interrupted') {
-              chrome.downloads.onChanged.removeListener(onChanged);
-              sendResponse({ ok: false });
-            }
-          };
-          chrome.downloads.onChanged.addListener(onChanged);
-        });
-        return true;
-      } catch (e) {
-        sendResponse({ ok: false, error: e?.message });
-        return true;
-      }
-    }
     
     console.log('Background received message:', { type, data: !!data, sender: sender.tab?.url });
     
