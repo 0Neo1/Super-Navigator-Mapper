@@ -930,13 +930,16 @@ const createZeroEkaIconButton = () => {
         document.body.appendChild(iframe);
 
         const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+        const logoSrc = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL)
+          ? chrome.runtime.getURL('images/ZeroEka.png')
+          : '';
         iframeDoc.open();
         iframeDoc.write(`
           <!DOCTYPE html>
           <html>
           <head>
             <meta charset="utf-8" />
-            <title>Conversation Export</title>
+            <title>ZeroEka</title>
             <style>
               :root { color-scheme: light; }
               body {
@@ -946,8 +949,9 @@ const createZeroEkaIconButton = () => {
                 color: #1f1f1f;
                 background: #ffffff;
               }
-              h1 { font-size: 18px; margin: 0 0 6px; }
-              .meta { color: #555; font-size: 12px; margin-bottom: 14px; }
+              .ze-header { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 16px; }
+              .ze-header img { width: 28px; height: 28px; object-fit: contain; }
+              .ze-header .ze-title { font-size: 18px; font-weight: 700; letter-spacing: 0.2px; }
               .conversation-item {
                 margin: 0 0 14px;
                 padding: 12px 14px;
@@ -970,9 +974,10 @@ const createZeroEkaIconButton = () => {
             </style>
           </head>
           <body>
-            <h1>Conversation Export</h1>
-            <div class="meta">Generated on ${new Date().toLocaleString()}</div>
-            <hr />
+            <div class="ze-header">
+              ${logoSrc ? `<img src="${logoSrc}" alt="ZeroEka" />` : ''}
+              <span class="ze-title">ZeroEka</span>
+            </div>
         `);
 
         const writeBlock = (role, html, index) => {
