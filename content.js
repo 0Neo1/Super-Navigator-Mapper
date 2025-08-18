@@ -950,9 +950,12 @@ const createZeroEkaIconButton = () => {
                 color: #1f1f1f;
                 background: #ffffff;
               }
-              .ze-header { display: flex; align-items: center; justify-content: center; gap: 18px; margin: 8px 0 22px; }
-              .ze-header img { width: 96px; height: 96px; object-fit: contain; }
-              .ze-header .ze-title { font-family: 'EB Garamond', serif; font-size: 44px; font-weight: 800; letter-spacing: 0.3px; color: #0B3D91; }
+              .ze-header { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 24px; }
+              .ze-header img { width: 128px; height: 128px; object-fit: contain; }
+              .ze-header .ze-title { font-family: 'EB Garamond', serif; font-size: 56px; font-weight: 800; letter-spacing: 0.3px; color: #0B3D91; }
+              .ze-watermark { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 0; pointer-events: none; opacity: 0.06; }
+              .ze-watermark img { max-width: 80%; max-height: 80%; object-fit: contain; }
+              .ze-content { position: relative; z-index: 1; }
               .conversation-item {
                 margin: 0 0 14px;
                 padding: 12px 14px;
@@ -979,6 +982,8 @@ const createZeroEkaIconButton = () => {
               ${logoSrc ? `<img src="${logoSrc}" alt="ZeroEka" />` : ''}
               <span class="ze-title">ZeroEka</span>
             </div>
+            <div class="ze-watermark">${logoSrc ? `<img src="${logoSrc}" alt="ZeroEka watermark" />` : ''}</div>
+            <div class="ze-content">
         `);
 
         const writeBlock = (role, html, index) => {
@@ -1017,7 +1022,7 @@ const createZeroEkaIconButton = () => {
           });
         }
 
-        iframeDoc.write('</body></html>');
+        iframeDoc.write('</div></body></html>');
         iframeDoc.close();
 
         const finalize = () => {
