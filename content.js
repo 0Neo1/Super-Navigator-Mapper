@@ -944,6 +944,7 @@ const createZeroEkaIconButton = () => {
           return 'Gemini Conversation';
         };
         const pdfTitle = IS_GEMINI ? getGeminiConversationTitle() : (document.title || 'Conversation');
+        let prevPageTitle = document.title;
         iframeDoc.open();
         iframeDoc.write(`
           <!DOCTYPE html>
@@ -1073,11 +1074,12 @@ const createZeroEkaIconButton = () => {
           try {
             // Close handler: show success message when the print dialog closes
             iframe.contentWindow.onafterprint = () => {
+              try { if (prevPageTitle != null) document.title = prevPageTitle; } catch(_) {}
               try { document.body.removeChild(iframe); } catch(_) {}
             };
           } catch(_) {}
           try { iframe.contentWindow.focus(); } catch(_) {}
-          try { printOpenedAt = Date.now(); iframe.contentWindow.print(); } catch(_) {}
+          try { printOpenedAt = Date.now(); document.title = pdfTitle || prevPageTitle; iframe.contentWindow.print(); } catch(_) {}
           // Safety cleanup in case onafterprint does not fire
           setTimeout(() => { try { document.body.removeChild(iframe); } catch(_) {} }, 5000);
         };
