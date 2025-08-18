@@ -933,27 +933,6 @@ const createZeroEkaIconButton = () => {
         const logoSrc = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL)
           ? chrome.runtime.getURL('images/ZeroEka_main.png')
           : '';
-        
-        // Helper to clean HTML content for PDF export
-        const cleanContentForPDF = (html) => {
-          if (!html) return '';
-          // Remove bookmark stars and other UI elements
-          const tempDiv = document.createElement('div');
-          tempDiv.innerHTML = html;
-          
-          // Remove bookmark stars and other UI elements
-          tempDiv.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [data-testid="bookmark-button"], button, .bookmark-icon, .star-icon').forEach(el => el.remove());
-          
-          // Remove empty elements and excessive whitespace
-          tempDiv.querySelectorAll('*').forEach(el => {
-            if (el.children.length === 0 && (!el.textContent || el.textContent.trim() === '')) {
-              el.remove();
-            }
-          });
-          
-          return tempDiv.innerHTML.trim();
-        };
-        
         iframeDoc.open();
         iframeDoc.write(`
           <!DOCTYPE html>
@@ -978,17 +957,20 @@ const createZeroEkaIconButton = () => {
               .ze-watermark { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 0; pointer-events: none; opacity: 0.06; }
               .ze-watermark img { max-width: 80%; max-height: 80%; object-fit: contain; }
               .ze-content { position: relative; z-index: 1; }
-              .message-block { margin: 0 0 6px; }
-              .role-label { font-weight: 700; color: #222; font-size: 11px; margin: 0 0 2px; }
-              .message-content { white-space: normal; overflow-wrap: anywhere; line-height: 1.4; }
+              .message-block { margin: 0 0 8px; }
+              .role-label { font-weight: 700; color: #222; font-size: 12px; margin: 0 0 3px; }
+              .message-content { white-space: normal; overflow-wrap: anywhere; }
               pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
               pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
               img, svg, canvas, video { max-width: 100%; height: auto; }
               table { border-collapse: collapse; }
               table, th, td { border: 1px solid #ddd; }
               th, td { padding: 6px 8px; }
+              p { margin: 0 0 6px; }
+              ul, ol { margin: 0 0 6px 18px; }
+              h1, h2, h3, h4, h5, h6 { margin: 6px 0; }
               @page { size: auto; margin: 8mm; }
-              @media print { body { margin: 0; } .message-block { page-break-inside: avoid; } }
+              @media print { body { margin: 0; } pre, table, img { break-inside: avoid; page-break-inside: avoid; } }
             </style>
           </head>
           <body>
@@ -1000,14 +982,28 @@ const createZeroEkaIconButton = () => {
             <div class="ze-content">
         `);
 
+        const sanitizeForPdf = (unsafeHtml) => {
+          try {
+            const wrapper = (iframeDoc || document).createElement('div');
+            wrapper.innerHTML = unsafeHtml || '';
+            // Remove extension UI artifacts (stars, buttons, sidebars)
+            wrapper.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]').forEach(el => el.remove());
+            // Remove any contenteditable or interactive controls that may add spacing
+            wrapper.querySelectorAll('button, [role="button"]').forEach(el => {
+              if (el.className && /zeroeka/i.test(el.className)) el.remove();
+            });
+            return wrapper.innerHTML;
+          } catch (_) {
+            return unsafeHtml || '';
+          }
+        };
+
         const writeBlock = (role, html, index) => {
-          const cleanHtml = cleanContentForPDF(html);
-          if (!cleanHtml) return; // Skip empty blocks
-          
+          const safeHtml = sanitizeForPdf(html);
           iframeDoc.write(`
             <div class="message-block">
               <div class="role-label">${role === 'user' ? 'User prompt' : 'Output'}</div>
-              <div class="message-content">${cleanHtml}</div>
+              <div class="message-content">${safeHtml}</div>
             </div>
           `);
         };
@@ -1019,11 +1015,9 @@ const createZeroEkaIconButton = () => {
           const nodes = Array.from(document.querySelectorAll('user-query-content .query-text, .model-response-text'));
           nodes.forEach((node) => {
             const isUser = node.matches('user-query-content .query-text');
-            // Clean and extract content
-            const html = cleanContentForPDF(node.innerHTML) || node.textContent?.trim().replace(/[\u00A0\u200B]/g, ' ') || '';
-            if (html) {
-              writeBlock(isUser ? 'user' : 'assistant', html, index++);
-            }
+            // Prefer HTML content, fallback to text
+            const html = node.innerHTML || (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+            writeBlock(isUser ? 'user' : 'assistant', html, index++);
           });
         } else {
           // ChatGPT: try attribute-based messages first; fallback to markdown/article content
@@ -1035,10 +1029,10 @@ const createZeroEkaIconButton = () => {
             const role = message.getAttribute && message.getAttribute('data-message-author-role') ||
               (message.querySelector('[data-message-author-role="user"]') ? 'user' : (message.querySelector('.markdown, .prose') ? 'assistant' : 'assistant'));
             const contentEl = message.querySelector && (message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || message.querySelector('div[tabindex="-1"], [data-message-author-role]')) || message;
-            const html = cleanContentForPDF(contentEl?.innerHTML) || cleanContentForPDF(message.innerHTML) || message.textContent?.trim().replace(/[\u00A0\u200B]/g, ' ') || '';
-            if (html) {
-              writeBlock(role === 'user' ? 'assistant' : 'assistant', html, index++);
-            }
+            // Remove resident ZeroEka star from cloned content to avoid overlap in PDF
+            Array.from(message.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star')).forEach(el => { try { el.remove(); } catch(_){} });
+            const html = (contentEl && contentEl.innerHTML) || (message.innerHTML) || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+            writeBlock(role === 'user' ? 'user' : 'assistant', html, index++);
           });
         }
 
