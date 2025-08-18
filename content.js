@@ -945,8 +945,9 @@ const createZeroEkaIconButton = () => {
               :root { color-scheme: light; }
               body {
                 font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-                line-height: 1.55;
-                margin: 18px;
+                line-height: 1.45;
+                margin: 0;
+                padding: 6mm;
                 color: #1f1f1f;
                 background: #ffffff;
               }
@@ -956,25 +957,17 @@ const createZeroEkaIconButton = () => {
               .ze-watermark { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 0; pointer-events: none; opacity: 0.06; }
               .ze-watermark img { max-width: 80%; max-height: 80%; object-fit: contain; }
               .ze-content { position: relative; z-index: 1; }
-              .conversation-item {
-                margin: 0 0 14px;
-                padding: 12px 14px;
-                border: 1px solid #e5e5e5;
-                border-radius: 8px;
-                background: #fafafa;
-              }
-              .user-message { background: #eef6ff; border-left: 4px solid #2b7be4; }
-              .assistant-message { background: #f8f1ff; border-left: 4px solid #8b5cf6; }
-              .message-header { font-weight: 600; color: #444; margin-bottom: 8px; }
+              .message-block { margin: 0 0 8px; }
+              .role-label { font-weight: 700; color: #222; font-size: 12px; margin: 0 0 3px; }
               .message-content { white-space: normal; overflow-wrap: anywhere; }
               pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-              pre { background: #f4f4f5; padding: 10px; border-radius: 6px; overflow: auto; }
+              pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
               img, svg, canvas, video { max-width: 100%; height: auto; }
               table { border-collapse: collapse; }
               table, th, td { border: 1px solid #ddd; }
               th, td { padding: 6px 8px; }
-              @page { size: auto; margin: 10mm; }
-              @media print { body { margin: 0; } .conversation-item { page-break-inside: avoid; } }
+              @page { size: auto; margin: 8mm; }
+              @media print { body { margin: 0; } .message-block { page-break-inside: avoid; } }
             </style>
           </head>
           <body>
@@ -989,8 +982,8 @@ const createZeroEkaIconButton = () => {
         const writeBlock = (role, html, index) => {
           const safeHtml = html || '';
           iframeDoc.write(`
-            <div class="conversation-item ${role === 'user' ? 'user-message' : 'assistant-message'}">
-              <div class="message-header">${role === 'user' ? 'User' : 'Assistant'} (Message ${index + 1})</div>
+            <div class="message-block">
+              <div class="role-label">${role === 'user' ? 'User prompt' : 'Output'}</div>
               <div class="message-content">${safeHtml}</div>
             </div>
           `);
@@ -1016,7 +1009,7 @@ const createZeroEkaIconButton = () => {
           messages.forEach((message) => {
             const role = message.getAttribute && message.getAttribute('data-message-author-role') ||
               (message.querySelector('[data-message-author-role="user"]') ? 'user' : (message.querySelector('.markdown, .prose') ? 'assistant' : 'assistant'));
-            const contentEl = message.querySelector && (message.querySelector('.markdown, .prose') || message.querySelector('div[tabindex="-1"], [data-message-author-role]')) || message;
+            const contentEl = message.querySelector && (message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || message.querySelector('div[tabindex="-1"], [data-message-author-role]')) || message;
             const html = (contentEl && contentEl.innerHTML) || (message.innerHTML) || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
             writeBlock(role === 'user' ? 'user' : 'assistant', html, index++);
           });
