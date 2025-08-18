@@ -936,6 +936,12 @@ const createZeroEkaIconButton = () => {
         const htmlEscape = (s) => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
         const getGeminiConversationTitle = () => {
           try {
+            // Prefer the currently selected item in the default Gemini sidebar
+            const sideSel = document.querySelector('aside nav a[aria-current="page"], aside nav [aria-selected="true"], aside [data-selected="true"], aside .active, aside .is-active');
+            if (sideSel && sideSel.textContent && sideSel.textContent.trim()) {
+              return sideSel.textContent.trim();
+            }
+            // Fallback to page header title
             const explicit = document.querySelector('[data-test-id="conversation-title"], [data-qa="conversation-title"], header h1');
             if (explicit && explicit.textContent.trim()) return explicit.textContent.trim();
             const firstPrompt = document.querySelector('user-query-content .query-text');
@@ -1079,7 +1085,7 @@ const createZeroEkaIconButton = () => {
             };
           } catch(_) {}
           try { iframe.contentWindow.focus(); } catch(_) {}
-          try { printOpenedAt = Date.now(); document.title = pdfTitle || prevPageTitle; iframe.contentWindow.print(); } catch(_) {}
+          try { printOpenedAt = Date.now(); prevPageTitle = document.title; document.title = pdfTitle || prevPageTitle; iframe.contentWindow.print(); } catch(_) {}
           // Safety cleanup in case onafterprint does not fire
           setTimeout(() => { try { document.body.removeChild(iframe); } catch(_) {} }, 5000);
         };
