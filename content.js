@@ -931,7 +931,7 @@ const createZeroEkaIconButton = () => {
 
         const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
         const logoSrc = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL)
-          ? chrome.runtime.getURL('images/icons/icon-128.png')
+          ? chrome.runtime.getURL('images/ZeroEka_main.png')
           : '';
         iframeDoc.open();
         iframeDoc.write(`
@@ -940,6 +940,7 @@ const createZeroEkaIconButton = () => {
           <head>
             <meta charset="utf-8" />
             <title>ZeroEka</title>
+            <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@600;700;800&display=swap" rel="stylesheet" />
             <style>
               :root { color-scheme: light; }
               body {
@@ -949,9 +950,9 @@ const createZeroEkaIconButton = () => {
                 color: #1f1f1f;
                 background: #ffffff;
               }
-              .ze-header { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 24px; }
-              .ze-header img { width: 72px; height: 72px; object-fit: cover; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,0.12); }
-              .ze-header .ze-title { font-size: 36px; font-weight: 900; letter-spacing: 0.4px; font-family: "Trebuchet MS", "Segoe UI", Montserrat, Poppins, Roboto, Arial, sans-serif; }
+              .ze-header { display: flex; align-items: center; justify-content: center; gap: 18px; margin: 8px 0 22px; }
+              .ze-header img { width: 96px; height: 96px; object-fit: contain; }
+              .ze-header .ze-title { font-family: 'EB Garamond', serif; font-size: 44px; font-weight: 800; letter-spacing: 0.3px; color: #0B3D91; }
               .conversation-item {
                 margin: 0 0 14px;
                 padding: 12px 14px;
