@@ -18,8 +18,7 @@
     "cookies",
     "activeTab",
     "identity",
-    "management",
-    "downloads"
+    "management"
   ],
   "host_permissions": [
     "https://chatgpt.com/",
