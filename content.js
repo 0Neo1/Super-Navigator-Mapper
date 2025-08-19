@@ -2934,17 +2934,28 @@ const createZeroEkaIconButton = () => {
             const match = content.substring(bestMatchIndex, bestMatchIndex + bestMatch.length);
             const afterMatch = content.substring(bestMatchIndex + bestMatch.length, endIndex).replace(/\s+/g, ' ').trim();
             
-            // Calculate how many query words are found in this context
+            // Calculate how many query words are found in this context and how close they are
             const contextText = (beforeMatch + match + afterMatch).toLowerCase();
             let wordMatchCount = 0;
-            for (const word of queryWords) {
-              if (contextText.includes(word)) {
+            const positions = [];
+            queryWords.forEach((word) => {
+              if (!word) return;
+              const idx = contextText.indexOf(word);
+              if (idx !== -1) {
                 wordMatchCount++;
+                positions.push(idx);
               }
+            });
+            let proximityScore = 0;
+            if (positions.length >= 2) {
+              positions.sort((a,b)=>a-b);
+              const span = Math.max(1, positions[positions.length-1] - positions[0]);
+              // Density: more words in a tighter span yields higher score
+              proximityScore = (positions.length / span);
             }
             
-            // Calculate final score based on word matches and match type
-            const finalScore = bestMatchScore + (wordMatchCount * 5) + (bestMatch.length * 0.1);
+            // Calculate final score based on word matches, proximity, and match type
+            const finalScore = bestMatchScore + (wordMatchCount * 5) + (bestMatch.length * 0.1) + (proximityScore * 100);
             
             matches.push({
               messageId: messageId,
@@ -2960,7 +2971,8 @@ const createZeroEkaIconButton = () => {
               matchLength: bestMatch.length,
               matchScore: finalScore,
               wordMatchCount: wordMatchCount,
-              totalQueryWords: queryWords.length
+              totalQueryWords: queryWords.length,
+              proximityScore: proximityScore
             });
             
             searchIndex = bestMatchIndex + bestMatch.length;
@@ -3027,15 +3039,18 @@ const createZeroEkaIconButton = () => {
       // Convert grouped results back to array and sort by priority
       const deduplicatedResults = Array.from(groupedResults.values());
       deduplicatedResults.sort((a, b) => {
-        // First priority: number of exact word matches (descending)
+        // First: proximity score (descending) — phrases where matching words are closer together rank higher
+        const ap = a.proximityScore ?? 0; const bp = b.proximityScore ?? 0;
+        if (ap !== bp) return bp - ap;
+        // Second: number of exact word matches
         const aw = a.exactWordMatches ?? a.wordMatchCount ?? 0;
         const bw = b.exactWordMatches ?? b.wordMatchCount ?? 0;
         if (aw !== bw) return bw - aw;
-        // Second: total matches in message
+        // Third: total matches
         if (a.totalMatches !== b.totalMatches) return b.totalMatches - a.totalMatches;
-        // Third: match score
+        // Fourth: score
         if (a.matchScore !== b.matchScore) return b.matchScore - a.matchScore;
-        // Lastly: earlier messages first
+        // Lastly: index
         return a.index - b.index;
       });
 
