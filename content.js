@@ -2995,7 +2995,7 @@ const createZeroEkaIconButton = () => {
 
       console.log('Search results:', results.length);
 
-      // Group results by message to avoid duplicates
+      // Group results by message to avoid duplicates; do not show counts, only highlight
       const groupedResults = new Map();
       
       results.forEach(result => {
@@ -3023,25 +3023,7 @@ const createZeroEkaIconButton = () => {
       
       // Convert grouped results back to array and sort by priority
       const deduplicatedResults = Array.from(groupedResults.values());
-      deduplicatedResults.sort((a, b) => {
-        // First priority: Number of matching words (descending)
-        if (a.wordMatchCount !== b.wordMatchCount) {
-          return b.wordMatchCount - a.wordMatchCount;
-        }
-        
-        // Second priority: Match score (descending)
-        if (a.matchScore !== b.matchScore) {
-          return b.matchScore - a.matchScore;
-        }
-        
-        // Third priority: Total matches in message (descending)
-        if (a.totalMatches !== b.totalMatches) {
-          return b.totalMatches - a.totalMatches;
-        }
-        
-        // Fourth priority: Message index (ascending - earlier messages first)
-        return a.index - b.index;
-      });
+      deduplicatedResults.sort((a, b) => a.index - b.index);
 
       // Display results
       if (deduplicatedResults.length === 0) {
@@ -3064,20 +3046,9 @@ const createZeroEkaIconButton = () => {
         const authorLabel = result.author === 'user' ? 'User' : 'Assistant';
         const messageNumber = result.index + 1;
 
-        // Create priority indicator
-        const priorityColor = result.wordMatchCount === result.totalQueryWords ? '#3bb910' : 
-                             result.wordMatchCount >= result.totalQueryWords * 0.7 ? '#ffa500' : '#ff6b6b';
-        const priorityText = result.wordMatchCount === result.totalQueryWords ? 'Perfect Match' :
-                           result.wordMatchCount >= result.totalQueryWords * 0.7 ? 'Good Match' : 'Partial Match';
-        
-        // Show concise match info
-        const matchInfo = result.totalMatches > 1 ? 
-          ` (${result.totalMatches} matches)` : 
-          '';
-        
         resultItem.innerHTML = `
           <div style="font-weight: 600; color: #3bb910; margin-bottom: 4px; font-size: 13px;">
-            ${authorLabel} ${messageNumber}${matchInfo}
+            ${authorLabel} ${messageNumber}
           </div>
           <div style="color: #cccccc; font-size: 13px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; max-height: 80px; overflow: hidden;">
             ${result.beforeMatch ? '...' + result.beforeMatch : ''}${highlightAllWordsInText(result.match, query)}${result.afterMatch ? result.afterMatch + '...' : ''}
