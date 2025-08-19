@@ -2995,7 +2995,7 @@ const createZeroEkaIconButton = () => {
 
       console.log('Search results:', results.length);
 
-      // Group results by message to avoid duplicates; do not show counts, only highlight
+      // Group results by message to avoid duplicates
       const groupedResults = new Map();
       
       results.forEach(result => {
@@ -3006,7 +3006,8 @@ const createZeroEkaIconButton = () => {
           groupedResults.set(key, {
             ...result,
             allMatches: [result.match],
-            totalMatches: 1
+            totalMatches: 1,
+            exactWordMatches: result.wordMatchCount || 0
           });
         } else {
           // Additional match for this message
@@ -3018,12 +3019,25 @@ const createZeroEkaIconButton = () => {
             existing.matchScore = result.matchScore;
             existing.wordMatchCount = result.wordMatchCount;
           }
+          // Accumulate exact word matches across all contexts
+          existing.exactWordMatches = (existing.exactWordMatches || existing.wordMatchCount || 0) + (result.wordMatchCount || 0);
         }
       });
       
       // Convert grouped results back to array and sort by priority
       const deduplicatedResults = Array.from(groupedResults.values());
-      deduplicatedResults.sort((a, b) => a.index - b.index);
+      deduplicatedResults.sort((a, b) => {
+        // First priority: number of exact word matches (descending)
+        const aw = a.exactWordMatches ?? a.wordMatchCount ?? 0;
+        const bw = b.exactWordMatches ?? b.wordMatchCount ?? 0;
+        if (aw !== bw) return bw - aw;
+        // Second: total matches in message
+        if (a.totalMatches !== b.totalMatches) return b.totalMatches - a.totalMatches;
+        // Third: match score
+        if (a.matchScore !== b.matchScore) return b.matchScore - a.matchScore;
+        // Lastly: earlier messages first
+        return a.index - b.index;
+      });
 
       // Display results
       if (deduplicatedResults.length === 0) {
@@ -3046,9 +3060,19 @@ const createZeroEkaIconButton = () => {
         const authorLabel = result.author === 'user' ? 'User' : 'Assistant';
         const messageNumber = result.index + 1;
 
+        // Create priority indicator
+        const priorityColor = result.wordMatchCount === result.totalQueryWords ? '#3bb910' : 
+                             result.wordMatchCount >= result.totalQueryWords * 0.7 ? '#ffa500' : '#ff6b6b';
+        const priorityText = result.wordMatchCount === result.totalQueryWords ? 'Perfect Match' :
+                           result.wordMatchCount >= result.totalQueryWords * 0.7 ? 'Good Match' : 'Partial Match';
+        
+        // Show exact matching words count
+        const wordsCount = result.exactWordMatches ?? result.wordMatchCount ?? 0;
+        const matchInfo = wordsCount > 0 ? ` (${wordsCount} exact words)` : '';
+        
         resultItem.innerHTML = `
           <div style="font-weight: 600; color: #3bb910; margin-bottom: 4px; font-size: 13px;">
-            ${authorLabel} ${messageNumber}
+            ${authorLabel} ${messageNumber}${matchInfo}
           </div>
           <div style="color: #cccccc; font-size: 13px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; max-height: 80px; overflow: hidden;">
             ${result.beforeMatch ? '...' + result.beforeMatch : ''}${highlightAllWordsInText(result.match, query)}${result.afterMatch ? result.afterMatch + '...' : ''}
