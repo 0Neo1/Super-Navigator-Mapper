@@ -2671,6 +2671,8 @@ const createZeroEkaIconButton = () => {
       z-index: 1000000;
       padding: 16px 24px 24px 24px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      box-sizing: border-box;
+      overflow: hidden;
     `;
 
     // Create search input (textarea for multi-line support)
@@ -2695,6 +2697,9 @@ const createZeroEkaIconButton = () => {
       line-height: 1.4;
       white-space: pre-wrap;
       word-wrap: break-word;
+      word-break: break-word;
+      box-sizing: border-box;
+      display: block;
     `;
 
     // Create search button container for centering
@@ -2703,6 +2708,7 @@ const createZeroEkaIconButton = () => {
       display: flex;
       justify-content: center;
       margin-bottom: 20px;
+      box-sizing: border-box;
     `;
 
     // Create search button
