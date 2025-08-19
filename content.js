@@ -2857,9 +2857,16 @@ const createZeroEkaIconButton = () => {
 
       // Enhanced search that supports words, phrases and emojis with phrase-first ranking
       const searchInContent = (content, query, messageId, author, index, element) => {
-        const lowerContent = (content || '').toLowerCase();
-        const normContent = lowerContent.replace(/\s+/g, ' ').trim();
-        const normQuery = (query || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        const normalize = (s) => String(s || '')
+          .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+          .replace(/[\u201C\u201D\u2033]/g, '"')
+          .replace(/[\u2013\u2014\u2212]/g, '-')
+          .replace(/[\u00A0\u200B]/g, ' ')
+          .replace(/\s+/g, ' ').trim();
+        const searchContent = normalize(content);
+        const lowerContent = searchContent.toLowerCase();
+        const normContent = lowerContent;
+        const normQuery = normalize(query).toLowerCase();
         if (!normQuery) return [];
 
         const words = normQuery.split(' ').filter(Boolean);
@@ -2886,7 +2893,7 @@ const createZeroEkaIconButton = () => {
           // Allow variable whitespace between words when matching against original content
           const safe = ph.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           const re = new RegExp(safe.replace(/\s+/g, "\\s+"), 'i');
-          const m = re.exec(content);
+          const m = re.exec(searchContent);
           if (m) {
             phraseMatches++;
             const tokens = ph.split(' ').length;
@@ -2905,7 +2912,7 @@ const createZeroEkaIconButton = () => {
           if (seen.has(w)) continue; seen.add(w);
           const safe = w.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
           const re = new RegExp(`(^|[^A-Za-z0-9])${safe}(?=[^A-Za-z0-9]|$)`, 'i');
-          if (re.test(content)) exactWordMatches++;
+          if (re.test(searchContent)) exactWordMatches++;
         }
 
         // Char/emoji matches (unique)
@@ -2913,7 +2920,7 @@ const createZeroEkaIconButton = () => {
         const seenChar = new Set();
         for (const ch of charTokens) {
           if (seenChar.has(ch)) continue; seenChar.add(ch);
-          if (content.indexOf(ch) !== -1) charMatches++;
+          if (searchContent.indexOf(ch) !== -1) charMatches++;
         }
 
         const tokensTotal = words.length + charTokens.length;
@@ -2921,18 +2928,18 @@ const createZeroEkaIconButton = () => {
 
         // Determine best snippet location
         let matchIndex = -1; let match = '';
-        if (topPhraseIndex !== -1) { matchIndex = topPhraseIndex; match = content.substr(matchIndex, topPhrase.length); }
+        if (topPhraseIndex !== -1) { matchIndex = topPhraseIndex; match = searchContent.substr(matchIndex, topPhrase.length); }
         else {
           // fallback to first word or char
-          for (const w of words) { const i = lowerContent.indexOf(w); if (i !== -1) { matchIndex = i; match = content.substr(i, w.length); break; } }
-          if (matchIndex === -1) { for (const ch of charTokens) { const i = content.indexOf(ch); if (i !== -1) { matchIndex = i; match = ch; break; } } }
+          for (const w of words) { const i = lowerContent.indexOf(w); if (i !== -1) { matchIndex = i; match = searchContent.substr(i, w.length); break; } }
+          if (matchIndex === -1) { for (const ch of charTokens) { const i = searchContent.indexOf(ch); if (i !== -1) { matchIndex = i; match = ch; break; } } }
         }
         if (matchIndex === -1) return [];
 
         const startIndex = Math.max(0, matchIndex - 40);
-        const endIndex = Math.min(content.length, matchIndex + match.length + 40);
-        const beforeMatch = content.substring(startIndex, matchIndex).replace(/\s+/g, ' ').trim();
-        const afterMatch = content.substring(matchIndex + match.length, endIndex).replace(/\s+/g, ' ').trim();
+        const endIndex = Math.min(searchContent.length, matchIndex + match.length + 40);
+        const beforeMatch = searchContent.substring(startIndex, matchIndex).replace(/\s+/g, ' ').trim();
+        const afterMatch = searchContent.substring(matchIndex + match.length, endIndex).replace(/\s+/g, ' ').trim();
 
         // Boost score for long-phrase hits to ensure long sentences rank properly
         const score = (phraseMaxTokens * 180) + (phraseMatches * 50) + (exactWordMatches * 12) + (charMatches * 5) + (coverage * 25);
