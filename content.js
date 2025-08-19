@@ -2863,9 +2863,9 @@ const createZeroEkaIconButton = () => {
         if (!normQuery) return [];
 
         const words = normQuery.split(' ').filter(Boolean);
-        // Build contiguous phrases from 5 down to 2 words
+        // Build contiguous phrases from 8 down to 2 words (handles long sentences)
         const phrases = [];
-        const maxN = Math.min(5, words.length);
+        const maxN = Math.min(8, words.length);
         for (let n = maxN; n >= 2; n--) {
           for (let i = 0; i <= words.length - n; i++) {
             phrases.push(words.slice(i, i + n).join(' '));
@@ -2883,24 +2883,28 @@ const createZeroEkaIconButton = () => {
         let topPhraseIndex = -1;
         let topPhrase = '';
         for (const ph of phrases) {
-          const idx = normContent.indexOf(ph);
-          if (idx !== -1) {
+          // Allow variable whitespace between words when matching against original content
+          const safe = ph.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const re = new RegExp(safe.replace(/\s+/g, "\\s+"), 'i');
+          const m = re.exec(content);
+          if (m) {
             phraseMatches++;
             const tokens = ph.split(' ').length;
             if (tokens > phraseMaxTokens) {
               phraseMaxTokens = tokens;
-              topPhrase = ph;
-              topPhraseIndex = lowerContent.indexOf(ph); // index in original lower content
+              topPhrase = m[0];
+              topPhraseIndex = m.index; // exact index in original content
             }
           }
         }
 
-        // Exact word matches (unique)
+        // Exact word matches (unique) - tolerate punctuation boundaries
         let exactWordMatches = 0;
         const seen = new Set();
         for (const w of words) {
           if (seen.has(w)) continue; seen.add(w);
-          const re = new RegExp(`(^|\\b)${w.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}(?=\\b|$)`, 'i');
+          const safe = w.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
+          const re = new RegExp(`(^|[^A-Za-z0-9])${safe}(?=[^A-Za-z0-9]|$)`, 'i');
           if (re.test(content)) exactWordMatches++;
         }
 
@@ -2930,7 +2934,8 @@ const createZeroEkaIconButton = () => {
         const beforeMatch = content.substring(startIndex, matchIndex).replace(/\s+/g, ' ').trim();
         const afterMatch = content.substring(matchIndex + match.length, endIndex).replace(/\s+/g, ' ').trim();
 
-        const score = (phraseMaxTokens * 120) + (phraseMatches * 40) + (exactWordMatches * 12) + (charMatches * 5) + (coverage * 25);
+        // Boost score for long-phrase hits to ensure long sentences rank properly
+        const score = (phraseMaxTokens * 180) + (phraseMatches * 50) + (exactWordMatches * 12) + (charMatches * 5) + (coverage * 25);
 
         return [{
           messageId,
