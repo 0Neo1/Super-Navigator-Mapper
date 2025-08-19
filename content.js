@@ -805,23 +805,46 @@ const createZeroEkaIconButton = () => {
   function buildEmbeddedMindmapData() {
     try {
       const treeUl = document.querySelector('.catalogeu-navigation-plugin-floatbar .panel ul');
-      const walk = (ul, prefix) => {
+      const walk = (ul, prefix, depth = 0) => {
         if (!ul) return [];
-        // Include ALL nodes regardless of current collapsed/visibility state
-        return Array.from(ul.children).filter(li => li && li.tagName === 'LI').map((li, idx) => {
-          // Prefer structure: [toggle][label][ul]
-          const labelDiv = li.children && li.children[1] ? li.children[1] : li.querySelector(':scope > div');
-          const topic = ((labelDiv && labelDiv.textContent) || '').trim();
-          const id = `${prefix}_${idx + 1}`;
-          const childrenUl = li.children && li.children[2] ? li.children[2] : li.querySelector(':scope > ul');
-          return { id, topic, children: walk(childrenUl, id) };
-        });
+        return Array.from(ul.children)
+          .filter(li => li.tagName === 'LI')
+          .map((li, idx) => {
+            const labelDiv = li.children?.[1];
+            let topic = (labelDiv?.textContent || '').trim();
+            
+            // Enhance topic with depth indicators and context
+            if (depth === 0) {
+              topic = `🗣️ ${topic}` || `User ${idx + 1}`;
+            } else if (depth === 1) {
+              topic = `🤖 ${topic}` || `Response ${idx + 1}`;
+            } else if (depth === 2) {
+              topic = `📝 ${topic}` || `Detail ${idx + 1}`;
+            } else {
+              topic = `📋 ${topic}` || `Item ${idx + 1}`;
+            }
+            
+            const id = `${prefix}_${idx+1}`;
+            const childrenUl = li.children?.[2];
+            
+            // Recursively walk ALL children regardless of collapse state
+            const children = walk(childrenUl, id, depth + 1);
+            
+            return { id, topic, children };
+          });
       };
+      
       const data = {
-        meta: { name: 'mind map', author: 'Chat Tree', version: '1.0' },
+        meta: { name: 'Complete Chat Mind Map', author: 'ZeroEka', version: '2.0' },
         format: 'node_tree',
-        data: { id: 'root', topic: document.title || 'Conversation', children: walk(treeUl, 'root') }
+        data: { 
+          id: 'root', 
+          topic: `🧠 ${document.title || 'Conversation Mind Map'}`, 
+          children: walk(treeUl, 'root', 0) 
+        }
       };
+      
+      console.log('Generated comprehensive mindmap with', JSON.stringify(data).length, 'characters');
       return data;
     } catch (err) {
       console.warn('Failed to build embedded mindmap data:', err);
@@ -4145,7 +4168,7 @@ const updateTextSize = (container, size) => {
 
   
   // Function to get conversation tree data
-  function getConversationTreeData(deep = true) {
+  function getConversationTreeData(deep = false) {
     try {
       // Try to get data from the existing floatbar if available
       const floatbar = document.querySelector('.catalogeu-navigation-plugin-floatbar');
@@ -4153,8 +4176,8 @@ const updateTextSize = (container, size) => {
         const panel = floatbar.querySelector('.panel ul');
         if (panel && panel.children.length > 0) {
           console.log('Extracting tree data from floating box panel');
-          // Always extract full depth regardless of current on-screen visibility
-          return extractTreeDataFromDOM(panel, false);
+          // Respect current on-screen visibility (concise vs full)
+          return extractTreeDataFromDOM(panel, true);
         } else {
           console.log('Floating box panel found but empty, falling back to ChatGPT extraction');
         }
@@ -4169,7 +4192,7 @@ const updateTextSize = (container, size) => {
     }
   }
   
-  function extractTreeDataFromDOM(ulElement, respectVisibility = false) {
+  function extractTreeDataFromDOM(ulElement, respectVisibility = true) {
     const treeData = [];
     if (!ulElement) return treeData;
 
