@@ -1081,19 +1081,28 @@ const createZeroEkaIconButton = () => {
         };
 
         let printOpenedAt = 0;
+        const previousTitle = document.title;
         const finalizeOnce = () => {
           if (hasPrinted) return;
           hasPrinted = true;
           try {
             // Close handler: show success message when the print dialog closes
             iframe.contentWindow.onafterprint = () => {
+              try { if (IS_GEMINI) document.title = previousTitle; } catch(_) {}
               try { document.body.removeChild(iframe); } catch(_) {}
             };
           } catch(_) {}
           try { iframe.contentWindow.focus(); } catch(_) {}
-          try { printOpenedAt = Date.now(); iframe.contentWindow.print(); } catch(_) {}
+          try {
+            if (IS_GEMINI) { try { document.title = pdfTitle; } catch(_) {} }
+            printOpenedAt = Date.now();
+            iframe.contentWindow.print();
+          } catch(_) {}
           // Safety cleanup in case onafterprint does not fire
-          setTimeout(() => { try { document.body.removeChild(iframe); } catch(_) {} }, 5000);
+          setTimeout(() => {
+            try { if (IS_GEMINI) document.title = previousTitle; } catch(_) {}
+            try { document.body.removeChild(iframe); } catch(_) {}
+          }, 5000);
         };
 
         // Wait for iframe load then trigger print; keep a single fallback
