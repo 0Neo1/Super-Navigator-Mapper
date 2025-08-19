@@ -934,6 +934,7 @@ const createZeroEkaIconButton = () => {
           ? chrome.runtime.getURL('images/ZeroEka_main.png')
           : '';
         const htmlEscape = (s) => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        const sanitizeFilename = (s) => String(s || '').replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g,' ').trim().slice(0, 120);
         const getGeminiConversationTitle = () => {
           try {
             const explicit = document.querySelector('[data-test-id="conversation-title"], [data-qa="conversation-title"], header h1');
@@ -946,8 +947,17 @@ const createZeroEkaIconButton = () => {
           } catch(_) {}
           return 'Gemini Conversation';
         };
-        // Set the document title (used by many browsers as default PDF name)
-        const pdfTitle = IS_GEMINI ? getGeminiConversationTitle() : (document.title || 'Conversation');
+        const getGeminiFirstPromptTitle5 = () => {
+          try {
+            const firstPrompt = document.querySelector('user-query-content .query-text');
+            if (firstPrompt) {
+              const text = (firstPrompt.textContent || '').trim().replace(/\s+/g, ' ');
+              if (text) return text.split(' ').slice(0, 5).join(' ');
+            }
+          } catch(_) {}
+          return getGeminiConversationTitle();
+        };
+        const pdfTitle = IS_GEMINI ? sanitizeFilename(getGeminiFirstPromptTitle5()) : (document.title || 'Conversation');
         iframeDoc.open();
         iframeDoc.write(`
           <!DOCTYPE html>
