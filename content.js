@@ -807,22 +807,19 @@ const createZeroEkaIconButton = () => {
       const treeUl = document.querySelector('.catalogeu-navigation-plugin-floatbar .panel ul');
       const walk = (ul, prefix) => {
         if (!ul) return [];
-        return Array.from(ul.children).filter(li => {
-          if (li.tagName !== 'LI') return false;
-          // Check if this LI is actually visible (not collapsed/hidden)
-          try {
-            if (li.closest('li.collapsed')) return false;
-            const cs = getComputedStyle(li);
-            if (cs && (cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0')) return false;
-          } catch(_) {}
-          return true;
-        }).map((li, idx) => {
-          const labelDiv = li.children?.[1];
-          let topic = (labelDiv?.textContent || '').trim();
-          const id = `${prefix}_${idx+1}`;
-          const childrenUl = li.children?.[2];
-          return { id, topic, children: walk(childrenUl, id) };
-        });
+        return Array.from(ul.children)
+          .filter(li => li && li.tagName === 'LI')
+          .map((li, idx) => {
+            // Prefer the first non-UL element as the label node
+            let labelEl = null;
+            for (let c = li.firstElementChild; c; c = c.nextElementSibling) {
+              if (c.tagName !== 'UL') { labelEl = c; break; }
+            }
+            const topic = ((labelEl && labelEl.textContent) || '').trim();
+            const id = `${prefix}_${idx+1}`;
+            const childrenUl = li.querySelector(':scope > ul');
+            return { id, topic, children: walk(childrenUl, id) };
+          });
       };
       const data = {
         meta: { name: 'mind map', author: 'Chat Tree', version: '1.0' },

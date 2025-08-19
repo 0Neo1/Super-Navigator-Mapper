@@ -27,6 +27,7 @@
       window.__jm = jm;
       window.__jm_mode = null; // null | 'edit' | 'delete'
       jm.show(mind);
+      try { jm.expand_all(); } catch(_) {}
       try { applyLevelColors(jm); } catch(_){}
       try { if (JM.draggable_node) JM.draggable_node(jm); } catch(_){}
       // Wire toolbar
