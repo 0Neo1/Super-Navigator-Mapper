@@ -934,31 +934,19 @@ const createZeroEkaIconButton = () => {
           ? chrome.runtime.getURL('images/ZeroEka_main.png')
           : '';
         const htmlEscape = (s) => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-        const getGeminiConversationId = () => {
-          try {
-            const href = location.href;
-            const m = href.match(/conversations?\/([^/?#]+)/i) || href.match(/\/app\/([^/?#]+)/i);
-            return m && m[1] ? m[1] : '';
-          } catch(_) { return ''; }
-        };
         const getGeminiConversationTitle = () => {
           try {
             const explicit = document.querySelector('[data-test-id="conversation-title"], [data-qa="conversation-title"], header h1');
             if (explicit && explicit.textContent.trim()) return explicit.textContent.trim();
-            // Try sidebar selected chat item by id
-            const id = getGeminiConversationId();
-            if (id) {
-              const nav = document.querySelector('nav[aria-label*="conversation" i], nav[aria-label*="chat" i], aside nav, [role="navigation"]');
-              if (nav) {
-                const a = nav.querySelector(`a[href*="${id}"]`);
-                if (a && a.textContent.trim()) return a.textContent.trim();
-              }
-            }
+            // Try sidebar current item
+            const cur = document.querySelector('aside nav a[aria-current="page"], nav a[aria-current="page"], aside [aria-selected="true"], nav [aria-selected="true"]');
+            if (cur && cur.textContent && cur.textContent.trim()) return cur.textContent.trim();
             const firstPrompt = document.querySelector('user-query-content .query-text');
             if (firstPrompt) return (firstPrompt.textContent || '').trim().slice(0, 80).replace(/\s+/g, ' ');
           } catch(_) {}
           return 'Gemini Conversation';
         };
+        // Set the document title (used by many browsers as default PDF name)
         const pdfTitle = IS_GEMINI ? getGeminiConversationTitle() : (document.title || 'Conversation');
         iframeDoc.open();
         iframeDoc.write(`
@@ -1066,14 +1054,8 @@ const createZeroEkaIconButton = () => {
         iframeDoc.write('</div></body></html>');
         iframeDoc.close();
 
-        // Ensure the print dialog opens only once and set a better default filename (Gemini)
+        // Ensure the print dialog opens only once
         let hasPrinted = false;
-        try {
-          if (IS_GEMINI) {
-            const filename = (getGeminiConversationTitle() || 'Conversation').replace(/[\\/:*?"<>|]+/g, ' ').slice(0, 120).trim() + '.pdf';
-            iframe.contentWindow.document.title = filename;
-          }
-        } catch(_) {}
         const showToast = (text) => {
           try {
             const toast = document.createElement('div');
