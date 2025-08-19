@@ -854,6 +854,50 @@ const createZeroEkaIconButton = () => {
         children = parents;
       }
 
+      // Fallback for ChatGPT: build from conversation DOM if UL is missing/empty
+      if ((!children || children.length === 0) && (/chatgpt\.com|openai\.com/.test(location.hostname))) {
+        const messages = Array.from(document.querySelectorAll('[data-message-id]'));
+        const parents = [];
+        let current = null;
+        let idx = 0;
+        const getText = (el) => (el && (el.innerText || el.textContent) || '').trim();
+        const extractAssistantSubnodes = (root, parentId) => {
+          const subs = [];
+          if (!root) return subs;
+          let lastHeading = null; let hIndex = 0; let lIndex = 0;
+          const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT, null);
+          while (walker.nextNode()) {
+            const el = walker.currentNode;
+            const tag = el.tagName ? el.tagName.toUpperCase() : '';
+            if (/^H[1-6]$/.test(tag)) {
+              const t = getText(el); if (!t) continue;
+              lastHeading = { id: `${parentId}_h${++hIndex}`, topic: t, children: [] };
+              subs.push(lastHeading);
+            } else if (tag === 'LI') {
+              const t = getText(el); if (!t) continue;
+              const node = { id: `${parentId}_l${++lIndex}`, topic: t, children: [] };
+              if (lastHeading) lastHeading.children.push(node); else subs.push(node);
+            }
+          }
+          return subs;
+        };
+        messages.forEach((m) => {
+          const role = m.getAttribute('data-message-author-role');
+          if (role === 'user') {
+            current = { id: `root_${++idx}`, topic: getText(m), children: [] };
+            parents.push(current);
+          } else if (role === 'assistant') {
+            if (!current) { current = { id: `root_${++idx}`, topic: '(prompt)', children: [] }; parents.push(current); }
+            const contentEl = m.querySelector('.markdown, .prose') || m;
+            const preview = getText(contentEl).slice(0, 220);
+            const child = { id: `${current.id}_1`, topic: preview, children: extractAssistantSubnodes(contentEl, `${current.id}_1`) };
+            current.children.push(child);
+            current = null;
+          }
+        });
+        if (parents.length) children = parents;
+      }
+
       const data = {
         meta: { name: 'mind map', author: 'Chat Tree', version: '1.0' },
         format: 'node_tree',
