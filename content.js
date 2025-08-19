@@ -804,47 +804,61 @@ const createZeroEkaIconButton = () => {
 
   function buildEmbeddedMindmapData() {
     try {
-      const treeUl = document.querySelector('.catalogeu-navigation-plugin-floatbar .panel ul');
-      const walk = (ul, prefix, depth = 0) => {
+      const getUl = () => (typeof getFloatbarUl === 'function' ? getFloatbarUl() : document.querySelector('.catalogeu-navigation-plugin-floatbar .panel ul'));
+      const treeUl = getUl();
+
+      // Walk ALL nodes regardless of collapsed/visibility state so mindmap always has data
+      const walkAll = (ul, prefix) => {
         if (!ul) return [];
-        return Array.from(ul.children)
-          .filter(li => li.tagName === 'LI')
-          .map((li, idx) => {
-            const labelDiv = li.children?.[1];
-            let topic = (labelDiv?.textContent || '').trim();
-            
-            // Enhance topic with depth indicators and context
-            if (depth === 0) {
-              topic = `🗣️ ${topic}` || `User ${idx + 1}`;
-            } else if (depth === 1) {
-              topic = `🤖 ${topic}` || `Response ${idx + 1}`;
-            } else if (depth === 2) {
-              topic = `📝 ${topic}` || `Detail ${idx + 1}`;
-            } else {
-              topic = `📋 ${topic}` || `Item ${idx + 1}`;
-            }
-            
-            const id = `${prefix}_${idx+1}`;
-            const childrenUl = li.children?.[2];
-            
-            // Recursively walk ALL children regardless of collapse state
-            const children = walk(childrenUl, id, depth + 1);
-            
-            return { id, topic, children };
-          });
+        return Array.from(ul.children).filter(li => li && li.tagName === 'LI').map((li, idx) => {
+          const labelDiv = li.children?.[1];
+          const topic = ((labelDiv?.textContent) || '').trim();
+          const id = `${prefix}_${idx + 1}`;
+          const childrenUl = li.children?.[2];
+          const children = walkAll(childrenUl, id);
+          return { id, topic, children };
+        });
       };
-      
+
+      let children = walkAll(treeUl, 'root');
+
+      // Fallback for Gemini: build from live conversation if sidebar tree is unavailable/empty
+      if ((!children || children.length === 0) && (/gemini\.google\.com/.test(location.hostname))) {
+        const items = Array.from(document.querySelectorAll('user-query-content .query-text, .model-response-text'));
+        const parents = [];
+        let current = null;
+        let idx = 0;
+        items.forEach((node) => {
+          if (node.matches && node.matches('user-query-content .query-text')) {
+            current = { id: `root_${++idx}`, topic: (node.textContent || '').trim(), children: [] };
+            parents.push(current);
+          } else if (current) {
+            // Assistant response under latest user prompt
+            const respText = (node.textContent || '').trim();
+            const child = { id: `${current.id}_1`, topic: respText, children: [] };
+            // Optional: add headings/lists as subnodes
+            try {
+              const subs = [];
+              node.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach((h, i) => {
+                const t = (h.textContent || '').trim(); if (t) subs.push({ id: `${child.id}_h${i+1}`, topic: t, children: [] });
+              });
+              node.querySelectorAll('li').forEach((li, i) => {
+                const t = (li.textContent || '').trim(); if (t) subs.push({ id: `${child.id}_l${i+1}`, topic: t, children: [] });
+              });
+              if (subs.length) child.children = subs;
+            } catch(_) {}
+            current.children.push(child);
+            current = null;
+          }
+        });
+        children = parents;
+      }
+
       const data = {
-        meta: { name: 'Complete Chat Mind Map', author: 'ZeroEka', version: '2.0' },
+        meta: { name: 'mind map', author: 'Chat Tree', version: '1.0' },
         format: 'node_tree',
-        data: { 
-          id: 'root', 
-          topic: `🧠 ${document.title || 'Conversation Mind Map'}`, 
-          children: walk(treeUl, 'root', 0) 
-        }
+        data: { id: 'root', topic: document.title || 'Conversation', children }
       };
-      
-      console.log('Generated comprehensive mindmap with', JSON.stringify(data).length, 'characters');
       return data;
     } catch (err) {
       console.warn('Failed to build embedded mindmap data:', err);
