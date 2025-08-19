@@ -2855,133 +2855,101 @@ const createZeroEkaIconButton = () => {
         console.log('Found messages:', messages.length);
         const results = [];
 
-      // Enhanced search with partial matching and priority scoring
+      // Enhanced search that supports words, phrases and emojis with phrase-first ranking
       const searchInContent = (content, query, messageId, author, index, element) => {
-        const lowerContent = content.toLowerCase();
-        const lowerQuery = query.toLowerCase();
-        
-        // Handle multi-line queries by preserving line breaks and treating each line as a potential match
-        const queryLines = query.split('\n').filter(line => line.trim().length > 0);
-        const queryWords = query.toLowerCase().split(/\s+/).filter(word => word.length > 0);
-        
-        // Find all matches with priority scoring
-        const matches = [];
-        let searchIndex = 0;
-        
-        while (searchIndex < lowerContent.length) {
-          // Try to find any word from the query
-          let bestMatch = null;
-          let bestMatchLength = 0;
-          let bestMatchIndex = -1;
-          let bestMatchScore = 0;
-          
-          // Check for exact multi-line query match first (highest priority)
-          let exactMatchIndex = -1;
-          let exactMatchLine = '';
-          
-          // Try to find exact match for each line of the query
-          for (const line of queryLines) {
-            const lowerLine = line.toLowerCase().trim();
-            if (lowerLine.length > 0) {
-              const lineIndex = lowerContent.indexOf(lowerLine, searchIndex);
-              if (lineIndex !== -1) {
-                exactMatchIndex = lineIndex;
-                exactMatchLine = line;
-                break;
-              }
-            }
-          }
-          
-          // If no multi-line match, try exact full query match
-          if (exactMatchIndex === -1) {
-            exactMatchIndex = lowerContent.indexOf(lowerQuery, searchIndex);
-            if (exactMatchIndex !== -1) {
-              exactMatchLine = query;
-            }
-          }
-          
-          if (exactMatchIndex !== -1) {
-            bestMatch = exactMatchLine;
-            bestMatchLength = exactMatchLine.length;
-            bestMatchIndex = exactMatchIndex;
-            bestMatchScore = queryWords.length * 10; // Full match gets highest score
-          }
-          
-          // If no exact match, try individual words
-          if (!bestMatch) {
-            for (const word of queryWords) {
-              if (word.length < 2) continue; // Skip very short words
-              
-              const wordIndex = lowerContent.indexOf(word, searchIndex);
-              if (wordIndex !== -1) {
-                // Check if this is a better match (longer word)
-                if (word.length > bestMatchLength) {
-                  bestMatch = word;
-                  bestMatchLength = word.length;
-                  bestMatchIndex = wordIndex;
-                  bestMatchScore = 1; // Single word match
-                }
-              }
-            }
-          }
-          
-          if (bestMatch && bestMatchIndex !== -1) {
-            // Extract more context around the match for better display
-            const startIndex = Math.max(0, bestMatchIndex - 40);
-            const endIndex = Math.min(content.length, bestMatchIndex + bestMatch.length + 40);
-            
-            const beforeMatch = content.substring(startIndex, bestMatchIndex).replace(/\s+/g, ' ').trim();
-            const match = content.substring(bestMatchIndex, bestMatchIndex + bestMatch.length);
-            const afterMatch = content.substring(bestMatchIndex + bestMatch.length, endIndex).replace(/\s+/g, ' ').trim();
-            
-            // Calculate how many query words are found in this context and how close they are
-            const contextText = (beforeMatch + match + afterMatch).toLowerCase();
-            let wordMatchCount = 0;
-            const positions = [];
-            queryWords.forEach((word) => {
-              if (!word) return;
-              const idx = contextText.indexOf(word);
-              if (idx !== -1) {
-                wordMatchCount++;
-                positions.push(idx);
-              }
-            });
-            let proximityScore = 0;
-            if (positions.length >= 2) {
-              positions.sort((a,b)=>a-b);
-              const span = Math.max(1, positions[positions.length-1] - positions[0]);
-              // Density: more words in a tighter span yields higher score
-              proximityScore = (positions.length / span);
-            }
-            
-            // Calculate final score based on word matches, proximity, and match type
-            const finalScore = bestMatchScore + (wordMatchCount * 5) + (bestMatch.length * 0.1) + (proximityScore * 100);
-            
-            matches.push({
-              messageId: messageId,
-              author: author,
-              content: content,
-              beforeMatch: beforeMatch,
-              match: match,
-              afterMatch: afterMatch,
-              fullMatch: bestMatch,
-              index: index,
-              element: element,
-              matchIndex: bestMatchIndex,
-              matchLength: bestMatch.length,
-              matchScore: finalScore,
-              wordMatchCount: wordMatchCount,
-              totalQueryWords: queryWords.length,
-              proximityScore: proximityScore
-            });
-            
-            searchIndex = bestMatchIndex + bestMatch.length;
-          } else {
-            break;
+        const lowerContent = (content || '').toLowerCase();
+        const normContent = lowerContent.replace(/\s+/g, ' ').trim();
+        const normQuery = (query || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        if (!normQuery) return [];
+
+        const words = normQuery.split(' ').filter(Boolean);
+        // Build contiguous phrases from 5 down to 2 words
+        const phrases = [];
+        const maxN = Math.min(5, words.length);
+        for (let n = maxN; n >= 2; n--) {
+          for (let i = 0; i <= words.length - n; i++) {
+            phrases.push(words.slice(i, i + n).join(' '));
           }
         }
-        
-        return matches;
+        if (words.length >= 2) phrases.unshift(normQuery);
+
+        // Collect non-word single characters (potential emojis/symbols)
+        const charTokens = Array.from(query)
+          .filter(ch => ch.trim() !== '' && !/[A-Za-z0-9]/.test(ch));
+
+        // Phrase hits
+        let phraseMatches = 0;
+        let phraseMaxTokens = 0;
+        let topPhraseIndex = -1;
+        let topPhrase = '';
+        for (const ph of phrases) {
+          const idx = normContent.indexOf(ph);
+          if (idx !== -1) {
+            phraseMatches++;
+            const tokens = ph.split(' ').length;
+            if (tokens > phraseMaxTokens) {
+              phraseMaxTokens = tokens;
+              topPhrase = ph;
+              topPhraseIndex = lowerContent.indexOf(ph); // index in original lower content
+            }
+          }
+        }
+
+        // Exact word matches (unique)
+        let exactWordMatches = 0;
+        const seen = new Set();
+        for (const w of words) {
+          if (seen.has(w)) continue; seen.add(w);
+          const re = new RegExp(`(^|\\b)${w.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}(?=\\b|$)`, 'i');
+          if (re.test(content)) exactWordMatches++;
+        }
+
+        // Char/emoji matches (unique)
+        let charMatches = 0;
+        const seenChar = new Set();
+        for (const ch of charTokens) {
+          if (seenChar.has(ch)) continue; seenChar.add(ch);
+          if (content.indexOf(ch) !== -1) charMatches++;
+        }
+
+        const tokensTotal = words.length + charTokens.length;
+        const coverage = tokensTotal ? ((exactWordMatches + charMatches) / tokensTotal) : 0;
+
+        // Determine best snippet location
+        let matchIndex = -1; let match = '';
+        if (topPhraseIndex !== -1) { matchIndex = topPhraseIndex; match = content.substr(matchIndex, topPhrase.length); }
+        else {
+          // fallback to first word or char
+          for (const w of words) { const i = lowerContent.indexOf(w); if (i !== -1) { matchIndex = i; match = content.substr(i, w.length); break; } }
+          if (matchIndex === -1) { for (const ch of charTokens) { const i = content.indexOf(ch); if (i !== -1) { matchIndex = i; match = ch; break; } } }
+        }
+        if (matchIndex === -1) return [];
+
+        const startIndex = Math.max(0, matchIndex - 40);
+        const endIndex = Math.min(content.length, matchIndex + match.length + 40);
+        const beforeMatch = content.substring(startIndex, matchIndex).replace(/\s+/g, ' ').trim();
+        const afterMatch = content.substring(matchIndex + match.length, endIndex).replace(/\s+/g, ' ').trim();
+
+        const score = (phraseMaxTokens * 120) + (phraseMatches * 40) + (exactWordMatches * 12) + (charMatches * 5) + (coverage * 25);
+
+        return [{
+          messageId,
+          author,
+          content,
+          beforeMatch,
+          match,
+          afterMatch,
+          fullMatch: match,
+          index,
+          element,
+          matchIndex,
+          matchLength: match.length,
+          matchScore: score,
+          wordMatchCount: exactWordMatches,
+          totalQueryWords: words.length,
+          phraseMaxTokens,
+          phraseMatches
+        }];
       };
       
       // If no messages found, try alternative selectors
@@ -3039,18 +3007,18 @@ const createZeroEkaIconButton = () => {
       // Convert grouped results back to array and sort by priority
       const deduplicatedResults = Array.from(groupedResults.values());
       deduplicatedResults.sort((a, b) => {
-        // First: proximity score (descending) — phrases where matching words are closer together rank higher
-        const ap = a.proximityScore ?? 0; const bp = b.proximityScore ?? 0;
+        // Priority 1: longer contiguous phrase tokens
+        const ap = a.phraseMaxTokens || 0; const bp = b.phraseMaxTokens || 0;
         if (ap !== bp) return bp - ap;
-        // Second: number of exact word matches
+        // Priority 2: number of exact word matches
         const aw = a.exactWordMatches ?? a.wordMatchCount ?? 0;
         const bw = b.exactWordMatches ?? b.wordMatchCount ?? 0;
         if (aw !== bw) return bw - aw;
-        // Third: total matches
+        // Priority 3: total matches
         if (a.totalMatches !== b.totalMatches) return b.totalMatches - a.totalMatches;
-        // Fourth: score
+        // Priority 4: score for final tie-break
         if (a.matchScore !== b.matchScore) return b.matchScore - a.matchScore;
-        // Lastly: index
+        // Priority 5: earlier messages first
         return a.index - b.index;
       });
 
@@ -3076,14 +3044,16 @@ const createZeroEkaIconButton = () => {
         const messageNumber = result.index + 1;
 
         // Create priority indicator
-        const priorityColor = result.wordMatchCount === result.totalQueryWords ? '#3bb910' : 
-                             result.wordMatchCount >= result.totalQueryWords * 0.7 ? '#ffa500' : '#ff6b6b';
-        const priorityText = result.wordMatchCount === result.totalQueryWords ? 'Perfect Match' :
-                           result.wordMatchCount >= result.totalQueryWords * 0.7 ? 'Good Match' : 'Partial Match';
+        const priorityColor = (result.phraseMaxTokens || 0) >= 2 ? '#3bb910' :
+                              (result.exactWordMatches || result.wordMatchCount || 0) >= (result.totalQueryWords || 0) * 0.7 ? '#ffa500' : '#ff6b6b';
+        const priorityText = (result.phraseMaxTokens || 0) >= 2 ? 'Phrase Match' :
+                             (result.exactWordMatches || result.wordMatchCount || 0) === (result.totalQueryWords || 0) ? 'Perfect Match' :
+                             (result.exactWordMatches || result.wordMatchCount || 0) >= (result.totalQueryWords || 0) * 0.7 ? 'Good Match' : 'Partial Match';
         
         // Show exact matching words count
         const wordsCount = result.exactWordMatches ?? result.wordMatchCount ?? 0;
-        const matchInfo = wordsCount > 0 ? ` (${wordsCount} exact words)` : '';
+        const phraseInfo = (result.phraseMaxTokens || 0) >= 2 ? `, phrase ${result.phraseMaxTokens}w` : '';
+        const matchInfo = wordsCount > 0 ? ` (${wordsCount} exact words${phraseInfo})` : (phraseInfo ? ` (${phraseInfo.slice(2)})` : '');
         
         resultItem.innerHTML = `
           <div style="font-weight: 600; color: #3bb910; margin-bottom: 4px; font-size: 13px;">
