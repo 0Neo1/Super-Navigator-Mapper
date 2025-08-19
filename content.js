@@ -807,24 +807,20 @@ const createZeroEkaIconButton = () => {
       const treeUl = document.querySelector('.catalogeu-navigation-plugin-floatbar .panel ul');
       const walk = (ul, prefix) => {
         if (!ul) return [];
-        return Array.from(ul.children)
-          .filter(li => li && li.tagName === 'LI')
-          .map((li, idx) => {
-            // Prefer the first non-UL element as the label node
-            let labelEl = null;
-            for (let c = li.firstElementChild; c; c = c.nextElementSibling) {
-              if (c.tagName !== 'UL') { labelEl = c; break; }
-            }
-            const topic = ((labelEl && labelEl.textContent) || '').trim();
-            const id = `${prefix}_${idx+1}`;
-            const childrenUl = li.querySelector(':scope > ul');
-            return { id, topic, children: walk(childrenUl, id) };
-          });
+        // Include ALL nodes regardless of current collapsed/visibility state
+        return Array.from(ul.children).filter(li => li && li.tagName === 'LI').map((li, idx) => {
+          // Prefer structure: [toggle][label][ul]
+          const labelDiv = li.children && li.children[1] ? li.children[1] : li.querySelector(':scope > div');
+          const topic = ((labelDiv && labelDiv.textContent) || '').trim();
+          const id = `${prefix}_${idx + 1}`;
+          const childrenUl = li.children && li.children[2] ? li.children[2] : li.querySelector(':scope > ul');
+          return { id, topic, children: walk(childrenUl, id) };
+        });
       };
       const data = {
         meta: { name: 'mind map', author: 'Chat Tree', version: '1.0' },
         format: 'node_tree',
-        data: { id: 'root', topic: document.title, children: walk(treeUl, 'root') }
+        data: { id: 'root', topic: document.title || 'Conversation', children: walk(treeUl, 'root') }
       };
       return data;
     } catch (err) {
@@ -4149,7 +4145,7 @@ const updateTextSize = (container, size) => {
 
   
   // Function to get conversation tree data
-  function getConversationTreeData(deep = false) {
+  function getConversationTreeData(deep = true) {
     try {
       // Try to get data from the existing floatbar if available
       const floatbar = document.querySelector('.catalogeu-navigation-plugin-floatbar');
@@ -4157,8 +4153,8 @@ const updateTextSize = (container, size) => {
         const panel = floatbar.querySelector('.panel ul');
         if (panel && panel.children.length > 0) {
           console.log('Extracting tree data from floating box panel');
-          // Respect current on-screen visibility (concise vs full)
-          return extractTreeDataFromDOM(panel, true);
+          // Always extract full depth regardless of current on-screen visibility
+          return extractTreeDataFromDOM(panel, false);
         } else {
           console.log('Floating box panel found but empty, falling back to ChatGPT extraction');
         }
@@ -4173,7 +4169,7 @@ const updateTextSize = (container, size) => {
     }
   }
   
-  function extractTreeDataFromDOM(ulElement, respectVisibility = true) {
+  function extractTreeDataFromDOM(ulElement, respectVisibility = false) {
     const treeData = [];
     if (!ulElement) return treeData;
 
