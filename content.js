@@ -3166,7 +3166,7 @@ const createZeroEkaIconButton = () => {
               }
             }
             
-            // Navigate to the found element and exact position
+                        // Navigate to the found element and exact position
             if (targetMessage) {
               console.log('Scrolling to exact matched range');
               
@@ -3220,12 +3220,13 @@ const createZeroEkaIconButton = () => {
                 }
                 return true;
               };
-
+              
               const ok = scrollToRangeAndHighlight(targetMessage, (typeof result.matchIndex === 'number' ? result.matchIndex : 0), (result.matchLength || (result.match || '').length || (query || '').length));
               if (!ok) targetMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
               
               navigationSuccess = true;
               console.log('Direct navigation successful with exact range/highlight');
+              console.log('Direct navigation successful with term highlighting');
             } else {
               console.error('Could not find target message for navigation');
             }
