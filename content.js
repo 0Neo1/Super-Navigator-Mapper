@@ -578,10 +578,14 @@ const createZeroEkaIconButton = () => {
 
   // Action: Hide/Show header
   itemToggleHeader.addEventListener('click', () => {
-    ensureGeminiHideStyles();
-    const headers = getHeaderEls();
-    const platform = isGemini ? 'Gemini' : 'ChatGPT';
-    console.log(`[${platform}] Header toggle: Found`, headers.length, 'header elements:', headers);
+    console.log('[Header] Button clicked - starting header toggle');
+    try {
+      ensureGeminiHideStyles();
+      console.log('[Header] CSS styles ensured');
+      const headers = getHeaderEls();
+      console.log('[Header] getHeaderEls() returned:', headers);
+      const platform = isGemini ? 'Gemini' : 'ChatGPT';
+      console.log(`[${platform}] Header toggle: Found`, headers.length, 'header elements:', headers);
     
     if (headers.length > 0) {
       // Check current state of body class
@@ -625,17 +629,23 @@ const createZeroEkaIconButton = () => {
     }
     
     hideMenu(); menuOpen = false;
+    } catch(e) {
+      console.error('[Header] Error in header toggle:', e);
+    }
   });
 
   // Action: Hide/Show footer
   itemToggleFooter.addEventListener('click', () => {
-    ensureGeminiHideStyles();
-    // Check body class first so second click refresh works even if elements are not detectable
-    const cls = 'zeroeka-hide-footer';
-    const isCurrentlyHidden = document.body.classList.contains(cls);
-    const platform = isGemini ? 'Gemini' : 'ChatGPT';
-    console.log(`[${platform}] Current state - Body has footer hide class:`, isCurrentlyHidden);
-    console.log(`[${platform}] Body classes:`, document.body.className);
+    console.log('[Footer] Button clicked - starting footer toggle');
+    try {
+      ensureGeminiHideStyles();
+      console.log('[Footer] CSS styles ensured');
+      // Check body class first so second click refresh works even if elements are not detectable
+      const cls = 'zeroeka-hide-footer';
+      const isCurrentlyHidden = document.body.classList.contains(cls);
+      const platform = isGemini ? 'Gemini' : 'ChatGPT';
+      console.log(`[${platform}] Current state - Body has footer hide class:`, isCurrentlyHidden);
+      console.log(`[${platform}] Body classes:`, document.body.className);
     if (isCurrentlyHidden) {
       console.log(`[${platform}] Footer currently hidden → refreshing page`);
       try { hideMenu(); menuOpen = false; } catch(_) {}
@@ -668,6 +678,9 @@ const createZeroEkaIconButton = () => {
     });
     console.log(`[${platform}] Body classes after footer hide:`, document.body.className);
     hideMenu(); menuOpen = false;
+    } catch(e) {
+      console.error('[Footer] Error in footer toggle:', e);
+    }
   });
 
   // Fullscreen option removed
