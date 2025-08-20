@@ -3110,6 +3110,7 @@ const createZeroEkaIconButton = () => {
 
                 // Add click functionality to navigate to message
         resultItem.addEventListener('click', () => {
+          const query = searchInput.value.trim();
           console.log('Navigating to message:', result.messageId);
           
           // Try multiple navigation strategies
@@ -3166,66 +3167,125 @@ const createZeroEkaIconButton = () => {
               }
             }
             
-                        // Navigate to the found element and exact position
+            // Navigate to the found element
             if (targetMessage) {
-              console.log('Scrolling to exact matched range');
+              console.log('Scrolling to target message');
               
-              // Helpers to build a precise range and highlight it briefly
-              const createRangeFromTextIndex = (container, start, length) => {
-                try {
-                  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
-                  let idx = 0; let sNode = null; let sOff = 0; let eNode = null; let eOff = 0;
-                  while (walker.nextNode()) {
-                    const node = walker.currentNode; const len = (node.nodeValue || '').length; const next = idx + len;
-                    if (sNode === null && start < next) { sNode = node; sOff = Math.max(0, start - idx); }
-                    if (sNode !== null) { const endPos = start + length; if (endPos <= next) { eNode = node; eOff = Math.max(0, endPos - idx); break; } }
-                    idx = next;
+              // Get the current scroll position and viewport dimensions
+              const viewportHeight = window.innerHeight;
+              const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+              
+              // First, scroll to the element with more precise positioning
+              targetMessage.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start',
+                inline: 'nearest'
+              });
+              
+              // Add a longer delay to ensure the initial scroll completes
+              setTimeout(() => {
+                // Get updated position after initial scroll
+                const rect = targetMessage.getBoundingClientRect();
+                const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                
+                // Try to find the exact position of the matched text within the message
+                const findExactMatchPosition = () => {
+                  const messageText = targetMessage.textContent || '';
+                  const lowerMessageText = messageText.toLowerCase();
+                  
+                  // Try to use the actual matched term from the search result first
+                  const actualMatch = result.match || '';
+                  const lowerActualMatch = actualMatch.toLowerCase();
+                  
+                  let matchIndex = -1;
+                  
+                  // First try to find the actual matched term
+                  if (actualMatch && actualMatch.length > 0) {
+                    matchIndex = lowerMessageText.indexOf(lowerActualMatch);
+                    console.log('Found exact match at index:', matchIndex, 'for:', actualMatch);
                   }
-                  if (sNode && eNode) { const r = document.createRange(); r.setStart(sNode, sOff); r.setEnd(eNode, eOff); return r; }
-                } catch(_) {}
-                return null;
-              };
+                  
+                  // If not found, try the full search query
+                  if (matchIndex === -1) {
+                    const searchQuery = query.toLowerCase();
+                    matchIndex = lowerMessageText.indexOf(searchQuery);
+                    console.log('Found search query at index:', matchIndex, 'for:', searchQuery);
+                  }
+                  
+                  // If still not found, try individual words
+                  if (matchIndex === -1) {
+                    const queryWords = query.toLowerCase().split(/\s+/).filter(word => word.length > 0);
+                    for (const word of queryWords) {
+                      if (word.length >= 2) {
+                        const wordIndex = lowerMessageText.indexOf(word);
+                        if (wordIndex !== -1) {
+                          matchIndex = wordIndex;
+                          console.log('Found word at index:', matchIndex, 'for:', word);
+                          break;
+                        }
+                      }
+                    }
+                  }
+                  
+                  if (matchIndex !== -1) {
+                    // Calculate the relative position of the match within the message
+                    const messageHeight = rect.height;
+                    const matchRelativePosition = matchIndex / messageText.length;
+                    const matchOffset = messageHeight * matchRelativePosition;
+                    
+                    // Get viewport height for centering calculation
+                    const viewportHeight = window.innerHeight;
+                    
+                    // Position the match at the center of the viewport
+                    const targetPosition = rect.top + currentScrollTop + matchOffset - (viewportHeight / 2);
+                    
+                    console.log('Calculated center position:', targetPosition, 'matchOffset:', matchOffset, 'matchIndex:', matchIndex);
+                    return targetPosition;
+                  }
+                   
+                   // Fallback: position the message at the center of the viewport
+                   console.log('Using fallback centering');
+                   const viewportHeight = window.innerHeight;
+                   return rect.top + currentScrollTop - (viewportHeight / 2);
+                };
+                
+                const precisePosition = findExactMatchPosition();
+                
+                // Fine-tune the scroll position to position at the top
+                const finalPosition = Math.max(0, precisePosition);
+                
+                console.log('Scrolling to final position:', finalPosition);
+                
+                // Smooth scroll to position the matched content at the top
+                window.scrollTo({
+                  top: finalPosition,
+                  behavior: 'smooth'
+                });
+                
+                // Add a final adjustment to ensure the content is centered
+                setTimeout(() => {
+                  // Get updated position after the scroll
+                  const updatedRect = targetMessage.getBoundingClientRect();
+                  const updatedScrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                  const viewportHeight = window.innerHeight;
+                  
+                  // Position the message at the center of the viewport
+                  const messageCenterPosition = updatedRect.top + updatedScrollTop - (viewportHeight / 2);
+                  
+                  console.log('Final adjustment to center position:', messageCenterPosition);
+                  
+                  window.scrollTo({
+                    top: Math.max(0, messageCenterPosition),
+                    behavior: 'smooth'
+                  });
+                }, 500); // Wait for initial scroll to complete
+                
+              }, 500); // Increased delay for better timing
               
-              const ensureHighlightStyles = () => {
-                if (document.getElementById('zeroeka-search-highlight-style')) return;
-                const style = document.createElement('style'); style.id = 'zeroeka-search-highlight-style';
-                style.textContent = `.zeroeka-search-hit{background:#ffd54a;color:#111;padding:0 2px;border-radius:2px;box-shadow:0 0 0 2px #ffd54a66}`;
-                document.head.appendChild(style);
-              };
-              
-              const scrollToRangeAndHighlight = (container, startIndex, length) => {
-                const range = createRangeFromTextIndex(container, startIndex, length);
-                if (!range) return false;
-                const rect = range.getBoundingClientRect();
-                const targetTop = window.pageYOffset + rect.top - (window.innerHeight / 2 - Math.min(rect.height, 80) / 2);
-                window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
-                ensureHighlightStyles();
-                try { 
-                  const mark = document.createElement('span'); 
-                  mark.className = 'zeroeka-search-hit'; 
-                  range.surroundContents(mark); 
-                  setTimeout(() => { 
-                    try { 
-                      const p = mark.parentNode; 
-                      const t = document.createTextNode(mark.textContent || ''); 
-                      p.replaceChild(t, mark); 
-                    } catch(_){} 
-                  }, 2000); 
-                } catch(_) { 
-                  try { 
-                    const sel = window.getSelection(); 
-                    sel.removeAllRanges(); sel.addRange(range); 
-                    setTimeout(() => sel.removeAllRanges(), 1500); 
-                  } catch(_){} 
-                }
-                return true;
-              };
-              
-              const ok = scrollToRangeAndHighlight(targetMessage, (typeof result.matchIndex === 'number' ? result.matchIndex : 0), (result.matchLength || (result.match || '').length || (query || '').length));
-              if (!ok) targetMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              // No highlighting - just center the matched content
+              console.log('Navigation completed - matched content centered without highlighting');
               
               navigationSuccess = true;
-              console.log('Direct navigation successful with exact range/highlight');
               console.log('Direct navigation successful with term highlighting');
             } else {
               console.error('Could not find target message for navigation');
