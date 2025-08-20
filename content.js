@@ -502,55 +502,161 @@ const createZeroEkaIconButton = () => {
     document.head.appendChild(styleEl);
     console.log('[Gemini] Added CSS styles for hide/show functionality');
   }
+  
+  function ensureChatGPTHideStyles() {
+    if (document.getElementById('zeroeka-chatgpt-hide-styles')) return;
+    
+    const style = document.createElement('style');
+    style.id = 'zeroeka-chatgpt-hide-styles';
+    style.textContent = `
+      [data-zeroeka-hidden="true"] {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+      }
+    `;
+    document.head.appendChild(style);
+    console.log('[ChatGPT] Added CSS styles for hide/show functionality');
+  }
   // Note: toggleVisibilityForElements function removed - using direct logic in each toggle handler for better control
 
   // Removed Toggle chat width action
 
   // Action: Hide/Show header
   itemToggleHeader.addEventListener('click', () => {
-    ensureGeminiHideStyles();
-    // Check body class first so second click refresh works even if elements are not detectable
-    const cls = 'zeroeka-hide-header';
-    const isCurrentlyHidden = document.body.classList.contains(cls);
-    const platform = isGemini ? 'Gemini' : 'ChatGPT';
-    console.log(`[${platform}] Current state - Body has header hide class:`, isCurrentlyHidden);
-    console.log(`[${platform}] Body classes:`, document.body.className);
+    const isGemini = (location.hostname || '').includes('gemini.google.com');
+    const isChatGPT = (location.hostname || '').includes('chatgpt.com');
     
-    if (isCurrentlyHidden) {
-      console.log(`[${platform}] Header currently hidden → refreshing page`);
-      try { hideMenu(); menuOpen = false; } catch(_) {}
-      window.location.reload();
-      return;
-    }
-    
-    // First click: resolve and hide
-    const headers = getHeaderEls();
-    console.log(`[${platform}] Header toggle: Found`, headers.length, 'header elements:', headers);
-    
-    if (headers.length > 0) {
-      // Hide headers (first click)
-      console.log(`[${platform}] HIDING headers...`);
+    if (isGemini) {
+      ensureGeminiHideStyles();
+      const headers = getHeaderEls();
+      console.log('[Gemini] Header toggle: Found', headers.length, 'header elements:', headers);
+      
+      if (headers.length > 0) {
+        // Check current state of body class
+        const cls = 'zeroeka-hide-header';
+        const isCurrentlyHidden = document.body.classList.contains(cls);
+        
+        // New behavior: if already hidden, refresh page on second click
+        if (isCurrentlyHidden) {
+          console.log('[Gemini] Header currently hidden → refreshing page');
+          try { hideMenu(); menuOpen = false; } catch(_) {}
+          window.location.reload();
+          return;
+        }
+
+        console.log('[Gemini] Current state - Body has hide class:', isCurrentlyHidden);
+        console.log('[Gemini] Body classes:', document.body.className);
+        
+        // Hide headers (first click)
+        console.log('[Gemini] HIDING headers...');
+        document.body.classList.add(cls);
+        headers.forEach((h, index) => {
+          try {
+            h.setAttribute('data-zeroeka-header', '1');
+            h.style.setProperty('display', 'none', 'important');
+            h.style.setProperty('visibility', 'hidden', 'important');
+            h.style.setProperty('opacity', '0', 'important');
+            h.setAttribute('data-zeroeka-hidden', 'true');
+            console.log(`[Gemini] Header ${index + 1} hidden:`, {
+              tag: h.tagName,
+              id: h.id,
+              classes: h.className,
+              hasHiddenAttr: h.hasAttribute('data-zeroeka-hidden')
+            });
+          } catch(e) {
+            console.error('[Gemini] Error hiding header:', e);
+          }
+        });
+        console.log('[Gemini] Body classes after hide:', document.body.className);
+      } else {
+        console.warn('[Gemini] No header elements found to toggle');
+      }
+    } else if (isChatGPT) {
+      // ChatGPT-specific header handling
+      ensureChatGPTHideStyles();
+      const cls = 'zeroeka-hide-header';
+      const isCurrentlyHidden = document.body.classList.contains(cls);
+      
+      // New behavior: if already hidden, refresh page on second click
+      if (isCurrentlyHidden) {
+        console.log('[ChatGPT] Header currently hidden → refreshing page');
+        try { hideMenu(); menuOpen = false; } catch(_) {}
+        window.location.reload();
+        return;
+      }
+      
+      // First click: hide ChatGPT headers
+      console.log('[ChatGPT] HIDING headers...');
       document.body.classList.add(cls);
-      headers.forEach((h, index) => {
+      
+      // ChatGPT-specific header selectors
+      const chatgptHeaders = [
+        'nav[data-testid="nav"]',
+        '[data-testid="nav"]',
+        'header',
+        '[role="banner"]',
+        '.nav-wrapper',
+        '.nav-container'
+      ];
+      
+      let foundHeaders = 0;
+      chatgptHeaders.forEach(selector => {
         try {
-          h.setAttribute('data-zeroeka-header', '1');
-          h.style.setProperty('display', 'none', 'important');
-          h.style.setProperty('visibility', 'hidden', 'important');
-          h.style.setProperty('opacity', '0', 'important');
-          h.setAttribute('data-zeroeka-hidden', 'true');
-          console.log(`[${platform}] Header ${index + 1} hidden:`, {
-            tag: h.tagName,
-            id: h.id,
-            classes: h.className,
-            hasHiddenAttr: h.hasAttribute('data-zeroeka-hidden')
+          const elements = document.querySelectorAll(selector);
+          elements.forEach(el => {
+            try {
+              const rect = el.getBoundingClientRect();
+              // Only hide elements at the top of the page
+              if (rect.top < 100 && rect.height > 20 && rect.height < 200) {
+                el.setAttribute('data-zeroeka-header', '1');
+                el.style.setProperty('display', 'none', 'important');
+                el.style.setProperty('visibility', 'hidden', 'important');
+                el.style.setProperty('opacity', '0', 'important');
+                el.setAttribute('data-zeroeka-hidden', 'true');
+                foundHeaders++;
+                console.log(`[ChatGPT] Header hidden:`, {
+                  tag: el.tagName,
+                  id: el.id,
+                  classes: el.className,
+                  selector: selector
+                });
+              }
+            } catch(e) {
+              console.error('[ChatGPT] Error hiding header element:', e);
+            }
           });
         } catch(e) {
-          console.error(`[${platform}] Error hiding header:`, e);
+          console.error('[ChatGPT] Error with selector:', selector, e);
         }
       });
-      console.log(`[${platform}] Body classes after header hide:`, document.body.className);
-    } else {
-      console.warn(`[${platform}] No header elements found to toggle`);
+      
+      if (foundHeaders === 0) {
+        // Fallback: try to hide any element at the very top
+        const topElements = document.elementsFromPoint(window.innerWidth / 2, 30) || [];
+        topElements.forEach(el => {
+          if (!el || el === document.documentElement || el === document.body) return;
+          try {
+            const rect = el.getBoundingClientRect();
+            if (rect.top < 50 && rect.height > 30 && rect.height < 150) {
+              el.setAttribute('data-zeroeka-header', '1');
+              el.style.setProperty('display', 'none', 'important');
+              el.style.setProperty('visibility', 'hidden', 'important');
+              el.style.setProperty('opacity', '0', 'important');
+              el.setAttribute('data-zeroeka-hidden', 'true');
+              foundHeaders++;
+              console.log(`[ChatGPT] Fallback header hidden:`, {
+                tag: el.tagName,
+                id: el.id,
+                classes: el.className
+              });
+            }
+          } catch(_) {}
+        });
+      }
+      
+      console.log(`[ChatGPT] Total headers hidden: ${foundHeaders}`);
+      console.log('[ChatGPT] Body classes after hide:', document.body.className);
     }
     
     hideMenu(); menuOpen = false;
@@ -562,45 +668,39 @@ const createZeroEkaIconButton = () => {
     // Check body class first so second click refresh works even if elements are not detectable
     const cls = 'zeroeka-hide-footer';
     const isCurrentlyHidden = document.body.classList.contains(cls);
-    const platform = isGemini ? 'Gemini' : 'ChatGPT';
-    console.log(`[${platform}] Current state - Body has footer hide class:`, isCurrentlyHidden);
-    console.log(`[${platform}] Body classes:`, document.body.className);
-    
+    console.log('[Gemini] Current state - Body has footer hide class:', isCurrentlyHidden);
+    console.log('[Gemini] Body classes:', document.body.className);
     if (isCurrentlyHidden) {
-      console.log(`[${platform}] Footer currently hidden → refreshing page`);
+      console.log('[Gemini] Footer currently hidden → refreshing page');
       try { hideMenu(); menuOpen = false; } catch(_) {}
       window.location.reload();
       return;
     }
-    
     // First click: resolve and hide
     const footers = getFooterEls();
-    console.log(`[${platform}] Footer toggle: Found`, footers.length, 'footer elements:', footers);
-    
-    if (footers.length > 0) {
-      console.log(`[${platform}] HIDING footers...`);
-      document.body.classList.add(cls);
-      footers.forEach((el, index) => {
-        try {
-          el.style.setProperty('display', 'none', 'important');
-          el.style.setProperty('visibility', 'hidden', 'important');
-          el.style.setProperty('opacity', '0', 'important');
-          el.setAttribute('data-zeroeka-hidden', 'true');
-          console.log(`[${platform}] Footer ${index + 1} hidden:`, {
-            tag: el.tagName,
-            id: el.id,
-            classes: el.className,
-            hasHiddenAttr: el.hasAttribute('data-zeroeka-hidden')
-          });
-        } catch(e) {
-          console.error(`[${platform}] Error hiding footer:`, e);
-        }
-      });
-      console.log(`[${platform}] Body classes after footer hide:`, document.body.className);
-    } else {
-      console.warn(`[${platform}] No footer elements found to toggle`);
+    console.log('[Gemini] Footer toggle: Found', footers.length, 'footer elements:', footers);
+    if (footers.length === 0) {
+      console.warn('[Gemini] No footer elements found to toggle');
     }
-    
+    console.log('[Gemini] HIDING footers...');
+    document.body.classList.add(cls);
+    footers.forEach((el, index) => {
+      try {
+        el.style.setProperty('display', 'none', 'important');
+        el.style.setProperty('visibility', 'hidden', 'important');
+        el.style.setProperty('opacity', '0', 'important');
+        el.setAttribute('data-zeroeka-hidden', 'true');
+        console.log(`[Gemini] Footer ${index + 1} hidden:`, {
+          tag: el.tagName,
+          id: el.id,
+          classes: el.className,
+          hasHiddenAttr: el.hasAttribute('data-zeroeka-hidden')
+        });
+      } catch(e) {
+        console.error('[Gemini] Error hiding footer:', e);
+      }
+    });
+    console.log('[Gemini] Body classes after footer hide:', document.body.className);
     hideMenu(); menuOpen = false;
   });
 
