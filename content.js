@@ -1163,7 +1163,14 @@ const createZeroEkaIconButton = () => {
               .ze-watermark img { max-width: 80%; max-height: 80%; object-fit: contain; }
               .ze-content { position: relative; z-index: 1; }
               .message-block { margin: 0 0 8px; }
-              .role-label { font-weight: 700; color: #222; font-size: 12px; margin: 0 0 3px; }
+              .role-label { 
+                font-weight: 900; 
+                color: #222; 
+                font-size: 36px; 
+                margin: 0 0 8px; 
+                text-transform: uppercase;
+                letter-spacing: 1px;
+              }
               .message-content { 
                 white-space: normal; 
                 overflow-wrap: anywhere; 
@@ -1247,7 +1254,7 @@ const createZeroEkaIconButton = () => {
           if (safeHtml && safeHtml.trim() && safeHtml !== '&nbsp;' && safeHtml !== '\u00A0') {
             iframeDoc.write(`
               <div class="message-block">
-                <div class="role-label">${role === 'user' ? 'User prompt' : 'Output'}</div>
+                <div class="role-label">${role === 'user' ? 'USER PROMPT' : 'OUTPUT'}</div>
                 <div class="message-content">${safeHtml}</div>
               </div>
             `);
