@@ -3081,10 +3081,9 @@ const createZeroEkaIconButton = () => {
                              (result.exactWordMatches || result.wordMatchCount || 0) === (result.totalQueryWords || 0) ? 'Perfect Match' :
                              (result.exactWordMatches || result.wordMatchCount || 0) >= (result.totalQueryWords || 0) * 0.7 ? 'Good Match' : 'Partial Match';
         
-        // Show exact matching words count
+        // Show concise header: "(N words matched)"
         const wordsCount = result.exactWordMatches ?? result.wordMatchCount ?? 0;
-        const phraseInfo = (result.phraseMaxTokens || 0) >= 2 ? `, phrase ${result.phraseMaxTokens}w` : '';
-        const matchInfo = wordsCount > 0 ? ` (${wordsCount} exact words${phraseInfo})` : (phraseInfo ? ` (${phraseInfo.slice(2)})` : '');
+        const matchInfo = wordsCount > 0 ? ` (${wordsCount} words matched)` : '';
         
         resultItem.innerHTML = `
           <div style="font-weight: 600; color: #3bb910; margin-bottom: 4px; font-size: 13px;">
