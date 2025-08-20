@@ -509,24 +509,23 @@ const createZeroEkaIconButton = () => {
   // Action: Hide/Show header
   itemToggleHeader.addEventListener('click', () => {
     ensureGeminiHideStyles();
-    const headers = getHeaderEls();
-    const platform = isGemini ? 'Gemini' : 'ChatGPT';
-    console.log(`[${platform}] Header toggle: Found`, headers.length, 'header elements:', headers);
-    
-    // Check current state of body class first (for both platforms)
+    // Check body class first so second click refresh works even if elements are not detectable
     const cls = 'zeroeka-hide-header';
     const isCurrentlyHidden = document.body.classList.contains(cls);
+    const platform = isGemini ? 'Gemini' : 'ChatGPT';
+    console.log(`[${platform}] Current state - Body has header hide class:`, isCurrentlyHidden);
+    console.log(`[${platform}] Body classes:`, document.body.className);
     
-    // Second click behavior: if already hidden, refresh page (works for both ChatGPT and Gemini)
     if (isCurrentlyHidden) {
       console.log(`[${platform}] Header currently hidden → refreshing page`);
       try { hideMenu(); menuOpen = false; } catch(_) {}
       window.location.reload();
       return;
     }
-
-    console.log(`[${platform}] Current state - Body has hide class:`, isCurrentlyHidden);
-    console.log(`[${platform}] Body classes:`, document.body.className);
+    
+    // First click: resolve and hide
+    const headers = getHeaderEls();
+    console.log(`[${platform}] Header toggle: Found`, headers.length, 'header elements:', headers);
     
     if (headers.length > 0) {
       // Hide headers (first click)
@@ -549,7 +548,7 @@ const createZeroEkaIconButton = () => {
           console.error(`[${platform}] Error hiding header:`, e);
         }
       });
-      console.log(`[${platform}] Body classes after hide:`, document.body.className);
+      console.log(`[${platform}] Body classes after header hide:`, document.body.className);
     } else {
       console.warn(`[${platform}] No header elements found to toggle`);
     }
@@ -566,37 +565,42 @@ const createZeroEkaIconButton = () => {
     const platform = isGemini ? 'Gemini' : 'ChatGPT';
     console.log(`[${platform}] Current state - Body has footer hide class:`, isCurrentlyHidden);
     console.log(`[${platform}] Body classes:`, document.body.className);
+    
     if (isCurrentlyHidden) {
       console.log(`[${platform}] Footer currently hidden → refreshing page`);
       try { hideMenu(); menuOpen = false; } catch(_) {}
       window.location.reload();
       return;
     }
+    
     // First click: resolve and hide
     const footers = getFooterEls();
     console.log(`[${platform}] Footer toggle: Found`, footers.length, 'footer elements:', footers);
-    if (footers.length === 0) {
+    
+    if (footers.length > 0) {
+      console.log(`[${platform}] HIDING footers...`);
+      document.body.classList.add(cls);
+      footers.forEach((el, index) => {
+        try {
+          el.style.setProperty('display', 'none', 'important');
+          el.style.setProperty('visibility', 'hidden', 'important');
+          el.style.setProperty('opacity', '0', 'important');
+          el.setAttribute('data-zeroeka-hidden', 'true');
+          console.log(`[${platform}] Footer ${index + 1} hidden:`, {
+            tag: el.tagName,
+            id: el.id,
+            classes: el.className,
+            hasHiddenAttr: el.hasAttribute('data-zeroeka-hidden')
+          });
+        } catch(e) {
+          console.error(`[${platform}] Error hiding footer:`, e);
+        }
+      });
+      console.log(`[${platform}] Body classes after footer hide:`, document.body.className);
+    } else {
       console.warn(`[${platform}] No footer elements found to toggle`);
     }
-    console.log(`[${platform}] HIDING footers...`);
-    document.body.classList.add(cls);
-    footers.forEach((el, index) => {
-      try {
-        el.style.setProperty('display', 'none', 'important');
-        el.style.setProperty('visibility', 'hidden', 'important');
-        el.style.setProperty('opacity', '0', 'important');
-        el.setAttribute('data-zeroeka-hidden', 'true');
-        console.log(`[${platform}] Footer ${index + 1} hidden:`, {
-          tag: el.tagName,
-          id: el.id,
-          classes: el.className,
-          hasHiddenAttr: el.hasAttribute('data-zeroeka-hidden')
-        });
-      } catch(e) {
-        console.error(`[${platform}] Error hiding footer:`, e);
-      }
-    });
-    console.log(`[${platform}] Body classes after footer hide:`, document.body.className);
+    
     hideMenu(); menuOpen = false;
   });
 
