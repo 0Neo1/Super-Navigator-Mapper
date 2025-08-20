@@ -1315,9 +1315,10 @@ const createZeroEkaIconButton = () => {
 
         let index = 0;
 
-                if (IS_GEMINI) {
+        if (IS_GEMINI) {
           // Gemini: sequence user prompts and model responses by DOM order
-          const nodes = Array.from(document.querySelectorAll('user-query-content .query-text, .model-response-text'));
+          // Use broader selectors to capture all content including images
+          const nodes = Array.from(document.querySelectorAll('user-query-content .query-text, .model-response-text, [data-message-author-role], .markdown, .prose, article, .message, .chat-message'));
           console.log('[PDF Export] Found', nodes.length, 'Gemini nodes');
           
           nodes.forEach((node, nodeIndex) => {
@@ -1417,11 +1418,20 @@ const createZeroEkaIconButton = () => {
           });
         } else {
           // ChatGPT: try attribute-based messages first; fallback to markdown/article content
-          let messages = Array.from(document.querySelectorAll('[data-message-id]'));
+          let messages = Array.from(document.querySelectorAll('[data-message-id], article, .markdown, .prose, .message, .chat-message, [data-message-author-role]'));
           if (!messages.length) {
-            messages = Array.from(document.querySelectorAll('article'));
+            messages = Array.from(document.querySelectorAll('article, .markdown, .prose, .message, .chat-message'));
           }
-          messages.forEach((message) => {
+          messages.forEach((message, msgIndex) => {
+            console.log(`[PDF Export] Processing ChatGPT message ${msgIndex + 1}`);
+            
+            // Debug: Check for images in original message
+            const originalImages = message.querySelectorAll('img');
+            console.log(`[PDF Export] ChatGPT message ${msgIndex + 1} has`, originalImages.length, 'images');
+            originalImages.forEach((img, imgIndex) => {
+              console.log(`[PDF Export] ChatGPT message ${msgIndex + 1} Image ${imgIndex + 1}:`, img.src, img.alt);
+            });
+            
             const role = message.getAttribute && message.getAttribute('data-message-author-role') ||
               (message.querySelector('[data-message-author-role="user"]') ? 'user' : (message.querySelector('.markdown, .prose') ? 'assistant' : 'assistant'));
             const contentEl = message.querySelector && (message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || message.querySelector('div[tabindex="-1"], [data-message-author-role]')) || message;
@@ -1431,11 +1441,14 @@ const createZeroEkaIconButton = () => {
             
             // Ensure images are properly captured for ChatGPT content
             if (html && html.includes('<img')) {
+              console.log(`[PDF Export] ChatGPT message ${msgIndex + 1} contains images, processing...`);
               const tempDiv = document.createElement('div');
               tempDiv.innerHTML = html;
               
               // Process images to ensure they're print-friendly
-              tempDiv.querySelectorAll('img').forEach(img => {
+              const images = tempDiv.querySelectorAll('img');
+              console.log(`[PDF Export] ChatGPT message ${msgIndex + 1} processing`, images.length, 'images');
+              images.forEach(img => {
                 // Ensure image has proper attributes for printing
                 if (!img.alt) img.alt = 'Image';
                 if (!img.title) img.title = 'Image';
@@ -1447,9 +1460,15 @@ const createZeroEkaIconButton = () => {
                 img.style.margin = '10px 0';
                 img.style.borderRadius = '8px';
                 img.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                
+                console.log(`[PDF Export] Processed ChatGPT image:`, img.src, img.alt);
               });
               
               html = tempDiv.innerHTML;
+              console.log(`[PDF Export] ChatGPT message ${msgIndex + 1} final HTML length:`, html.length);
+              console.log(`[PDF Export] ChatGPT message ${msgIndex + 1} final HTML has images:`, html.includes('<img'));
+            } else {
+              console.log(`[PDF Export] ChatGPT message ${msgIndex + 1} no images found`);
             }
             
             writeBlock(role === 'user' ? 'user' : 'assistant', html, index++);
