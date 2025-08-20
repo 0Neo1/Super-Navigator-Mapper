@@ -1220,8 +1220,19 @@ const createZeroEkaIconButton = () => {
 
         const sanitizeForPdf = (unsafeHtml) => {
           try {
+            // Debug: Log what we're processing
+            console.log('[PDF Export] Processing HTML:', unsafeHtml ? unsafeHtml.substring(0, 200) + '...' : 'empty');
+            console.log('[PDF Export] Contains images:', unsafeHtml && unsafeHtml.includes('<img'));
+            
             const wrapper = (iframeDoc || document).createElement('div');
             wrapper.innerHTML = unsafeHtml || '';
+            
+            // Debug: Check for images before processing
+            const initialImages = wrapper.querySelectorAll('img');
+            console.log('[PDF Export] Initial images found:', initialImages.length);
+            initialImages.forEach((img, i) => {
+              console.log(`[PDF Export] Image ${i}:`, img.src, img.alt);
+            });
             
             // Remove extension UI artifacts (stars, buttons, sidebars)
             wrapper.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]').forEach(el => el.remove());
@@ -1247,8 +1258,12 @@ const createZeroEkaIconButton = () => {
               }
             });
             
+            // Debug: Check for images after cleaning
+            const afterCleaningImages = wrapper.querySelectorAll('img');
+            console.log('[PDF Export] Images after cleaning:', afterCleaningImages.length);
+            
             // Ensure images are properly preserved and accessible
-            wrapper.querySelectorAll('img').forEach(img => {
+            afterCleaningImages.forEach(img => {
               // Ensure image has proper attributes
               if (!img.alt) img.alt = 'Image';
               if (!img.title) img.title = 'Image';
@@ -1264,6 +1279,8 @@ const createZeroEkaIconButton = () => {
               // Remove any inline styles that might interfere with printing
               img.removeAttribute('style');
               img.setAttribute('style', 'max-width: 100%; height: auto; display: block; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);');
+              
+              console.log('[PDF Export] Processed image:', img.src, img.alt);
             });
             
             // Clean up any remaining problematic whitespace characters
@@ -1271,8 +1288,13 @@ const createZeroEkaIconButton = () => {
             cleanedHtml = cleanedHtml.replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ');
             cleanedHtml = cleanedHtml.replace(/\s+/g, ' ').trim();
             
+            // Debug: Final check
+            console.log('[PDF Export] Final HTML contains images:', cleanedHtml.includes('<img'));
+            console.log('[PDF Export] Final HTML length:', cleanedHtml.length);
+            
             return cleanedHtml;
-          } catch (_) {
+          } catch (error) {
+            console.error('[PDF Export] Error in sanitizeForPdf:', error);
             return unsafeHtml || '';
           }
         };
@@ -1293,11 +1315,21 @@ const createZeroEkaIconButton = () => {
 
         let index = 0;
 
-        if (IS_GEMINI) {
+                if (IS_GEMINI) {
           // Gemini: sequence user prompts and model responses by DOM order
           const nodes = Array.from(document.querySelectorAll('user-query-content .query-text, .model-response-text'));
-          nodes.forEach((node) => {
+          console.log('[PDF Export] Found', nodes.length, 'Gemini nodes');
+          
+          nodes.forEach((node, nodeIndex) => {
             const isUser = node.matches('user-query-content .query-text');
+            console.log(`[PDF Export] Processing Gemini node ${nodeIndex + 1} (${isUser ? 'user' : 'assistant'})`);
+            
+            // Debug: Check for images in original node
+            const originalImages = node.querySelectorAll('img');
+            console.log(`[PDF Export] Node ${nodeIndex + 1} has`, originalImages.length, 'images');
+            originalImages.forEach((img, imgIndex) => {
+              console.log(`[PDF Export] Node ${nodeIndex + 1} Image ${imgIndex + 1}:`, img.src, img.alt);
+            });
             
             // Gemini-specific content cleaning to remove empty elements and dashes
             let cleanContent = '';
@@ -1307,7 +1339,7 @@ const createZeroEkaIconButton = () => {
               
               // Remove empty elements that cause dashes
               clonedNode.querySelectorAll('*').forEach(el => {
-                // Remove elements with only whitespace or special characters
+                // Remove elements that only contain whitespace or special characters
                 if (el.childNodes.length === 1 && el.childNodes[0].nodeType === Node.TEXT_NODE) {
                   const text = el.childNodes[0].textContent;
                   if (text && /^[\s\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]*$/.test(text)) {
@@ -1326,44 +1358,54 @@ const createZeroEkaIconButton = () => {
                 }
               });
               
-                          // Get cleaned HTML content
-            cleanContent = clonedNode.innerHTML;
-            
-            // Ensure images are properly captured and preserved
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = cleanContent;
-            
-            // Process images to ensure they're print-friendly
-            tempDiv.querySelectorAll('img').forEach(img => {
-              // Ensure image has proper attributes for printing
-              if (!img.alt) img.alt = 'Image';
-              if (!img.title) img.title = 'Image';
+              // Get cleaned HTML content
+              cleanContent = clonedNode.innerHTML;
               
-              // Add print-friendly styling
-              img.style.maxWidth = '100%';
-              img.style.height = 'auto';
-              img.style.display = 'block';
-              img.style.margin = '10px 0';
-              img.style.borderRadius = '8px';
-              img.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-            });
-            
-            cleanContent = tempDiv.innerHTML;
-            
-            // Additional cleaning for remaining problematic characters
-            cleanContent = cleanContent.replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ');
-            cleanContent = cleanContent.replace(/\s+/g, ' ').trim();
-            
-            // Remove any remaining empty paragraph tags or divs
-            cleanContent = cleanContent.replace(/<p[^>]*>\s*<\/p>/gi, '');
-            cleanContent = cleanContent.replace(/<div[^>]*>\s*<\/div>/gi, '');
-            cleanContent = cleanContent.replace(/<span[^>]*>\s*<\/span>/gi, '');
-            
-            // Final cleanup of excessive whitespace
-            cleanContent = cleanContent.replace(/\n\s*\n/g, '\n');
-            cleanContent = cleanContent.replace(/>\s+</g, '><');
+              // Debug: Check images after cleaning
+              const clonedImages = clonedNode.querySelectorAll('img');
+              console.log(`[PDF Export] Node ${nodeIndex + 1} has`, clonedImages.length, 'images after cleaning');
+              
+              // Ensure images are properly captured and preserved
+              const tempDiv = document.createElement('div');
+              tempDiv.innerHTML = cleanContent;
+              
+              // Process images to ensure they're print-friendly
+              tempDiv.querySelectorAll('img').forEach(img => {
+                // Ensure image has proper attributes for printing
+                if (!img.alt) img.alt = 'Image';
+                if (!img.title) img.title = 'Image';
+                
+                // Add print-friendly styling
+                img.style.maxWidth = '100%';
+                img.style.height = 'auto';
+                img.style.display = 'block';
+                img.style.margin = '10px 0';
+                img.style.borderRadius = '8px';
+                img.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                
+                console.log(`[PDF Export] Processed image in node ${nodeIndex + 1}:`, img.src);
+              });
+              
+              cleanContent = tempDiv.innerHTML;
+              
+              // Additional cleaning for remaining problematic characters
+              cleanContent = cleanContent.replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ');
+              cleanContent = cleanContent.replace(/\s+/g, ' ').trim();
+              
+              // Remove any remaining empty paragraph tags or divs
+              cleanContent = cleanContent.replace(/<p[^>]*>\s*<\/p>/gi, '');
+              cleanContent = cleanContent.replace(/<div[^>]*>\s*<\/div>/gi, '');
+              cleanContent = cleanContent.replace(/<span[^>]*>\s*<\/span>/gi, '');
+              
+              // Final cleanup of excessive whitespace
+              cleanContent = cleanContent.replace(/\n\s*\n/g, '\n');
+              cleanContent = cleanContent.replace(/>\s+</g, '><');
+              
+              console.log(`[PDF Export] Node ${nodeIndex + 1} final content length:`, cleanContent.length);
+              console.log(`[PDF Export] Node ${nodeIndex + 1} final content has images:`, cleanContent.includes('<img'));
               
             } catch (e) {
+              console.error(`[PDF Export] Error processing Gemini node ${nodeIndex + 1}:`, e);
               // Fallback to text content if HTML processing fails
               cleanContent = (node.textContent || '').replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ').trim();
             }
