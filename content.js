@@ -1166,7 +1166,7 @@ const createZeroEkaIconButton = () => {
               .role-label { 
                 font-weight: 900; 
                 color: #222; 
-                font-size: 36px; 
+                font-size: 20px; 
                 margin: 0 0 8px; 
                 text-transform: uppercase;
                 letter-spacing: 1px;
