@@ -246,16 +246,20 @@ const createZeroEkaIconButton = () => {
     menuPanel.style.right = '80px'; // position beside contracted sidebar
   }
   function showMenu() {
+    console.log('[Menu] showMenu called');
     placeMenuPanel();
     menuPanel.style.display = 'flex';
     menuOpen = true;
     window.__zeroekaMenuOpen = true;
+    console.log('[Menu] Menu panel display set to flex, menuOpen:', menuOpen);
     scheduleAutoHide();
   }
   function hideMenu() { 
+    console.log('[Menu] hideMenu called');
     menuPanel.style.display = 'none'; 
     menuOpen = false; 
     window.__zeroekaMenuOpen = false;
+    console.log('[Menu] Menu panel display set to none, menuOpen:', menuOpen);
     clearAutoHide(); 
   }
   let menuOpen = false;
@@ -274,7 +278,14 @@ const createZeroEkaIconButton = () => {
   }
   menuButton.addEventListener('click', (ev) => {
     ev.stopPropagation();
-    if (menuOpen) { hideMenu(); } else { showMenu(); }
+    console.log('[Menu] Menu button clicked, current state:', menuOpen);
+    if (menuOpen) { 
+      console.log('[Menu] Hiding menu');
+      hideMenu(); 
+    } else { 
+      console.log('[Menu] Showing menu');
+      showMenu(); 
+    }
   });
   menuButton.addEventListener('mouseenter', () => { hoverButton = true; clearAutoHide(); });
   menuButton.addEventListener('mouseleave', () => { hoverButton = false; if (menuOpen) scheduleAutoHide(); });
@@ -4730,17 +4741,18 @@ const updateTextSize = (container, size) => {
   const ensureMenuHidden = () => {
     try {
       const menuPanels = document.querySelectorAll('#contracted-menu-panel');
-      menuPanels.forEach(panel => {
-        panel.style.display = 'none';
-        panel.style.visibility = 'hidden';
-        panel.style.opacity = '0';
-      });
+      if (menuPanels.length > 0) {
+        console.log(`[Menu] Found ${menuPanels.length} menu panels, ensuring they are hidden`);
+        menuPanels.forEach(panel => {
+          // Only hide panels that are currently visible
+          if (panel.style.display !== 'none') {
+            console.log('[Menu] Hiding visible menu panel');
+            panel.style.display = 'none';
+          }
+        });
+      }
       // Also reset any global menu state
       window.__zeroekaMenuOpen = false;
-      // Reset any local menu state variables
-      if (typeof menuOpen !== 'undefined') {
-        menuOpen = false;
-      }
     } catch(_) {}
   };
 
