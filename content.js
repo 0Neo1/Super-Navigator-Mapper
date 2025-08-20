@@ -94,6 +94,13 @@ const createZeroEkaIconButton = () => {
   const existingSidebar = document.getElementById('zeroeka-contracted-sidebar');
   if (existingSidebar) {
     console.log('Contracted sidebar already exists, skipping creation');
+    // Ensure any existing menu panels are hidden
+    try {
+      const existingMenuPanels = document.querySelectorAll('#contracted-menu-panel');
+      existingMenuPanels.forEach(panel => {
+        panel.style.display = 'none';
+      });
+    } catch(_) {}
     return;
   }
 
@@ -188,6 +195,12 @@ const createZeroEkaIconButton = () => {
   menuButton.addEventListener('mouseleave', () => { menuButton.style.background = '#1a1a1a'; menuButton.style.transform = 'scale(1)'; });
   // append later below the ZeroEka extension button
 
+  // Remove any existing menu panels to prevent duplicates
+  try {
+    const existingMenuPanels = document.querySelectorAll('#contracted-menu-panel');
+    existingMenuPanels.forEach(panel => panel.remove());
+  } catch(_) {}
+
   // Popup menu panel
   const menuPanel = document.createElement('div');
   menuPanel.id = 'contracted-menu-panel';
@@ -201,7 +214,6 @@ const createZeroEkaIconButton = () => {
     box-shadow: 0 14px 40px rgba(0,0,0,.5);
     padding: 8px;
     z-index: 2147483646;
-    display: flex;
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
@@ -237,13 +249,22 @@ const createZeroEkaIconButton = () => {
     placeMenuPanel();
     menuPanel.style.display = 'flex';
     menuOpen = true;
+    window.__zeroekaMenuOpen = true;
     scheduleAutoHide();
   }
-  function hideMenu() { menuPanel.style.display = 'none'; menuOpen = false; clearAutoHide(); }
+  function hideMenu() { 
+    menuPanel.style.display = 'none'; 
+    menuOpen = false; 
+    window.__zeroekaMenuOpen = false;
+    clearAutoHide(); 
+  }
   let menuOpen = false;
   let hoverPanel = false;
   let hoverButton = false;
   let hideTimer = null;
+  
+  // Set global flag to track menu state
+  window.__zeroekaMenuOpen = false;
   function clearAutoHide(){ if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; } }
   function scheduleAutoHide(){
     clearAutoHide();
@@ -4705,17 +4726,37 @@ const updateTextSize = (container, size) => {
     attemptInitialization();
   };
 
+  // Function to ensure all menu panels are hidden on page load
+  const ensureMenuHidden = () => {
+    try {
+      const menuPanels = document.querySelectorAll('#contracted-menu-panel');
+      menuPanels.forEach(panel => {
+        panel.style.display = 'none';
+        panel.style.visibility = 'hidden';
+        panel.style.opacity = '0';
+      });
+      // Also reset any global menu state
+      window.__zeroekaMenuOpen = false;
+      // Reset any local menu state variables
+      if (typeof menuOpen !== 'undefined') {
+        menuOpen = false;
+      }
+    } catch(_) {}
+  };
+
   // Initialize on multiple events for maximum reliability
-  window.addEventListener('load', initializeWithRetry);
-  window.addEventListener('DOMContentLoaded', initializeWithRetry);
+  window.addEventListener('load', () => { ensureMenuHidden(); initializeWithRetry(); });
+  window.addEventListener('DOMContentLoaded', () => { ensureMenuHidden(); initializeWithRetry(); });
   document.addEventListener('readystatechange', () => {
     if (document.readyState === 'complete') {
+      ensureMenuHidden();
       initializeWithRetry();
     }
   });
 
   // Also initialize immediately if page is already loaded
   if (document.readyState === 'complete') {
+    ensureMenuHidden();
     initializeWithRetry();
   }
 
