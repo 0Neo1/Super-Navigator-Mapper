@@ -908,6 +908,29 @@ const createZeroEkaIconButton = () => {
     embeddedMindmapIcon.style.transform = 'scale(1)';
   });
 
+  // Add click functionality for embedded mindmap button
+  embeddedMindmapButton.addEventListener('click', () => {
+    console.log('Embedded Mindmap button clicked');
+    
+    // Show loading state on button
+    const originalContent = embeddedMindmapButton.innerHTML;
+    embeddedMindmapButton.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;">
+        <div style="width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.3); border-top: 2px solid white; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+      </div>
+    `;
+    embeddedMindmapButton.style.pointerEvents = 'none';
+    
+    // Open mindmap
+    openEmbeddedMindmapNewTab();
+    
+    // Restore button after operation completes
+    setTimeout(() => {
+      embeddedMindmapButton.innerHTML = originalContent;
+      embeddedMindmapButton.style.pointerEvents = 'auto';
+    }, 1500);
+  });
+
   function buildEmbeddedMindmapData() {
     try {
       const getUl = () => (typeof getFloatbarUl === 'function' ? getFloatbarUl() : document.querySelector('.catalogeu-navigation-plugin-floatbar .panel ul'));
@@ -4121,6 +4144,53 @@ const createReactFlowMindmapPopup = (mindmapData, wasVisible = false) => {
     scroll-behavior: smooth;
   `;
 
+  // Add loading spinner initially
+  const loadingSpinner = document.createElement('div');
+  loadingSpinner.id = 'mindmap-loading-spinner';
+  loadingSpinner.style.cssText = `
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    z-index: 10;
+  `;
+  
+  const spinner = document.createElement('div');
+  spinner.style.cssText = `
+    width: 48px;
+    height: 48px;
+    border: 4px solid #e5e7eb;
+    border-top: 4px solid #10a37f;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  `;
+  
+  const loadingText = document.createElement('div');
+  loadingText.textContent = 'Generating Mind Map...';
+  loadingText.style.cssText = `
+    color: #6b7280;
+    font-size: 16px;
+    font-weight: 500;
+  `;
+  
+  // Add CSS animation for spinner
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  `;
+  document.head.appendChild(style);
+  
+  loadingSpinner.appendChild(spinner);
+  loadingSpinner.appendChild(loadingText);
+  reactFlowContainer.appendChild(loadingSpinner);
+
   // Add elements to popup
   content.appendChild(header);
   content.appendChild(reactFlowContainer);
@@ -4139,19 +4209,41 @@ const createReactFlowMindmapPopup = (mindmapData, wasVisible = false) => {
     const child = window.open(url, 'jsmind_popup', 'width=1280,height=860');
     if (child) {
       const payload = mindmapData.data ? mindmapData : { format: 'node_tree', data: mindmapData };
+      
+      // Function to hide loading spinner when mindmap is ready
+      const hideLoadingSpinner = () => {
+        const spinner = document.getElementById('mindmap-loading-spinner');
+        if (spinner) {
+          spinner.style.opacity = '0';
+          setTimeout(() => spinner.remove(), 300);
+        }
+      };
+      
+      // Listen for mindmap ready message from child window
+      const messageHandler = (ev) => {
+        if (ev?.data && ev.data.type === 'mindmap-ready') {
+          hideLoadingSpinner();
+          window.removeEventListener('message', messageHandler);
+        } else if (ev?.data && ev.data.type === 'mindmap-navigate' && ev.data.messageId) {
+          try { navigateToMessage(ev.data.messageId); } catch(_) {}
+        }
+      };
+      
+      window.addEventListener('message', messageHandler);
+      
       const post = () => { try { child.postMessage({ type: 'mindmap-data', payload }, '*'); } catch(_) {} };
       setTimeout(post, 300);
       const iv = setInterval(post, 700);
       setTimeout(() => clearInterval(iv), 4000);
-      // Listen for navigation requests from child
-      window.addEventListener('message', (ev) => {
-        if (ev?.data && ev.data.type === 'mindmap-navigate' && ev.data.messageId) {
-          try { navigateToMessage(ev.data.messageId); } catch(_) {}
-        }
-      });
+      
+      // Hide spinner after a reasonable timeout (in case message doesn't come)
+      setTimeout(hideLoadingSpinner, 5000);
     }
   } catch (e) {
     console.error('Failed to open jsMind window:', e);
+    // Hide spinner on error
+    const spinner = document.getElementById('mindmap-loading-spinner');
+    if (spinner) spinner.remove();
   }
 
   // Function to restore sidebar if it was visible before
@@ -4215,6 +4307,62 @@ const createReactFlowMindmapPopup = (mindmapData, wasVisible = false) => {
 
   // Add navigation functionality (text size still applicable to jsMind container)
   addMindmapNavigation(reactFlowContainer);
+  
+  // Add loading state management for node operations
+  window.showMindmapNodeLoading = (operation, nodeId = null) => {
+    const container = document.getElementById('reactflow-container');
+    if (!container) return;
+    
+    // Remove existing loading indicator
+    const existingLoading = container.querySelector('.node-operation-loading');
+    if (existingLoading) existingLoading.remove();
+    
+    const loadingIndicator = document.createElement('div');
+    loadingIndicator.className = 'node-operation-loading';
+    loadingIndicator.style.cssText = `
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(16, 163, 127, 0.95);
+      color: white;
+      padding: 12px 16px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      font-size: 14px;
+      font-weight: 500;
+    `;
+    
+    const spinner = document.createElement('div');
+    spinner.style.cssText = `
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top: 2px solid white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    `;
+    
+    const text = document.createElement('span');
+    text.textContent = `${operation}${nodeId ? ` node ${nodeId}` : ''}...`;
+    
+    loadingIndicator.appendChild(spinner);
+    loadingIndicator.appendChild(text);
+    container.appendChild(loadingIndicator);
+    
+    return loadingIndicator;
+  };
+  
+  window.hideMindmapNodeLoading = () => {
+    const loadingIndicator = document.querySelector('.node-operation-loading');
+    if (loadingIndicator) {
+      loadingIndicator.style.opacity = '0';
+      setTimeout(() => loadingIndicator.remove(), 300);
+    }
+  };
 };
 
 // (Removed old in-page jsMind loader to avoid CSP issues)
