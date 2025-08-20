@@ -221,10 +221,8 @@ const createZeroEkaIconButton = () => {
   };
   const itemToggleHeader = mkItem('Hide/Show header');
   const itemToggleFooter = mkItem('Hide/Show footer');
-  const itemFullscreen = mkItem('Full screen of the selection area');
   menuPanel.appendChild(itemToggleHeader);
   menuPanel.appendChild(itemToggleFooter);
-  menuPanel.appendChild(itemFullscreen);
   // Removed fullscreen option per request
   document.body.appendChild(menuPanel);
 
@@ -265,28 +263,6 @@ const createZeroEkaIconButton = () => {
     if (!menuOpen) return;
     if (!menuPanel.contains(ev.target) && ev.target !== menuButton) { hideMenu(); menuOpen = false; }
   }, true);
-  // Fullscreen selection area action (same behavior as bottom footer fullscreen)
-  itemFullscreen.addEventListener('click', (e) => {
-    e.stopPropagation();
-    hideMenu();
-    try {
-      if (typeof window.fullScreenFn !== 'undefined' && window.fullScreenFn.capturing) {
-        // Start selection capture mode then enter fullscreen on confirm
-        fullScreenFn.capturing((selected) => {
-          // When a selection is made, toFullscreen toggles fullscreen on the selected region
-          try { fullScreenFn.toFullscreen(); } catch(_) {
-            try { document.documentElement.requestFullscreen(); } catch(_) {}
-          }
-        });
-      } else if (typeof window.fullScreenFn !== 'undefined' && window.fullScreenFn.toFullscreen) {
-        fullScreenFn.toFullscreen();
-      } else {
-        if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen();
-      }
-    } catch(_) {
-      try { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); } catch(_) {}
-    }
-  });
 
   // Helpers for actions
   function getMainEl() {
@@ -4656,13 +4632,59 @@ const updateTextSize = (container, size) => {
   });
   
   // Hide the floating button since we're using only the ZeroEka toggle button
-  const floatbar = document.querySelector('.catalogeu-navigation-plugin-floatbar');
-  if (floatbar) {
-    const buttons = floatbar.querySelector('.buttons');
-    if (buttons) {
-      buttons.style.display = 'none';
+  // Ensure expanded floatbar header shows a Mindmap button instead of "New chat"
+  const ensureHeaderMindmapButton = () => {
+    try {
+      const fb = document.querySelector('.catalogeu-navigation-plugin-floatbar');
+      if (!fb) return;
+      const buttons = fb.querySelector('.buttons');
+      if (!buttons) return;
+      // Don't hide; make sure it's visible
+      try { buttons.style.display = 'flex'; } catch(_) {}
+
+      // If we already injected, skip
+      if (buttons.querySelector('#zeroeka-header-mindmap')) return;
+
+      // Locate a candidate "New chat" button to replace
+      const candidates = Array.from(buttons.querySelectorAll('button, .button'));
+      let newChatBtn = candidates.find(el => /new\s*chat/i.test(el.textContent || ''))
+        || candidates.find(el => /new\s*chat/i.test((el.getAttribute && (el.getAttribute('title') || el.getAttribute('aria-label'))) || ''))
+        || candidates[0];
+
+      const headerMindBtn = document.createElement('button');
+      headerMindBtn.id = 'zeroeka-header-mindmap';
+      headerMindBtn.type = 'button';
+      headerMindBtn.title = 'Mindmap';
+      headerMindBtn.style.cssText = `
+        display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+        padding: 6px 10px; border-radius: 6px; border: 1px solid #2b3238; background: #171b1f; color: #e8e8e8;
+        cursor: pointer; font: 600 12px/1 sans-serif; min-height: 28px;
+      `;
+      headerMindBtn.innerHTML = `
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px">🧠</span>
+        <span>Mindmap</span>
+      `;
+      headerMindBtn.addEventListener('mouseenter', () => { headerMindBtn.style.background = '#1e2428'; });
+      headerMindBtn.addEventListener('mouseleave', () => { headerMindBtn.style.background = '#171b1f'; });
+      headerMindBtn.addEventListener('click', (e) => { e.stopPropagation(); try { openEmbeddedMindmapNewTab(); } catch(_) {} });
+
+      if (newChatBtn && newChatBtn.parentElement) {
+        newChatBtn.parentElement.replaceChild(headerMindBtn, newChatBtn);
+      } else {
+        buttons.insertBefore(headerMindBtn, buttons.firstChild);
+      }
+    } catch (_) {}
+  };
+  // Initial attempt and observer to handle future renders
+  try { ensureHeaderMindmapButton(); } catch(_) {}
+  try {
+    const fb = document.querySelector('.catalogeu-navigation-plugin-floatbar');
+    if (fb && !window.__zeroekaHeaderMindmapMO) {
+      const mo = new MutationObserver(() => { ensureHeaderMindmapButton(); });
+      mo.observe(fb, { childList: true, subtree: true });
+      window.__zeroekaHeaderMindmapMO = mo;
     }
-  }
+  } catch(_) {}
   
   // Robust initialization system to ensure contracted sidebar always appears
   const ensureContractedSidebar = () => {
