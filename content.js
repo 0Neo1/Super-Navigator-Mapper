@@ -201,7 +201,9 @@ const createZeroEkaIconButton = () => {
     box-shadow: 0 14px 40px rgba(0,0,0,.5);
     padding: 8px;
     z-index: 2147483646;
-    flex-wrap: wrap;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
     gap: 8px;
   `;
   const mkItem = (label) => {
@@ -209,9 +211,9 @@ const createZeroEkaIconButton = () => {
     b.type = 'button';
     b.textContent = label;
     b.style.cssText = `
-      display: inline-flex; align-items: center; justify-content: center; min-width: 110px; width: auto;
+      display: flex; align-items: center; justify-content: center; width: 100%;
       text-align: center; color: #e8e8e8; background: #171b1f; border: 1px solid #2b3238;
-      border-radius: 6px; padding: 6px 8px; margin: 4px; cursor: pointer; font: 600 12px/1 sans-serif;
+      border-radius: 6px; padding: 8px; margin: 2px 0; cursor: pointer; font: 600 12px/1 sans-serif;
     `;
     b.addEventListener('mouseenter', () => { b.style.background = '#1e2428'; });
     b.addEventListener('mouseleave', () => { b.style.background = '#171b1f'; });
