@@ -908,29 +908,6 @@ const createZeroEkaIconButton = () => {
     embeddedMindmapIcon.style.transform = 'scale(1)';
   });
 
-  // Add click functionality for embedded mindmap button
-  embeddedMindmapButton.addEventListener('click', () => {
-    console.log('Embedded Mindmap button clicked');
-    
-    // Show loading state on button
-    const originalContent = embeddedMindmapButton.innerHTML;
-    embeddedMindmapButton.innerHTML = `
-      <div style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;">
-        <div style="width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.3); border-top: 2px solid white; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-      </div>
-    `;
-    embeddedMindmapButton.style.pointerEvents = 'none';
-    
-    // Open mindmap
-    openEmbeddedMindmapNewTab();
-    
-    // Restore button after operation completes
-    setTimeout(() => {
-      embeddedMindmapButton.innerHTML = originalContent;
-      embeddedMindmapButton.style.pointerEvents = 'auto';
-    }, 1500);
-  });
-
   function buildEmbeddedMindmapData() {
     try {
       const getUl = () => (typeof getFloatbarUl === 'function' ? getFloatbarUl() : document.querySelector('.catalogeu-navigation-plugin-floatbar .panel ul'));
@@ -1208,7 +1185,18 @@ const createZeroEkaIconButton = () => {
               .message-content div:only-child:empty { display: none; }
               pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
               pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
-              img, svg, canvas, video { max-width: 100%; height: auto; }
+              img, svg, canvas, video { 
+                max-width: 100%; 
+                height: auto; 
+                display: block; 
+                margin: 10px 0; 
+                border-radius: 8px; 
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
+              }
+              img { 
+                page-break-inside: avoid; 
+                break-inside: avoid; 
+              }
               table { border-collapse: collapse; }
               table, th, td { border: 1px solid #ddd; }
               th, td { padding: 6px 8px; }
@@ -1257,6 +1245,25 @@ const createZeroEkaIconButton = () => {
               if (el.innerHTML === '' || el.innerHTML === '&nbsp;' || el.innerHTML === '\u00A0') {
                 el.remove();
               }
+            });
+            
+            // Ensure images are properly preserved and accessible
+            wrapper.querySelectorAll('img').forEach(img => {
+              // Ensure image has proper attributes
+              if (!img.alt) img.alt = 'Image';
+              if (!img.title) img.title = 'Image';
+              
+              // Add print-friendly styling
+              img.style.maxWidth = '100%';
+              img.style.height = 'auto';
+              img.style.display = 'block';
+              img.style.margin = '10px 0';
+              img.style.borderRadius = '8px';
+              img.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+              
+              // Remove any inline styles that might interfere with printing
+              img.removeAttribute('style');
+              img.setAttribute('style', 'max-width: 100%; height: auto; display: block; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);');
             });
             
             // Clean up any remaining problematic whitespace characters
@@ -1319,21 +1326,42 @@ const createZeroEkaIconButton = () => {
                 }
               });
               
-              // Get cleaned HTML content
-              cleanContent = clonedNode.innerHTML;
+                          // Get cleaned HTML content
+            cleanContent = clonedNode.innerHTML;
+            
+            // Ensure images are properly captured and preserved
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = cleanContent;
+            
+            // Process images to ensure they're print-friendly
+            tempDiv.querySelectorAll('img').forEach(img => {
+              // Ensure image has proper attributes for printing
+              if (!img.alt) img.alt = 'Image';
+              if (!img.title) img.title = 'Image';
               
-              // Additional cleaning for remaining problematic characters
-              cleanContent = cleanContent.replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ');
-              cleanContent = cleanContent.replace(/\s+/g, ' ').trim();
-              
-              // Remove any remaining empty paragraph tags or divs
-              cleanContent = cleanContent.replace(/<p[^>]*>\s*<\/p>/gi, '');
-              cleanContent = cleanContent.replace(/<div[^>]*>\s*<\/div>/gi, '');
-              cleanContent = cleanContent.replace(/<span[^>]*>\s*<\/span>/gi, '');
-              
-              // Final cleanup of excessive whitespace
-              cleanContent = cleanContent.replace(/\n\s*\n/g, '\n');
-              cleanContent = cleanContent.replace(/>\s+</g, '><');
+              // Add print-friendly styling
+              img.style.maxWidth = '100%';
+              img.style.height = 'auto';
+              img.style.display = 'block';
+              img.style.margin = '10px 0';
+              img.style.borderRadius = '8px';
+              img.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+            });
+            
+            cleanContent = tempDiv.innerHTML;
+            
+            // Additional cleaning for remaining problematic characters
+            cleanContent = cleanContent.replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ');
+            cleanContent = cleanContent.replace(/\s+/g, ' ').trim();
+            
+            // Remove any remaining empty paragraph tags or divs
+            cleanContent = cleanContent.replace(/<p[^>]*>\s*<\/p>/gi, '');
+            cleanContent = cleanContent.replace(/<div[^>]*>\s*<\/div>/gi, '');
+            cleanContent = cleanContent.replace(/<span[^>]*>\s*<\/span>/gi, '');
+            
+            // Final cleanup of excessive whitespace
+            cleanContent = cleanContent.replace(/\n\s*\n/g, '\n');
+            cleanContent = cleanContent.replace(/>\s+</g, '><');
               
             } catch (e) {
               // Fallback to text content if HTML processing fails
@@ -1357,7 +1385,31 @@ const createZeroEkaIconButton = () => {
             const contentEl = message.querySelector && (message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || message.querySelector('div[tabindex="-1"], [data-message-author-role]')) || message;
             // Remove resident ZeroEka star from cloned content to avoid overlap in PDF
             Array.from(message.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star')).forEach(el => { try { el.remove(); } catch(_){} });
-            const html = (contentEl && contentEl.innerHTML) || (message.innerHTML) || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+            let html = (contentEl && contentEl.innerHTML) || (message.innerHTML) || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+            
+            // Ensure images are properly captured for ChatGPT content
+            if (html && html.includes('<img')) {
+              const tempDiv = document.createElement('div');
+              tempDiv.innerHTML = html;
+              
+              // Process images to ensure they're print-friendly
+              tempDiv.querySelectorAll('img').forEach(img => {
+                // Ensure image has proper attributes for printing
+                if (!img.alt) img.alt = 'Image';
+                if (!img.title) img.title = 'Image';
+                
+                // Add print-friendly styling
+                img.style.maxWidth = '100%';
+                img.style.height = 'auto';
+                img.style.display = 'block';
+                img.style.margin = '10px 0';
+                img.style.borderRadius = '8px';
+                img.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+              });
+              
+              html = tempDiv.innerHTML;
+            }
+            
             writeBlock(role === 'user' ? 'user' : 'assistant', html, index++);
           });
         }
@@ -4144,53 +4196,6 @@ const createReactFlowMindmapPopup = (mindmapData, wasVisible = false) => {
     scroll-behavior: smooth;
   `;
 
-  // Add loading spinner initially
-  const loadingSpinner = document.createElement('div');
-  loadingSpinner.id = 'mindmap-loading-spinner';
-  loadingSpinner.style.cssText = `
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    z-index: 10;
-  `;
-  
-  const spinner = document.createElement('div');
-  spinner.style.cssText = `
-    width: 48px;
-    height: 48px;
-    border: 4px solid #e5e7eb;
-    border-top: 4px solid #10a37f;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  `;
-  
-  const loadingText = document.createElement('div');
-  loadingText.textContent = 'Generating Mind Map...';
-  loadingText.style.cssText = `
-    color: #6b7280;
-    font-size: 16px;
-    font-weight: 500;
-  `;
-  
-  // Add CSS animation for spinner
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-  `;
-  document.head.appendChild(style);
-  
-  loadingSpinner.appendChild(spinner);
-  loadingSpinner.appendChild(loadingText);
-  reactFlowContainer.appendChild(loadingSpinner);
-
   // Add elements to popup
   content.appendChild(header);
   content.appendChild(reactFlowContainer);
@@ -4209,41 +4214,19 @@ const createReactFlowMindmapPopup = (mindmapData, wasVisible = false) => {
     const child = window.open(url, 'jsmind_popup', 'width=1280,height=860');
     if (child) {
       const payload = mindmapData.data ? mindmapData : { format: 'node_tree', data: mindmapData };
-      
-      // Function to hide loading spinner when mindmap is ready
-      const hideLoadingSpinner = () => {
-        const spinner = document.getElementById('mindmap-loading-spinner');
-        if (spinner) {
-          spinner.style.opacity = '0';
-          setTimeout(() => spinner.remove(), 300);
-        }
-      };
-      
-      // Listen for mindmap ready message from child window
-      const messageHandler = (ev) => {
-        if (ev?.data && ev.data.type === 'mindmap-ready') {
-          hideLoadingSpinner();
-          window.removeEventListener('message', messageHandler);
-        } else if (ev?.data && ev.data.type === 'mindmap-navigate' && ev.data.messageId) {
-          try { navigateToMessage(ev.data.messageId); } catch(_) {}
-        }
-      };
-      
-      window.addEventListener('message', messageHandler);
-      
       const post = () => { try { child.postMessage({ type: 'mindmap-data', payload }, '*'); } catch(_) {} };
       setTimeout(post, 300);
       const iv = setInterval(post, 700);
       setTimeout(() => clearInterval(iv), 4000);
-      
-      // Hide spinner after a reasonable timeout (in case message doesn't come)
-      setTimeout(hideLoadingSpinner, 5000);
+      // Listen for navigation requests from child
+      window.addEventListener('message', (ev) => {
+        if (ev?.data && ev.data.type === 'mindmap-navigate' && ev.data.messageId) {
+          try { navigateToMessage(ev.data.messageId); } catch(_) {}
+        }
+      });
     }
   } catch (e) {
     console.error('Failed to open jsMind window:', e);
-    // Hide spinner on error
-    const spinner = document.getElementById('mindmap-loading-spinner');
-    if (spinner) spinner.remove();
   }
 
   // Function to restore sidebar if it was visible before
@@ -4307,62 +4290,6 @@ const createReactFlowMindmapPopup = (mindmapData, wasVisible = false) => {
 
   // Add navigation functionality (text size still applicable to jsMind container)
   addMindmapNavigation(reactFlowContainer);
-  
-  // Add loading state management for node operations
-  window.showMindmapNodeLoading = (operation, nodeId = null) => {
-    const container = document.getElementById('reactflow-container');
-    if (!container) return;
-    
-    // Remove existing loading indicator
-    const existingLoading = container.querySelector('.node-operation-loading');
-    if (existingLoading) existingLoading.remove();
-    
-    const loadingIndicator = document.createElement('div');
-    loadingIndicator.className = 'node-operation-loading';
-    loadingIndicator.style.cssText = `
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      background: rgba(16, 163, 127, 0.95);
-      color: white;
-      padding: 12px 16px;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      z-index: 100;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      font-size: 14px;
-      font-weight: 500;
-    `;
-    
-    const spinner = document.createElement('div');
-    spinner.style.cssText = `
-      width: 20px;
-      height: 20px;
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      border-top: 2px solid white;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    `;
-    
-    const text = document.createElement('span');
-    text.textContent = `${operation}${nodeId ? ` node ${nodeId}` : ''}...`;
-    
-    loadingIndicator.appendChild(spinner);
-    loadingIndicator.appendChild(text);
-    container.appendChild(loadingIndicator);
-    
-    return loadingIndicator;
-  };
-  
-  window.hideMindmapNodeLoading = () => {
-    const loadingIndicator = document.querySelector('.node-operation-loading');
-    if (loadingIndicator) {
-      loadingIndicator.style.opacity = '0';
-      setTimeout(() => loadingIndicator.remove(), 300);
-    }
-  };
 };
 
 // (Removed old in-page jsMind loader to avoid CSP issues)
