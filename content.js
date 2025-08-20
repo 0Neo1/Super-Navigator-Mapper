@@ -221,8 +221,10 @@ const createZeroEkaIconButton = () => {
   };
   const itemToggleHeader = mkItem('Hide/Show header');
   const itemToggleFooter = mkItem('Hide/Show footer');
+  const itemFullscreen = mkItem('Full screen of the selection area');
   menuPanel.appendChild(itemToggleHeader);
   menuPanel.appendChild(itemToggleFooter);
+  menuPanel.appendChild(itemFullscreen);
   // Removed fullscreen option per request
   document.body.appendChild(menuPanel);
 
@@ -263,6 +265,28 @@ const createZeroEkaIconButton = () => {
     if (!menuOpen) return;
     if (!menuPanel.contains(ev.target) && ev.target !== menuButton) { hideMenu(); menuOpen = false; }
   }, true);
+  // Fullscreen selection area action (same behavior as bottom footer fullscreen)
+  itemFullscreen.addEventListener('click', (e) => {
+    e.stopPropagation();
+    hideMenu();
+    try {
+      if (typeof window.fullScreenFn !== 'undefined' && window.fullScreenFn.capturing) {
+        // Start selection capture mode then enter fullscreen on confirm
+        fullScreenFn.capturing((selected) => {
+          // When a selection is made, toFullscreen toggles fullscreen on the selected region
+          try { fullScreenFn.toFullscreen(); } catch(_) {
+            try { document.documentElement.requestFullscreen(); } catch(_) {}
+          }
+        });
+      } else if (typeof window.fullScreenFn !== 'undefined' && window.fullScreenFn.toFullscreen) {
+        fullScreenFn.toFullscreen();
+      } else {
+        if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen();
+      }
+    } catch(_) {
+      try { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); } catch(_) {}
+    }
+  });
 
   // Helpers for actions
   function getMainEl() {
