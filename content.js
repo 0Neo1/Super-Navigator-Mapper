@@ -1164,7 +1164,14 @@ const createZeroEkaIconButton = () => {
               .ze-content { position: relative; z-index: 1; }
               .message-block { margin: 0 0 8px; }
               .role-label { font-weight: 700; color: #222; font-size: 12px; margin: 0 0 3px; }
-              .message-content { white-space: normal; overflow-wrap: anywhere; }
+              .message-content { 
+                white-space: normal; 
+                overflow-wrap: anywhere; 
+                line-height: 1.4;
+              }
+              .message-content:empty { display: none; }
+              .message-content p:empty { display: none; }
+              .message-content div:empty { display: none; }
               pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
               pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
               img, svg, canvas, video { max-width: 100%; height: auto; }
@@ -1172,7 +1179,9 @@ const createZeroEkaIconButton = () => {
               table, th, td { border: 1px solid #ddd; }
               th, td { padding: 6px 8px; }
               p { margin: 0 0 6px; }
+              p:empty { display: none; }
               ul, ol { margin: 0 0 6px 18px; }
+              li:empty { display: none; }
               h1, h2, h3, h4, h5, h6 { margin: 6px 0; }
               @page { size: auto; margin: 8mm; }
               @media print { body { margin: 0; } pre, table, img { break-inside: avoid; page-break-inside: avoid; } }
@@ -1191,13 +1200,37 @@ const createZeroEkaIconButton = () => {
           try {
             const wrapper = (iframeDoc || document).createElement('div');
             wrapper.innerHTML = unsafeHtml || '';
+            
             // Remove extension UI artifacts (stars, buttons, sidebars)
             wrapper.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]').forEach(el => el.remove());
+            
             // Remove any contenteditable or interactive controls that may add spacing
             wrapper.querySelectorAll('button, [role="button"]').forEach(el => {
               if (el.className && /zeroeka/i.test(el.className)) el.remove();
             });
-            return wrapper.innerHTML;
+            
+            // Clean up empty elements and whitespace that could cause dash characters
+            wrapper.querySelectorAll('*').forEach(el => {
+              // Remove elements that only contain whitespace or special characters
+              if (el.childNodes.length === 1 && el.childNodes[0].nodeType === Node.TEXT_NODE) {
+                const text = el.childNodes[0].textContent;
+                if (text && /^[\s\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]*$/.test(text)) {
+                  el.remove();
+                }
+              }
+              
+              // Remove empty elements that might render as dashes
+              if (el.innerHTML === '' || el.innerHTML === '&nbsp;' || el.innerHTML === '\u00A0') {
+                el.remove();
+              }
+            });
+            
+            // Clean up any remaining problematic whitespace characters
+            let cleanedHtml = wrapper.innerHTML;
+            cleanedHtml = cleanedHtml.replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ');
+            cleanedHtml = cleanedHtml.replace(/\s+/g, ' ').trim();
+            
+            return cleanedHtml;
           } catch (_) {
             return unsafeHtml || '';
           }
@@ -1205,12 +1238,16 @@ const createZeroEkaIconButton = () => {
 
         const writeBlock = (role, html, index) => {
           const safeHtml = sanitizeForPdf(html);
-          iframeDoc.write(`
-            <div class="message-block">
-              <div class="role-label">${role === 'user' ? 'User prompt' : 'Output'}</div>
-              <div class="message-content">${safeHtml}</div>
-            </div>
-          `);
+          
+          // Only write the block if there's actual content
+          if (safeHtml && safeHtml.trim() && safeHtml !== '&nbsp;' && safeHtml !== '\u00A0') {
+            iframeDoc.write(`
+              <div class="message-block">
+                <div class="role-label">${role === 'user' ? 'User prompt' : 'Output'}</div>
+                <div class="message-content">${safeHtml}</div>
+              </div>
+            `);
+          }
         };
 
         let index = 0;
