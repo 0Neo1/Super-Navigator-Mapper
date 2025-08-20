@@ -1174,8 +1174,8 @@ const createZeroEkaIconButton = () => {
               .message-content div:empty { display: none; }
               .message-content span:empty { display: none; }
               .message-content br + br { display: none; }
-              .message-content br + p:empty { display: none; }
-              .message-content p:empty + br { display: none; }
+              .message-content p:only-child:empty { display: none; }
+              .message-content div:only-child:empty { display: none; }
               pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
               pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
               img, svg, canvas, video { max-width: 100%; height: auto; }
@@ -1213,26 +1213,6 @@ const createZeroEkaIconButton = () => {
               if (el.className && /zeroeka/i.test(el.className)) el.remove();
             });
             
-            // Gemini-specific cleaning: remove problematic elements that cause dashes
-            if (IS_GEMINI) {
-              // Remove empty spans and divs that Gemini often creates
-              wrapper.querySelectorAll('span, div').forEach(el => {
-                if (el.children.length === 0) {
-                  const text = el.textContent || '';
-                  if (!text.trim() || text === '\u00A0' || text === '&nbsp;' || /^[\s\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]*$/.test(text)) {
-                    el.remove();
-                  }
-                }
-              });
-              
-              // Remove consecutive line breaks that can cause spacing issues
-              wrapper.querySelectorAll('br').forEach((br, index, brs) => {
-                if (index > 0 && brs[index - 1].nextSibling === br) {
-                  br.remove();
-                }
-              });
-            }
-            
             // Clean up empty elements and whitespace that could cause dash characters
             wrapper.querySelectorAll('*').forEach(el => {
               // Remove elements that only contain whitespace or special characters
@@ -1253,10 +1233,6 @@ const createZeroEkaIconButton = () => {
             let cleanedHtml = wrapper.innerHTML;
             cleanedHtml = cleanedHtml.replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ');
             cleanedHtml = cleanedHtml.replace(/\s+/g, ' ').trim();
-            
-            // Final cleanup: remove any remaining empty tags
-            cleanedHtml = cleanedHtml.replace(/<[^>]*>\s*<\/[^>]*>/g, '');
-            cleanedHtml = cleanedHtml.replace(/<[^>]*>\s*&nbsp;\s*<\/[^>]*>/g, '');
             
             return cleanedHtml;
           } catch (_) {
@@ -1286,42 +1262,57 @@ const createZeroEkaIconButton = () => {
           nodes.forEach((node) => {
             const isUser = node.matches('user-query-content .query-text');
             
-            // Create a clean copy of the node for processing
-            const cleanNode = node.cloneNode(true);
-            
-            // Pre-clean the Gemini content before sanitization
-            // Remove empty elements and problematic content
-            const removeEmptyElements = (element) => {
-              // Remove elements that are empty or only contain whitespace
-              Array.from(element.children).forEach(child => {
-                if (child.children.length === 0) {
-                  const text = child.textContent || '';
-                  if (!text.trim() || /^[\s\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]*$/.test(text)) {
-                    child.remove();
+            // Gemini-specific content cleaning to remove empty elements and dashes
+            let cleanContent = '';
+            try {
+              // Clone the node to avoid modifying the original
+              const clonedNode = node.cloneNode(true);
+              
+              // Remove empty elements that cause dashes
+              clonedNode.querySelectorAll('*').forEach(el => {
+                // Remove elements with only whitespace or special characters
+                if (el.childNodes.length === 1 && el.childNodes[0].nodeType === Node.TEXT_NODE) {
+                  const text = el.childNodes[0].textContent;
+                  if (text && /^[\s\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]*$/.test(text)) {
+                    el.remove();
                   }
-                } else {
-                  removeEmptyElements(child);
+                }
+                
+                // Remove completely empty elements
+                if (el.innerHTML === '' || el.innerHTML === '&nbsp;' || el.innerHTML === '\u00A0') {
+                  el.remove();
+                }
+                
+                // Remove elements that only contain line breaks or spaces
+                if (el.innerHTML && /^[\s\n\r\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]*$/.test(el.innerHTML)) {
+                  el.remove();
                 }
               });
-            };
+              
+              // Get cleaned HTML content
+              cleanContent = clonedNode.innerHTML;
+              
+              // Additional cleaning for remaining problematic characters
+              cleanContent = cleanContent.replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ');
+              cleanContent = cleanContent.replace(/\s+/g, ' ').trim();
+              
+              // Remove any remaining empty paragraph tags or divs
+              cleanContent = cleanContent.replace(/<p[^>]*>\s*<\/p>/gi, '');
+              cleanContent = cleanContent.replace(/<div[^>]*>\s*<\/div>/gi, '');
+              cleanContent = cleanContent.replace(/<span[^>]*>\s*<\/span>/gi, '');
+              
+              // Final cleanup of excessive whitespace
+              cleanContent = cleanContent.replace(/\n\s*\n/g, '\n');
+              cleanContent = cleanContent.replace(/>\s+</g, '><');
+              
+            } catch (e) {
+              // Fallback to text content if HTML processing fails
+              cleanContent = (node.textContent || '').replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ').trim();
+            }
             
-            removeEmptyElements(cleanNode);
-            
-            // Get cleaned HTML content
-            let html = cleanNode.innerHTML || '';
-            
-            // Additional Gemini-specific cleaning
-            html = html.replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ');
-            html = html.replace(/\s+/g, ' ').trim();
-            
-            // Remove any remaining empty tags
-            html = html.replace(/<[^>]*>\s*<\/[^>]*>/g, ''); // Remove empty tags
-            html = html.replace(/<[^>]*>\s*&nbsp;\s*<\/[^>]*>/g, ''); // Remove tags with only &nbsp;
-            html = html.replace(/<[^>]*>\s*<\/[^>]*>/g, ''); // Remove any remaining empty tags
-            
-            // Only proceed if we have meaningful content
-            if (html && html.trim() && html !== '&nbsp;' && html !== '\u00A0' && html.length > 10) {
-              writeBlock(isUser ? 'user' : 'assistant', html, index++);
+            // Only process if we have meaningful content
+            if (cleanContent && cleanContent.trim() && cleanContent !== '&nbsp;' && cleanContent !== '\u00A0') {
+              writeBlock(isUser ? 'user' : 'assistant', cleanContent, index++);
             }
           });
         } else {
