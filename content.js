@@ -94,13 +94,6 @@ const createZeroEkaIconButton = () => {
   const existingSidebar = document.getElementById('zeroeka-contracted-sidebar');
   if (existingSidebar) {
     console.log('Contracted sidebar already exists, skipping creation');
-    // Ensure any existing menu panels are hidden
-    try {
-      const existingMenuPanels = document.querySelectorAll('#contracted-menu-panel');
-      existingMenuPanels.forEach(panel => {
-        panel.style.display = 'none';
-      });
-    } catch(_) {}
     return;
   }
 
@@ -195,12 +188,6 @@ const createZeroEkaIconButton = () => {
   menuButton.addEventListener('mouseleave', () => { menuButton.style.background = '#1a1a1a'; menuButton.style.transform = 'scale(1)'; });
   // append later below the ZeroEka extension button
 
-  // Remove any existing menu panels to prevent duplicates
-  try {
-    const existingMenuPanels = document.querySelectorAll('#contracted-menu-panel');
-    existingMenuPanels.forEach(panel => panel.remove());
-  } catch(_) {}
-
   // Popup menu panel
   const menuPanel = document.createElement('div');
   menuPanel.id = 'contracted-menu-panel';
@@ -215,7 +202,6 @@ const createZeroEkaIconButton = () => {
     padding: 8px;
     z-index: 2147483646;
     flex-direction: column;
-    align-items: stretch;
     gap: 8px;
   `;
   const mkItem = (label) => {
@@ -225,7 +211,7 @@ const createZeroEkaIconButton = () => {
     b.style.cssText = `
       display: flex; align-items: center; justify-content: center; width: 100%;
       text-align: center; color: #e8e8e8; background: #171b1f; border: 1px solid #2b3238;
-      border-radius: 6px; padding: 8px; margin: 2px 0; cursor: pointer; font: 600 12px/1 sans-serif;
+      border-radius: 6px; padding: 6px 8px; margin: 0; cursor: pointer; font: 600 12px/1 sans-serif;
     `;
     b.addEventListener('mouseenter', () => { b.style.background = '#1e2428'; });
     b.addEventListener('mouseleave', () => { b.style.background = '#171b1f'; });
@@ -246,29 +232,16 @@ const createZeroEkaIconButton = () => {
     menuPanel.style.right = '80px'; // position beside contracted sidebar
   }
   function showMenu() {
-    console.log('[Menu] showMenu called');
     placeMenuPanel();
     menuPanel.style.display = 'flex';
     menuOpen = true;
-    window.__zeroekaMenuOpen = true;
-    console.log('[Menu] Menu panel display set to flex, menuOpen:', menuOpen);
     scheduleAutoHide();
   }
-  function hideMenu() { 
-    console.log('[Menu] hideMenu called');
-    menuPanel.style.display = 'none'; 
-    menuOpen = false; 
-    window.__zeroekaMenuOpen = false;
-    console.log('[Menu] Menu panel display set to none, menuOpen:', menuOpen);
-    clearAutoHide(); 
-  }
+  function hideMenu() { menuPanel.style.display = 'none'; menuOpen = false; clearAutoHide(); }
   let menuOpen = false;
   let hoverPanel = false;
   let hoverButton = false;
   let hideTimer = null;
-  
-  // Set global flag to track menu state
-  window.__zeroekaMenuOpen = false;
   function clearAutoHide(){ if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; } }
   function scheduleAutoHide(){
     clearAutoHide();
@@ -278,14 +251,7 @@ const createZeroEkaIconButton = () => {
   }
   menuButton.addEventListener('click', (ev) => {
     ev.stopPropagation();
-    console.log('[Menu] Menu button clicked, current state:', menuOpen);
-    if (menuOpen) { 
-      console.log('[Menu] Hiding menu');
-      hideMenu(); 
-    } else { 
-      console.log('[Menu] Showing menu');
-      showMenu(); 
-    }
+    if (menuOpen) { hideMenu(); } else { showMenu(); }
   });
   menuButton.addEventListener('mouseenter', () => { hoverButton = true; clearAutoHide(); });
   menuButton.addEventListener('mouseleave', () => { hoverButton = false; if (menuOpen) scheduleAutoHide(); });
@@ -303,24 +269,15 @@ const createZeroEkaIconButton = () => {
   function getHeaderEls() {
     const els = [];
     try {
-      // Platform-specific header selectors
-      const platformSpecific = isGemini ? [
-        // Gemini-specific selectors
+      // First, try very specific Gemini header selectors
+      const geminiSpecific = [
         '[role="presentation"] > #page-header',
         '#page-header',
         'header[role="banner"]',
         '[role="banner"]'
-      ] : [
-        // ChatGPT-specific selectors
-        'header',
-        '[data-testid="header"]',
-        '.header',
-        '[role="banner"]',
-        'nav[data-testid="chat-history"]',
-        'aside[data-testid="chat-history"]'
       ];
       
-      for (const selector of platformSpecific) {
+      for (const selector of geminiSpecific) {
         const el = document.querySelector(selector);
         if (el && !els.includes(el)) {
           els.push(el);
@@ -387,23 +344,12 @@ const createZeroEkaIconButton = () => {
     try {
       // Strategy: Find the proper footer container, not just the input field
       
-      // Platform-specific input selectors
-      const inputSelectors = isGemini ? [
-        // Gemini-specific selectors
+      // First, try to find input area and walk up to find the full footer container
+      const inputSelectors = [
         '.ql-editor', // Gemini's text editor
         'textarea[aria-label*="Message"]',
         'textarea[aria-label*="message"]', 
         'textarea[aria-label*="Gemini"]',
-        '[role="textbox"][contenteditable="true"]',
-        'div[contenteditable="true"]'
-      ] : [
-        // ChatGPT-specific selectors
-        'textarea[data-id="root"]',
-        'textarea[placeholder*="Message"]',
-        'textarea[placeholder*="message"]',
-        '[data-testid="send-button"]',
-        '[data-testid="input-area"]',
-        'form[data-testid="input-form"]',
         '[role="textbox"][contenteditable="true"]',
         'div[contenteditable="true"]'
       ];
@@ -487,23 +433,15 @@ const createZeroEkaIconButton = () => {
         });
       }
       
-      // Fallback: try platform-specific known footer selectors
+      // Fallback: try specific known Gemini footer selectors
       if (els.length === 0) {
-        const platformSpecific = isGemini ? [
-          // Gemini-specific selectors
+        const geminiSpecific = [
           '[role="presentation"] > #thread-bottom-container',
           '#thread-bottom-container',
           'footer'
-        ] : [
-          // ChatGPT-specific selectors
-          '[data-testid="input-area"]',
-          'form[data-testid="input-form"]',
-          '[data-testid="send-button"]',
-          'footer',
-          '[role="complementary"]'
         ];
         
-        for (const selector of platformSpecific) {
+        for (const selector of geminiSpecific) {
           const el = document.querySelector(selector);
           if (el) {
             try {
@@ -511,8 +449,7 @@ const createZeroEkaIconButton = () => {
               const isValidFooter = r.bottom > window.innerHeight * 0.5 && r.height > 30;
               if (isValidFooter && !els.includes(el)) {
                 els.push(el);
-                const platform = isGemini ? 'Gemini' : 'ChatGPT';
-                console.log(`[${platform}] Found known footer selector:`, el.tagName, el.id);
+                console.log('[Gemini] Found known footer selector:', el.tagName, el.id);
               }
             } catch(_) {}
           }
@@ -526,8 +463,7 @@ const createZeroEkaIconButton = () => {
   function ensureGeminiHideStyles() {
     let styleEl = document.getElementById('zeroeka-gemini-hide-styles');
     if (styleEl) {
-      const platform = isGemini ? 'Gemini' : 'ChatGPT';
-      console.log(`[${platform}] CSS styles already exist`);
+      console.log('[Gemini] CSS styles already exist');
       return;
     }
     styleEl = document.createElement('style');
@@ -547,30 +483,24 @@ const createZeroEkaIconButton = () => {
         opacity: 0 !important;
       }
       
-      /* Platform-specific footer selectors only when body class is present */
+      /* Specific footer selectors only when body class is present */
       body.zeroeka-hide-footer [role="presentation"] > #thread-bottom-container,
       body.zeroeka-hide-footer #thread-bottom-container,
       body.zeroeka-hide-footer footer,
       body.zeroeka-hide-footer form[role="form"],
       body.zeroeka-hide-footer [data-qa="input-area"],
       body.zeroeka-hide-footer [data-testid="input-area"],
-      body.zeroeka-hide-footer [data-testid="input-form"],
-      body.zeroeka-hide-footer [data-testid="send-button"],
       body.zeroeka-hide-footer [role="textbox"][contenteditable="true"],
       body.zeroeka-hide-footer textarea[aria-label*="Message"],
       body.zeroeka-hide-footer textarea[aria-label*="message"],
-      body.zeroeka-hide-footer textarea[aria-label*="Gemini"],
-      body.zeroeka-hide-footer textarea[data-id="root"],
-      body.zeroeka-hide-footer textarea[placeholder*="Message"],
-      body.zeroeka-hide-footer textarea[placeholder*="message"] { 
+      body.zeroeka-hide-footer textarea[aria-label*="Gemini"] { 
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
       }
     `;
     document.head.appendChild(styleEl);
-    const platform = isGemini ? 'Gemini' : 'ChatGPT';
-    console.log(`[${platform}] Added CSS styles for hide/show functionality`);
+    console.log('[Gemini] Added CSS styles for hide/show functionality');
   }
   // Note: toggleVisibilityForElements function removed - using direct logic in each toggle handler for better control
 
@@ -578,14 +508,9 @@ const createZeroEkaIconButton = () => {
 
   // Action: Hide/Show header
   itemToggleHeader.addEventListener('click', () => {
-    console.log('[Header] Button clicked - starting header toggle');
-    try {
-      ensureGeminiHideStyles();
-      console.log('[Header] CSS styles ensured');
-      const headers = getHeaderEls();
-      console.log('[Header] getHeaderEls() returned:', headers);
-      const platform = isGemini ? 'Gemini' : 'ChatGPT';
-      console.log(`[${platform}] Header toggle: Found`, headers.length, 'header elements:', headers);
+    ensureGeminiHideStyles();
+    const headers = getHeaderEls();
+    console.log('[Gemini] Header toggle: Found', headers.length, 'header elements:', headers);
     
     if (headers.length > 0) {
       // Check current state of body class
@@ -594,17 +519,17 @@ const createZeroEkaIconButton = () => {
       
       // New behavior: if already hidden, refresh page on second click
       if (isCurrentlyHidden) {
-        console.log(`[${platform}] Header currently hidden → refreshing page`);
+        console.log('[Gemini] Header currently hidden → refreshing page');
         try { hideMenu(); menuOpen = false; } catch(_) {}
         window.location.reload();
         return;
       }
 
-      console.log(`[${platform}] Current state - Body has hide class:`, isCurrentlyHidden);
-      console.log(`[${platform}] Body classes:`, document.body.className);
+      console.log('[Gemini] Current state - Body has hide class:', isCurrentlyHidden);
+      console.log('[Gemini] Body classes:', document.body.className);
       
       // Hide headers (first click)
-      console.log(`[${platform}] HIDING headers...`);
+      console.log('[Gemini] HIDING headers...');
       document.body.classList.add(cls);
       headers.forEach((h, index) => {
         try {
@@ -613,52 +538,45 @@ const createZeroEkaIconButton = () => {
           h.style.setProperty('visibility', 'hidden', 'important');
           h.style.setProperty('opacity', '0', 'important');
           h.setAttribute('data-zeroeka-hidden', 'true');
-          console.log(`[${platform}] Header ${index + 1} hidden:`, {
+          console.log(`[Gemini] Header ${index + 1} hidden:`, {
             tag: h.tagName,
             id: h.id,
             classes: h.className,
             hasHiddenAttr: h.hasAttribute('data-zeroeka-hidden')
           });
         } catch(e) {
-          console.error(`[${platform}] Error hiding header:`, e);
+          console.error('[Gemini] Error hiding header:', e);
         }
       });
-      console.log(`[${platform}] Body classes after hide:`, document.body.className);
+      console.log('[Gemini] Body classes after hide:', document.body.className);
     } else {
-      console.warn(`[${platform}] No header elements found to toggle`);
+      console.warn('[Gemini] No header elements found to toggle');
     }
     
     hideMenu(); menuOpen = false;
-    } catch(e) {
-      console.error('[Header] Error in header toggle:', e);
-    }
   });
 
   // Action: Hide/Show footer
   itemToggleFooter.addEventListener('click', () => {
-    console.log('[Footer] Button clicked - starting footer toggle');
-    try {
-      ensureGeminiHideStyles();
-      console.log('[Footer] CSS styles ensured');
-      // Check body class first so second click refresh works even if elements are not detectable
-      const cls = 'zeroeka-hide-footer';
-      const isCurrentlyHidden = document.body.classList.contains(cls);
-      const platform = isGemini ? 'Gemini' : 'ChatGPT';
-      console.log(`[${platform}] Current state - Body has footer hide class:`, isCurrentlyHidden);
-      console.log(`[${platform}] Body classes:`, document.body.className);
+    ensureGeminiHideStyles();
+    // Check body class first so second click refresh works even if elements are not detectable
+    const cls = 'zeroeka-hide-footer';
+    const isCurrentlyHidden = document.body.classList.contains(cls);
+    console.log('[Gemini] Current state - Body has footer hide class:', isCurrentlyHidden);
+    console.log('[Gemini] Body classes:', document.body.className);
     if (isCurrentlyHidden) {
-      console.log(`[${platform}] Footer currently hidden → refreshing page`);
+      console.log('[Gemini] Footer currently hidden → refreshing page');
       try { hideMenu(); menuOpen = false; } catch(_) {}
       window.location.reload();
       return;
     }
     // First click: resolve and hide
     const footers = getFooterEls();
-    console.log(`[${platform}] Footer toggle: Found`, footers.length, 'footer elements:', footers);
+    console.log('[Gemini] Footer toggle: Found', footers.length, 'footer elements:', footers);
     if (footers.length === 0) {
-      console.warn(`[${platform}] No footer elements found to toggle`);
+      console.warn('[Gemini] No footer elements found to toggle');
     }
-    console.log(`[${platform}] HIDING footers...`);
+    console.log('[Gemini] HIDING footers...');
     document.body.classList.add(cls);
     footers.forEach((el, index) => {
       try {
@@ -666,21 +584,18 @@ const createZeroEkaIconButton = () => {
         el.style.setProperty('visibility', 'hidden', 'important');
         el.style.setProperty('opacity', '0', 'important');
         el.setAttribute('data-zeroeka-hidden', 'true');
-        console.log(`[${platform}] Footer ${index + 1} hidden:`, {
+        console.log(`[Gemini] Footer ${index + 1} hidden:`, {
           tag: el.tagName,
           id: el.id,
           classes: el.className,
           hasHiddenAttr: el.hasAttribute('data-zeroeka-hidden')
         });
       } catch(e) {
-        console.error(`[${platform}] Error hiding footer:`, e);
+        console.error('[Gemini] Error hiding footer:', e);
       }
     });
-    console.log(`[${platform}] Body classes after footer hide:`, document.body.className);
+    console.log('[Gemini] Body classes after footer hide:', document.body.className);
     hideMenu(); menuOpen = false;
-    } catch(e) {
-      console.error('[Footer] Error in footer toggle:', e);
-    }
   });
 
   // Fullscreen option removed
@@ -4788,38 +4703,17 @@ const updateTextSize = (container, size) => {
     attemptInitialization();
   };
 
-  // Function to ensure all menu panels are hidden on page load
-  const ensureMenuHidden = () => {
-    try {
-      const menuPanels = document.querySelectorAll('#contracted-menu-panel');
-      if (menuPanels.length > 0) {
-        console.log(`[Menu] Found ${menuPanels.length} menu panels, ensuring they are hidden`);
-        menuPanels.forEach(panel => {
-          // Only hide panels that are currently visible
-          if (panel.style.display !== 'none') {
-            console.log('[Menu] Hiding visible menu panel');
-            panel.style.display = 'none';
-          }
-        });
-      }
-      // Also reset any global menu state
-      window.__zeroekaMenuOpen = false;
-    } catch(_) {}
-  };
-
   // Initialize on multiple events for maximum reliability
-  window.addEventListener('load', () => { ensureMenuHidden(); initializeWithRetry(); });
-  window.addEventListener('DOMContentLoaded', () => { ensureMenuHidden(); initializeWithRetry(); });
+  window.addEventListener('load', initializeWithRetry);
+  window.addEventListener('DOMContentLoaded', initializeWithRetry);
   document.addEventListener('readystatechange', () => {
     if (document.readyState === 'complete') {
-      ensureMenuHidden();
       initializeWithRetry();
     }
   });
 
   // Also initialize immediately if page is already loaded
   if (document.readyState === 'complete') {
-    ensureMenuHidden();
     initializeWithRetry();
   }
 
