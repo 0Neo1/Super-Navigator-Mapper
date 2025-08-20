@@ -3110,7 +3110,6 @@ const createZeroEkaIconButton = () => {
 
                 // Add click functionality to navigate to message
         resultItem.addEventListener('click', () => {
-          const query = searchInput.value.trim();
           console.log('Navigating to message:', result.messageId);
           
           // Try multiple navigation strategies
@@ -3227,21 +3226,21 @@ const createZeroEkaIconButton = () => {
                     }
                   }
                   
-                  if (matchIndex !== -1) {
-                    // Calculate the relative position of the match within the message
-                    const messageHeight = rect.height;
-                    const matchRelativePosition = matchIndex / messageText.length;
-                    const matchOffset = messageHeight * matchRelativePosition;
-                    
-                    // Get viewport height for centering calculation
-                    const viewportHeight = window.innerHeight;
-                    
-                    // Position the match at the center of the viewport
-                    const targetPosition = rect.top + currentScrollTop + matchOffset - (viewportHeight / 2);
-                    
-                    console.log('Calculated center position:', targetPosition, 'matchOffset:', matchOffset, 'matchIndex:', matchIndex);
-                    return targetPosition;
-                  }
+                                     if (matchIndex !== -1) {
+                     // Calculate the relative position of the match within the message
+                     const messageHeight = rect.height;
+                     const matchRelativePosition = matchIndex / messageText.length;
+                     const matchOffset = messageHeight * matchRelativePosition;
+                     
+                     // Get viewport height for centering calculation
+                     const viewportHeight = window.innerHeight;
+                     
+                     // Position the match at the center of the viewport
+                     const targetPosition = rect.top + currentScrollTop + matchOffset - (viewportHeight / 2);
+                     
+                     console.log('Calculated center position:', targetPosition, 'matchOffset:', matchOffset, 'matchIndex:', matchIndex);
+                     return targetPosition;
+                   }
                    
                    // Fallback: position the message at the center of the viewport
                    console.log('Using fallback centering');
@@ -3251,36 +3250,46 @@ const createZeroEkaIconButton = () => {
                 
                 const precisePosition = findExactMatchPosition();
                 
-                // Fine-tune the scroll position to position at the top
+                // Scroll to precise match position
                 const finalPosition = Math.max(0, precisePosition);
-                
                 console.log('Scrolling to final position:', finalPosition);
                 
-                // Smooth scroll to position the matched content at the top
                 window.scrollTo({
                   top: finalPosition,
                   behavior: 'smooth'
                 });
                 
-                // Add a final adjustment to ensure the content is centered
+                // Highlight the matched content briefly
                 setTimeout(() => {
-                  // Get updated position after the scroll
-                  const updatedRect = targetMessage.getBoundingClientRect();
-                  const updatedScrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                  const viewportHeight = window.innerHeight;
-                  
-                  // Position the message at the center of the viewport
-                  const messageCenterPosition = updatedRect.top + updatedScrollTop - (viewportHeight / 2);
-                  
-                  console.log('Final adjustment to center position:', messageCenterPosition);
-                  
-                  window.scrollTo({
-                    top: Math.max(0, messageCenterPosition),
-                    behavior: 'smooth'
-                  });
-                }, 500); // Wait for initial scroll to complete
+                  try {
+                    const messageText = targetMessage.textContent || '';
+                    if (result.matchIndex !== undefined && result.matchIndex >= 0) {
+                      // Create a temporary highlight at the match location
+                      const range = document.createRange();
+                      const startNode = targetMessage.firstChild || targetMessage;
+                      const endNode = targetMessage.lastChild || targetMessage;
+                      
+                      if (startNode.nodeType === Node.TEXT_NODE && endNode.nodeType === Node.TEXT_NODE) {
+                        range.setStart(startNode, Math.min(result.matchIndex, startNode.length));
+                        range.setEnd(startNode, Math.min(result.matchIndex + (result.match || '').length, startNode.length));
+                        
+                        // Add highlight class
+                        const highlight = document.createElement('span');
+                        highlight.style.cssText = 'background: #ffa500; color: #000; padding: 2px 4px; border-radius: 3px; animation: pulse 2s ease-in-out;';
+                        highlight.textContent = range.toString();
+                        
+                        range.surroundContents(highlight);
+                        
+                        // Remove highlight after animation
+                        setTimeout(() => {
+                          try { if (highlight.parentNode) highlight.parentNode.replaceChild(document.createTextNode(highlight.textContent), highlight); } catch(_) {}
+                        }, 2000);
+                      }
+                    }
+                  } catch(_) {}
+                }, 300);
                 
-              }, 500); // Increased delay for better timing
+                              }, 300); // Reduced delay for better timing
               
               // No highlighting - just center the matched content
               console.log('Navigation completed - matched content centered without highlighting');
