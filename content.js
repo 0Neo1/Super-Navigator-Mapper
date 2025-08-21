@@ -1163,37 +1163,16 @@ const createZeroEkaIconButton = () => {
               .ze-watermark img { max-width: 80%; max-height: 80%; object-fit: contain; }
               .ze-content { position: relative; z-index: 1; }
               .message-block { margin: 0 0 8px; }
-              .role-label { 
-                font-weight: 900; 
-                color: #222; 
-                font-size: 20px; 
-                margin: 0 0 8px; 
-                text-transform: uppercase;
-                letter-spacing: 1px;
-              }
-              .message-content { 
-                white-space: normal; 
-                overflow-wrap: anywhere; 
-                line-height: 1.4;
-              }
-              .message-content:empty { display: none; }
-              .message-content p:empty { display: none; }
-              .message-content div:empty { display: none; }
-              .message-content span:empty { display: none; }
-              .message-content br + br { display: none; }
-              .message-content p:only-child:empty { display: none; }
-              .message-content div:only-child:empty { display: none; }
+              .role-label { font-weight: 800; color: #222; font-size: 24px; margin: 0 0 3px; text-transform: uppercase; }
+              .message-content { white-space: normal; overflow-wrap: anywhere; }
               pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
               pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
-              img, svg, canvas, video { max-width: 100%; height: auto; display: block; }
-              img[loading], img[decoding] { /* ensure images participate in layout */ display: block; }
+              img, svg, canvas, video { max-width: 100%; height: auto; }
               table { border-collapse: collapse; }
               table, th, td { border: 1px solid #ddd; }
               th, td { padding: 6px 8px; }
               p { margin: 0 0 6px; }
-              p:empty { display: none; }
               ul, ol { margin: 0 0 6px 18px; }
-              li:empty { display: none; }
               h1, h2, h3, h4, h5, h6 { margin: 6px 0; }
               @page { size: auto; margin: 8mm; }
               @media print { body { margin: 0; } pre, table, img { break-inside: avoid; page-break-inside: avoid; } }
@@ -1212,139 +1191,13 @@ const createZeroEkaIconButton = () => {
           try {
             const wrapper = (iframeDoc || document).createElement('div');
             wrapper.innerHTML = unsafeHtml || '';
-            
-            // --- Ensure images are preserved ---
-            // Helper: choose best candidate from a srcset string
-            const pickBestFromSrcset = (srcset) => {
-              try {
-                if (!srcset) return '';
-                const parts = String(srcset).split(',').map(s => s.trim()).filter(Boolean);
-                // Prefer the one with the largest width descriptor
-                let best = parts[parts.length - 1];
-                let bestWidth = 0;
-                parts.forEach(p => {
-                  const m = p.match(/\s+(\d+)[wx]$/i);
-                  const w = m ? parseInt(m[1], 10) : 0;
-                  if (w >= bestWidth) { bestWidth = w; best = p; }
-                });
-                return best.split(' ')[0];
-              } catch(_) { return ''; }
-            };
-            // Helper: absolutize URL
-            const absolutize = (url) => {
-              try { return new URL(url, location.href).href; } catch(_) { return url; }
-            };
-            
-            // picture/source → img resolution, lazy images, background images
-            // 1) Resolve <picture><source> into the nested <img>
-            wrapper.querySelectorAll('picture').forEach(pic => {
-              try {
-                const img = pic.querySelector('img');
-                if (!img) return;
-                let final = '';
-                const srcsetFromSource = pic.querySelector('source')?.getAttribute('srcset') || '';
-                const pick = pickBestFromSrcset(srcsetFromSource);
-                if (pick) final = pick;
-                const imgSrcset = img.getAttribute('srcset');
-                if (!final && imgSrcset) final = pickBestFromSrcset(imgSrcset);
-                const dataSrc = img.getAttribute('data-src') || img.getAttribute('data-original');
-                if (!final && dataSrc) final = dataSrc;
-                const src = img.getAttribute('src');
-                if (!final && src) final = src;
-                if (final) {
-                  img.setAttribute('src', absolutize(final));
-                  img.removeAttribute('srcset');
-                }
-                img.setAttribute('loading', 'eager');
-                img.setAttribute('decoding', 'sync');
-                img.setAttribute('referrerpolicy', 'no-referrer');
-              } catch(_) {}
-            });
-            // 2) Plain <img> with lazy attributes
-            wrapper.querySelectorAll('img').forEach(img => {
-              try {
-                let final = '';
-                const srcset = img.getAttribute('srcset');
-                if (srcset) final = pickBestFromSrcset(srcset);
-                const dataSrc = img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('data-url');
-                if (!final && dataSrc) final = dataSrc;
-                const src = img.getAttribute('src');
-                if (!final && src) final = src;
-                if (final) img.setAttribute('src', absolutize(final));
-                img.removeAttribute('srcset');
-                img.setAttribute('loading', 'eager');
-                img.setAttribute('decoding', 'sync');
-                img.setAttribute('referrerpolicy', 'no-referrer');
-                // Ensure visibility
-                img.style.maxWidth = '100%';
-                img.style.height = 'auto';
-                img.style.display = 'block';
-              } catch(_) {}
-            });
-            // 3) Elements that rely on inline background-image
-            wrapper.querySelectorAll('[style*="background-image"]').forEach(el => {
-              try {
-                const m = el.style.backgroundImage && el.style.backgroundImage.match(/url\(("|')?(.*?)(\1)\)/i);
-                const url = m && m[2] ? m[2] : '';
-                if (url && !el.querySelector('img')) {
-                  const img = (iframeDoc || document).createElement('img');
-                  img.src = absolutize(url);
-                  img.style.maxWidth = '100%';
-                  img.style.height = 'auto';
-                  img.style.display = 'block';
-                  img.setAttribute('loading', 'eager');
-                  img.setAttribute('decoding', 'sync');
-                  img.setAttribute('referrerpolicy', 'no-referrer');
-                  // Place the img inside the element
-                  el.appendChild(img);
-                }
-              } catch(_) {}
-            });
-            // 4) Canvas → data URL so it survives printing
-            wrapper.querySelectorAll('canvas').forEach(cnv => {
-              try {
-                const data = cnv.toDataURL('image/png');
-                if (data) {
-                  const img = (iframeDoc || document).createElement('img');
-                  img.src = data;
-                  img.style.maxWidth = '100%';
-                  img.style.height = 'auto';
-                  img.style.display = 'block';
-                  cnv.replaceWith(img);
-                }
-              } catch(_) { /* ignore tainted canvas */ }
-            });
-            
             // Remove extension UI artifacts (stars, buttons, sidebars)
             wrapper.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]').forEach(el => el.remove());
-            
             // Remove any contenteditable or interactive controls that may add spacing
             wrapper.querySelectorAll('button, [role="button"]').forEach(el => {
               if (el.className && /zeroeka/i.test(el.className)) el.remove();
             });
-            
-            // Clean up empty elements and whitespace that could cause dash characters
-            wrapper.querySelectorAll('*').forEach(el => {
-              // Remove elements that only contain whitespace or special characters
-              if (el.childNodes.length === 1 && el.childNodes[0].nodeType === Node.TEXT_NODE) {
-                const text = el.childNodes[0].textContent;
-                if (text && /^[\s\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]*$/.test(text)) {
-                  el.remove();
-                }
-              }
-              
-              // Remove empty elements that might render as dashes
-              if (el.innerHTML === '' || el.innerHTML === '&nbsp;' || el.innerHTML === '\u00A0') {
-                el.remove();
-              }
-            });
-            
-            // Clean up any remaining problematic whitespace characters
-            let cleanedHtml = wrapper.innerHTML;
-            cleanedHtml = cleanedHtml.replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ');
-            cleanedHtml = cleanedHtml.replace(/\s+/g, ' ').trim();
-            
-            return cleanedHtml;
+            return wrapper.innerHTML;
           } catch (_) {
             return unsafeHtml || '';
           }
@@ -1352,16 +1205,12 @@ const createZeroEkaIconButton = () => {
 
         const writeBlock = (role, html, index) => {
           const safeHtml = sanitizeForPdf(html);
-          
-          // Only write the block if there's actual content
-          if (safeHtml && safeHtml.trim() && safeHtml !== '&nbsp;' && safeHtml !== '\u00A0') {
-            iframeDoc.write(`
-              <div class="message-block">
-                <div class="role-label">${role === 'user' ? 'USER PROMPT' : 'OUTPUT'}</div>
-                <div class="message-content">${safeHtml}</div>
-              </div>
-            `);
-          }
+          iframeDoc.write(`
+            <div class="message-block">
+              <div class="role-label">${role === 'user' ? 'USER PROMPT' : 'OUTPUT'}</div>
+              <div class="message-content">${safeHtml}</div>
+            </div>
+          `);
         };
 
         let index = 0;
@@ -1371,59 +1220,9 @@ const createZeroEkaIconButton = () => {
           const nodes = Array.from(document.querySelectorAll('user-query-content .query-text, .model-response-text'));
           nodes.forEach((node) => {
             const isUser = node.matches('user-query-content .query-text');
-            
-            // Gemini-specific content cleaning to remove empty elements and dashes
-            let cleanContent = '';
-            try {
-              // Clone the node to avoid modifying the original
-              const clonedNode = node.cloneNode(true);
-              
-              // Remove empty elements that cause dashes
-              clonedNode.querySelectorAll('*').forEach(el => {
-                // Remove elements with only whitespace or special characters
-                if (el.childNodes.length === 1 && el.childNodes[0].nodeType === Node.TEXT_NODE) {
-                  const text = el.childNodes[0].textContent;
-                  if (text && /^[\s\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]*$/.test(text)) {
-                    el.remove();
-                  }
-                }
-                
-                // Remove completely empty elements
-                if (el.innerHTML === '' || el.innerHTML === '&nbsp;' || el.innerHTML === '\u00A0') {
-                  el.remove();
-                }
-                
-                // Remove elements that only contain line breaks or spaces
-                if (el.innerHTML && /^[\s\n\r\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]*$/.test(el.innerHTML)) {
-                  el.remove();
-                }
-              });
-              
-              // Get cleaned HTML content
-              cleanContent = clonedNode.innerHTML;
-              
-              // Additional cleaning for remaining problematic characters
-              cleanContent = cleanContent.replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ');
-              cleanContent = cleanContent.replace(/\s+/g, ' ').trim();
-              
-              // Remove any remaining empty paragraph tags or divs
-              cleanContent = cleanContent.replace(/<p[^>]*>\s*<\/p>/gi, '');
-              cleanContent = cleanContent.replace(/<div[^>]*>\s*<\/div>/gi, '');
-              cleanContent = cleanContent.replace(/<span[^>]*>\s*<\/span>/gi, '');
-              
-              // Final cleanup of excessive whitespace
-              cleanContent = cleanContent.replace(/\n\s*\n/g, '\n');
-              cleanContent = cleanContent.replace(/>\s+</g, '><');
-              
-            } catch (e) {
-              // Fallback to text content if HTML processing fails
-              cleanContent = (node.textContent || '').replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ').trim();
-            }
-            
-            // Only process if we have meaningful content
-            if (cleanContent && cleanContent.trim() && cleanContent !== '&nbsp;' && cleanContent !== '\u00A0') {
-              writeBlock(isUser ? 'user' : 'assistant', cleanContent, index++);
-            }
+            // Prefer HTML content, fallback to text
+            const html = node.innerHTML || (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+            writeBlock(isUser ? 'user' : 'assistant', html, index++);
           });
         } else {
           // ChatGPT: try attribute-based messages first; fallback to markdown/article content
