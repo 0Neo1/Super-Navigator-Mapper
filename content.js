@@ -1185,18 +1185,8 @@ const createZeroEkaIconButton = () => {
               .message-content div:only-child:empty { display: none; }
               pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
               pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
-              img, svg, canvas, video { 
-                max-width: 100%; 
-                height: auto; 
-                display: block; 
-                margin: 10px 0; 
-                border-radius: 8px; 
-                box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
-              }
-              img { 
-                page-break-inside: avoid; 
-                break-inside: avoid; 
-              }
+              img, svg, canvas, video { max-width: 100%; height: auto; display: block; }
+              img[loading], img[decoding] { /* ensure images participate in layout */ display: block; }
               table { border-collapse: collapse; }
               table, th, td { border: 1px solid #ddd; }
               th, td { padding: 6px 8px; }
@@ -1220,18 +1210,109 @@ const createZeroEkaIconButton = () => {
 
         const sanitizeForPdf = (unsafeHtml) => {
           try {
-            // Debug: Log what we're processing
-            console.log('[PDF Export] Processing HTML:', unsafeHtml ? unsafeHtml.substring(0, 200) + '...' : 'empty');
-            console.log('[PDF Export] Contains images:', unsafeHtml && unsafeHtml.includes('<img'));
-            
             const wrapper = (iframeDoc || document).createElement('div');
             wrapper.innerHTML = unsafeHtml || '';
             
-            // Debug: Check for images before processing
-            const initialImages = wrapper.querySelectorAll('img');
-            console.log('[PDF Export] Initial images found:', initialImages.length);
-            initialImages.forEach((img, i) => {
-              console.log(`[PDF Export] Image ${i}:`, img.src, img.alt);
+            // --- Ensure images are preserved ---
+            // Helper: choose best candidate from a srcset string
+            const pickBestFromSrcset = (srcset) => {
+              try {
+                if (!srcset) return '';
+                const parts = String(srcset).split(',').map(s => s.trim()).filter(Boolean);
+                // Prefer the one with the largest width descriptor
+                let best = parts[parts.length - 1];
+                let bestWidth = 0;
+                parts.forEach(p => {
+                  const m = p.match(/\s+(\d+)[wx]$/i);
+                  const w = m ? parseInt(m[1], 10) : 0;
+                  if (w >= bestWidth) { bestWidth = w; best = p; }
+                });
+                return best.split(' ')[0];
+              } catch(_) { return ''; }
+            };
+            // Helper: absolutize URL
+            const absolutize = (url) => {
+              try { return new URL(url, location.href).href; } catch(_) { return url; }
+            };
+            
+            // picture/source → img resolution, lazy images, background images
+            // 1) Resolve <picture><source> into the nested <img>
+            wrapper.querySelectorAll('picture').forEach(pic => {
+              try {
+                const img = pic.querySelector('img');
+                if (!img) return;
+                let final = '';
+                const srcsetFromSource = pic.querySelector('source')?.getAttribute('srcset') || '';
+                const pick = pickBestFromSrcset(srcsetFromSource);
+                if (pick) final = pick;
+                const imgSrcset = img.getAttribute('srcset');
+                if (!final && imgSrcset) final = pickBestFromSrcset(imgSrcset);
+                const dataSrc = img.getAttribute('data-src') || img.getAttribute('data-original');
+                if (!final && dataSrc) final = dataSrc;
+                const src = img.getAttribute('src');
+                if (!final && src) final = src;
+                if (final) {
+                  img.setAttribute('src', absolutize(final));
+                  img.removeAttribute('srcset');
+                }
+                img.setAttribute('loading', 'eager');
+                img.setAttribute('decoding', 'sync');
+                img.setAttribute('referrerpolicy', 'no-referrer');
+              } catch(_) {}
+            });
+            // 2) Plain <img> with lazy attributes
+            wrapper.querySelectorAll('img').forEach(img => {
+              try {
+                let final = '';
+                const srcset = img.getAttribute('srcset');
+                if (srcset) final = pickBestFromSrcset(srcset);
+                const dataSrc = img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('data-url');
+                if (!final && dataSrc) final = dataSrc;
+                const src = img.getAttribute('src');
+                if (!final && src) final = src;
+                if (final) img.setAttribute('src', absolutize(final));
+                img.removeAttribute('srcset');
+                img.setAttribute('loading', 'eager');
+                img.setAttribute('decoding', 'sync');
+                img.setAttribute('referrerpolicy', 'no-referrer');
+                // Ensure visibility
+                img.style.maxWidth = '100%';
+                img.style.height = 'auto';
+                img.style.display = 'block';
+              } catch(_) {}
+            });
+            // 3) Elements that rely on inline background-image
+            wrapper.querySelectorAll('[style*="background-image"]').forEach(el => {
+              try {
+                const m = el.style.backgroundImage && el.style.backgroundImage.match(/url\(("|')?(.*?)(\1)\)/i);
+                const url = m && m[2] ? m[2] : '';
+                if (url && !el.querySelector('img')) {
+                  const img = (iframeDoc || document).createElement('img');
+                  img.src = absolutize(url);
+                  img.style.maxWidth = '100%';
+                  img.style.height = 'auto';
+                  img.style.display = 'block';
+                  img.setAttribute('loading', 'eager');
+                  img.setAttribute('decoding', 'sync');
+                  img.setAttribute('referrerpolicy', 'no-referrer');
+                  // Place the img inside the element
+                  el.appendChild(img);
+                }
+              } catch(_) {}
+            });
+            // 4) Canvas → data URL so it survives printing
+            wrapper.querySelectorAll('canvas').forEach(cnv => {
+              try {
+                const data = cnv.toDataURL('image/png');
+                if (data) {
+                  const img = (iframeDoc || document).createElement('img');
+                  img.src = data;
+                  img.style.maxWidth = '100%';
+                  img.style.height = 'auto';
+                  img.style.display = 'block';
+                  cnv.replaceWith(img);
+                }
+              } catch(_) { /* ignore tainted canvas */ }
             });
             
             // Remove extension UI artifacts (stars, buttons, sidebars)
@@ -1258,43 +1339,13 @@ const createZeroEkaIconButton = () => {
               }
             });
             
-            // Debug: Check for images after cleaning
-            const afterCleaningImages = wrapper.querySelectorAll('img');
-            console.log('[PDF Export] Images after cleaning:', afterCleaningImages.length);
-            
-            // Ensure images are properly preserved and accessible
-            afterCleaningImages.forEach(img => {
-              // Ensure image has proper attributes
-              if (!img.alt) img.alt = 'Image';
-              if (!img.title) img.title = 'Image';
-              
-              // Add print-friendly styling
-              img.style.maxWidth = '100%';
-              img.style.height = 'auto';
-              img.style.display = 'block';
-              img.style.margin = '10px 0';
-              img.style.borderRadius = '8px';
-              img.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-              
-              // Remove any inline styles that might interfere with printing
-              img.removeAttribute('style');
-              img.setAttribute('style', 'max-width: 100%; height: auto; display: block; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);');
-              
-              console.log('[PDF Export] Processed image:', img.src, img.alt);
-            });
-            
             // Clean up any remaining problematic whitespace characters
             let cleanedHtml = wrapper.innerHTML;
             cleanedHtml = cleanedHtml.replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ');
             cleanedHtml = cleanedHtml.replace(/\s+/g, ' ').trim();
             
-            // Debug: Final check
-            console.log('[PDF Export] Final HTML contains images:', cleanedHtml.includes('<img'));
-            console.log('[PDF Export] Final HTML length:', cleanedHtml.length);
-            
             return cleanedHtml;
-          } catch (error) {
-            console.error('[PDF Export] Error in sanitizeForPdf:', error);
+          } catch (_) {
             return unsafeHtml || '';
           }
         };
@@ -1317,20 +1368,9 @@ const createZeroEkaIconButton = () => {
 
         if (IS_GEMINI) {
           // Gemini: sequence user prompts and model responses by DOM order
-          // Use broader selectors to capture all content including images
-          const nodes = Array.from(document.querySelectorAll('user-query-content .query-text, .model-response-text, [data-message-author-role], .markdown, .prose, article, .message, .chat-message'));
-          console.log('[PDF Export] Found', nodes.length, 'Gemini nodes');
-          
-          nodes.forEach((node, nodeIndex) => {
+          const nodes = Array.from(document.querySelectorAll('user-query-content .query-text, .model-response-text'));
+          nodes.forEach((node) => {
             const isUser = node.matches('user-query-content .query-text');
-            console.log(`[PDF Export] Processing Gemini node ${nodeIndex + 1} (${isUser ? 'user' : 'assistant'})`);
-            
-            // Debug: Check for images in original node
-            const originalImages = node.querySelectorAll('img');
-            console.log(`[PDF Export] Node ${nodeIndex + 1} has`, originalImages.length, 'images');
-            originalImages.forEach((img, imgIndex) => {
-              console.log(`[PDF Export] Node ${nodeIndex + 1} Image ${imgIndex + 1}:`, img.src, img.alt);
-            });
             
             // Gemini-specific content cleaning to remove empty elements and dashes
             let cleanContent = '';
@@ -1340,7 +1380,7 @@ const createZeroEkaIconButton = () => {
               
               // Remove empty elements that cause dashes
               clonedNode.querySelectorAll('*').forEach(el => {
-                // Remove elements that only contain whitespace or special characters
+                // Remove elements with only whitespace or special characters
                 if (el.childNodes.length === 1 && el.childNodes[0].nodeType === Node.TEXT_NODE) {
                   const text = el.childNodes[0].textContent;
                   if (text && /^[\s\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]*$/.test(text)) {
@@ -1362,33 +1402,6 @@ const createZeroEkaIconButton = () => {
               // Get cleaned HTML content
               cleanContent = clonedNode.innerHTML;
               
-              // Debug: Check images after cleaning
-              const clonedImages = clonedNode.querySelectorAll('img');
-              console.log(`[PDF Export] Node ${nodeIndex + 1} has`, clonedImages.length, 'images after cleaning');
-              
-              // Ensure images are properly captured and preserved
-              const tempDiv = document.createElement('div');
-              tempDiv.innerHTML = cleanContent;
-              
-              // Process images to ensure they're print-friendly
-              tempDiv.querySelectorAll('img').forEach(img => {
-                // Ensure image has proper attributes for printing
-                if (!img.alt) img.alt = 'Image';
-                if (!img.title) img.title = 'Image';
-                
-                // Add print-friendly styling
-                img.style.maxWidth = '100%';
-                img.style.height = 'auto';
-                img.style.display = 'block';
-                img.style.margin = '10px 0';
-                img.style.borderRadius = '8px';
-                img.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-                
-                console.log(`[PDF Export] Processed image in node ${nodeIndex + 1}:`, img.src);
-              });
-              
-              cleanContent = tempDiv.innerHTML;
-              
               // Additional cleaning for remaining problematic characters
               cleanContent = cleanContent.replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ');
               cleanContent = cleanContent.replace(/\s+/g, ' ').trim();
@@ -1402,11 +1415,7 @@ const createZeroEkaIconButton = () => {
               cleanContent = cleanContent.replace(/\n\s*\n/g, '\n');
               cleanContent = cleanContent.replace(/>\s+</g, '><');
               
-              console.log(`[PDF Export] Node ${nodeIndex + 1} final content length:`, cleanContent.length);
-              console.log(`[PDF Export] Node ${nodeIndex + 1} final content has images:`, cleanContent.includes('<img'));
-              
             } catch (e) {
-              console.error(`[PDF Export] Error processing Gemini node ${nodeIndex + 1}:`, e);
               // Fallback to text content if HTML processing fails
               cleanContent = (node.textContent || '').replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ').trim();
             }
@@ -1418,59 +1427,17 @@ const createZeroEkaIconButton = () => {
           });
         } else {
           // ChatGPT: try attribute-based messages first; fallback to markdown/article content
-          let messages = Array.from(document.querySelectorAll('[data-message-id], article, .markdown, .prose, .message, .chat-message, [data-message-author-role]'));
+          let messages = Array.from(document.querySelectorAll('[data-message-id]'));
           if (!messages.length) {
-            messages = Array.from(document.querySelectorAll('article, .markdown, .prose, .message, .chat-message'));
+            messages = Array.from(document.querySelectorAll('article'));
           }
-          messages.forEach((message, msgIndex) => {
-            console.log(`[PDF Export] Processing ChatGPT message ${msgIndex + 1}`);
-            
-            // Debug: Check for images in original message
-            const originalImages = message.querySelectorAll('img');
-            console.log(`[PDF Export] ChatGPT message ${msgIndex + 1} has`, originalImages.length, 'images');
-            originalImages.forEach((img, imgIndex) => {
-              console.log(`[PDF Export] ChatGPT message ${msgIndex + 1} Image ${imgIndex + 1}:`, img.src, img.alt);
-            });
-            
+          messages.forEach((message) => {
             const role = message.getAttribute && message.getAttribute('data-message-author-role') ||
               (message.querySelector('[data-message-author-role="user"]') ? 'user' : (message.querySelector('.markdown, .prose') ? 'assistant' : 'assistant'));
             const contentEl = message.querySelector && (message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || message.querySelector('div[tabindex="-1"], [data-message-author-role]')) || message;
             // Remove resident ZeroEka star from cloned content to avoid overlap in PDF
             Array.from(message.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star')).forEach(el => { try { el.remove(); } catch(_){} });
-            let html = (contentEl && contentEl.innerHTML) || (message.innerHTML) || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
-            
-            // Ensure images are properly captured for ChatGPT content
-            if (html && html.includes('<img')) {
-              console.log(`[PDF Export] ChatGPT message ${msgIndex + 1} contains images, processing...`);
-              const tempDiv = document.createElement('div');
-              tempDiv.innerHTML = html;
-              
-              // Process images to ensure they're print-friendly
-              const images = tempDiv.querySelectorAll('img');
-              console.log(`[PDF Export] ChatGPT message ${msgIndex + 1} processing`, images.length, 'images');
-              images.forEach(img => {
-                // Ensure image has proper attributes for printing
-                if (!img.alt) img.alt = 'Image';
-                if (!img.title) img.title = 'Image';
-                
-                // Add print-friendly styling
-                img.style.maxWidth = '100%';
-                img.style.height = 'auto';
-                img.style.display = 'block';
-                img.style.margin = '10px 0';
-                img.style.borderRadius = '8px';
-                img.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-                
-                console.log(`[PDF Export] Processed ChatGPT image:`, img.src, img.alt);
-              });
-              
-              html = tempDiv.innerHTML;
-              console.log(`[PDF Export] ChatGPT message ${msgIndex + 1} final HTML length:`, html.length);
-              console.log(`[PDF Export] ChatGPT message ${msgIndex + 1} final HTML has images:`, html.includes('<img'));
-            } else {
-              console.log(`[PDF Export] ChatGPT message ${msgIndex + 1} no images found`);
-            }
-            
+            const html = (contentEl && contentEl.innerHTML) || (message.innerHTML) || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
             writeBlock(role === 'user' ? 'user' : 'assistant', html, index++);
           });
         }
