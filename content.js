@@ -1218,16 +1218,9 @@ const createZeroEkaIconButton = () => {
             
             // Remove large icons and logos that clutter the PDF
             wrapper.querySelectorAll('img[src*="gemini"], img[src*="chatgpt"], img[src*="openai"], img[src*="logo"], svg[class*="icon"], svg[class*="logo"]').forEach(el => {
-              try {
-                const rect = el.getBoundingClientRect();
-                if (rect.width > 100 || rect.height > 100) {
-                  el.remove();
-                }
-              } catch(_) {
-                // If getBoundingClientRect fails, remove large images by src pattern
-                if (el.src && (el.src.includes('logo') || el.src.includes('icon'))) {
-                  el.remove();
-                }
+              const rect = el.getBoundingClientRect();
+              if (rect.width > 100 || rect.height > 100) {
+                el.remove();
               }
             });
             
@@ -1255,39 +1248,13 @@ const createZeroEkaIconButton = () => {
             });
             
             // Clean up excessive whitespace and empty elements
-            let cleanHtml = wrapper.innerHTML
+            const cleanHtml = wrapper.innerHTML
               .replace(/\s+/g, ' ')
               .replace(/>\s+</g, '><')
               .replace(/\s+>/g, '>')
               .replace(/<\s+/g, '<');
             
-            // Remove duplicate images that might have been added multiple times
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = cleanHtml;
-            
-            // Find and remove duplicate images with same src
-            const seenSrcs = new Set();
-            tempDiv.querySelectorAll('img').forEach(img => {
-              const src = img.src || img.getAttribute('src');
-              if (src && seenSrcs.has(src)) {
-                img.remove();
-              } else if (src) {
-                seenSrcs.add(src);
-              }
-            });
-            
-            // Remove duplicate text content blocks
-            const seenTexts = new Set();
-            tempDiv.querySelectorAll('p, div').forEach(el => {
-              const text = el.textContent?.trim();
-              if (text && text.length > 10 && seenTexts.has(text)) {
-                el.remove();
-              } else if (text && text.length > 10) {
-                seenTexts.add(text);
-              }
-            });
-            
-            return tempDiv.innerHTML;
+            return cleanHtml;
           } catch (_) {
             return unsafeHtml || '';
           }
@@ -1306,51 +1273,81 @@ const createZeroEkaIconButton = () => {
         let index = 0;
 
         if (IS_GEMINI) {
-          // Gemini: Clean conversation extraction maintaining order
+          // Gemini: Comprehensive conversation extraction capturing all content
           const conversationBlocks = [];
           
-          // Find all user query containers
-          const userQueries = Array.from(document.querySelectorAll('user-query-content'));
-          userQueries.forEach((userQuery, idx) => {
-            // Extract user prompt with images
-            let userContent = '';
+          // Find all conversation elements in order
+          const allElements = Array.from(document.querySelectorAll('user-query-content, .model-response-text, [data-message-author-role]'));
+          
+          allElements.forEach((element, idx) => {
+            let content = '';
+            let role = 'assistant';
+            
             try {
-              // Get the query text
-              const queryText = userQuery.querySelector('.query-text');
-              if (queryText) {
-                userContent = queryText.innerHTML || queryText.textContent || '';
+              if (element.tagName && element.tagName.toLowerCase() === 'user-query-content') {
+                // User input - capture everything including images and text
+                role = 'user';
+                
+                // Get the main query text
+                const queryText = element.querySelector('.query-text, [data-message-author-role="user"] + div, [data-message-author-role="user"] ~ div');
+                if (queryText) {
+                  content = queryText.innerHTML || queryText.textContent || '';
+                } else {
+                  // Fallback: get all content from the user query container
+                  content = element.innerHTML || element.textContent || '';
+                }
+                
+                // Also capture any images that might be outside the query-text
+                const allImages = element.querySelectorAll('img');
+                if (allImages.length > 0) {
+                  allImages.forEach(img => {
+                    const imgSrc = resolveImgSrc(img);
+                    if (imgSrc) {
+                      content += `<img src="${imgSrc}" style="max-width: 100%; height: auto; margin: 8px 0;" />`;
+                    }
+                  });
+                }
+                
+              } else if (element.classList && element.classList.contains('model-response-text')) {
+                // Assistant response
+                role = 'assistant';
+                content = element.innerHTML || element.textContent || '';
+                
+                // Capture any images in the response
+                const responseImages = element.querySelectorAll('img');
+                if (responseImages.length > 0) {
+                  responseImages.forEach(img => {
+                    const imgSrc = resolveImgSrc(img);
+                    if (imgSrc) {
+                      content += `<img src="${imgSrc}" style="max-width: 100%; height: auto; margin: 8px 0;" />`;
+                    }
+                  });
+                }
+                
+              } else if (element.getAttribute && element.getAttribute('data-message-author-role')) {
+                // Alternative message format
+                role = element.getAttribute('data-message-author-role');
+                const contentEl = element.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || element;
+                content = contentEl.innerHTML || contentEl.textContent || '';
+                
+                // Capture images
+                const images = contentEl.querySelectorAll('img');
+                if (images.length > 0) {
+                  images.forEach(img => {
+                    const imgSrc = resolveImgSrc(img);
+                    if (imgSrc) {
+                      content += `<img src="${imgSrc}" style="max-width: 100%; height: auto; margin: 8px 0;" />`;
+                    }
+                  });
+                }
               }
               
-              // Don't duplicate images - they're already in the HTML content
-              // Just ensure they're properly resolved
-              if (userContent.trim()) {
-                conversationBlocks.push({ type: 'user', content: userContent, index: idx });
+              // Only add if we have meaningful content
+              if (content.trim() && content.length > 10) {
+                conversationBlocks.push({ type: role, content: content, index: idx });
               }
+              
             } catch(_) {}
-            
-            // Find the corresponding assistant response
-            let nextUserQuery = userQueries[idx + 1];
-            let responseEnd = nextUserQuery ? nextUserQuery : document.body;
-            
-            // Look for model response between this user query and the next
-            let current = userQuery.nextElementSibling;
-            while (current && current !== responseEnd) {
-              if (current.classList && current.classList.contains('model-response-text')) {
-                let responseContent = '';
-                try {
-                  responseContent = current.innerHTML || current.textContent || '';
-                  
-                  // Don't duplicate images - they're already in the HTML content
-                  // Just ensure they're properly resolved
-                } catch(_) {}
-                
-                if (responseContent.trim()) {
-                  conversationBlocks.push({ type: 'assistant', content: responseContent, index: idx });
-                }
-                break; // Only take the first response for this user query
-              }
-              current = current.nextElementSibling;
-            }
           });
           
           // Write blocks in conversation order
@@ -1359,51 +1356,68 @@ const createZeroEkaIconButton = () => {
           });
           
         } else {
-          // ChatGPT: Clean conversation extraction maintaining order
+          // ChatGPT: Comprehensive conversation extraction capturing all content
           const conversationBlocks = [];
           
-          // Find all message containers
-          const messages = Array.from(document.querySelectorAll('[data-message-id]'));
+          // Try multiple approaches to capture all conversation content
+          let messages = Array.from(document.querySelectorAll('[data-message-id]'));
+          
           if (messages.length === 0) {
-            // Fallback to article elements
-            const articles = Array.from(document.querySelectorAll('article'));
-            articles.forEach((article, idx) => {
-              const role = article.querySelector('[data-message-author-role="user"]') ? 'user' : 'assistant';
-              let content = '';
-              
-              try {
-                // Get the main content
-                const contentEl = article.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || article;
-                content = contentEl.innerHTML || contentEl.textContent || '';
-                
-                // Don't duplicate images - they're already in the HTML content
-                // Just ensure they're properly resolved
-              } catch(_) {}
-              
-              if (content.trim()) {
-                conversationBlocks.push({ type: role, content: content, index: idx });
-              }
-            });
-          } else {
-            // Use data-message-id approach
-            messages.forEach((message, idx) => {
-              const role = message.getAttribute('data-message-author-role') || 'assistant';
-              let content = '';
-              
-              try {
-                // Get the main content
-                const contentEl = message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || message;
-                content = contentEl.innerHTML || contentEl.textContent || '';
-                
-                // Don't duplicate images - they're already in the HTML content
-                // Just ensure they're properly resolved
-              } catch(_) {}
-              
-              if (content.trim()) {
-                conversationBlocks.push({ type: role, content: content, index: idx });
-              }
-            });
+            // Fallback: look for article elements
+            messages = Array.from(document.querySelectorAll('article, [data-message-author-role]'));
           }
+          
+          if (messages.length === 0) {
+            // Another fallback: look for any message-like containers
+            messages = Array.from(document.querySelectorAll('.markdown, .prose, [role="article"]'));
+          }
+          
+          messages.forEach((message, idx) => {
+            let role = 'assistant';
+            let content = '';
+            
+            try {
+              // Determine role
+              if (message.getAttribute && message.getAttribute('data-message-author-role')) {
+                role = message.getAttribute('data-message-author-role');
+              } else if (message.querySelector && message.querySelector('[data-message-author-role="user"]')) {
+                role = 'user';
+              } else if (message.classList && (message.classList.contains('markdown') || message.classList.contains('prose'))) {
+                role = 'assistant';
+              }
+              
+              // Get the main content - try multiple selectors
+              let contentEl = message;
+              if (message.querySelector) {
+                contentEl = message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div, div[tabindex="-1"]') || message;
+              }
+              
+              // Get HTML content
+              content = contentEl.innerHTML || contentEl.textContent || '';
+              
+              // If no content found, try the entire message
+              if (!content.trim()) {
+                content = message.innerHTML || message.textContent || '';
+              }
+              
+              // Capture all images in the message
+              const allImages = message.querySelectorAll('img');
+              if (allImages.length > 0) {
+                allImages.forEach(img => {
+                  const imgSrc = resolveImgSrc(img);
+                  if (imgSrc) {
+                    content += `<img src="${imgSrc}" style="max-width: 100%; height: auto; margin: 8px 0;" />`;
+                  }
+                });
+              }
+              
+              // Only add if we have meaningful content
+              if (content.trim() && content.length > 10) {
+                conversationBlocks.push({ type: role, content: content, index: idx });
+              }
+              
+            } catch(_) {}
+          });
           
           // Write blocks in conversation order
           conversationBlocks.forEach(block => {
