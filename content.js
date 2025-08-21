@@ -1157,10 +1157,10 @@ const createZeroEkaIconButton = () => {
                 background: #ffffff;
               }
               .ze-header { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 24px; }
-              .ze-header img { width: 128px; height: 128px; object-fit: contain; filter: brightness(0.6) saturate(2.0) hue-rotate(240deg) contrast(1.3); }
+              .ze-header img { width: 128px; height: 128px; object-fit: contain; filter: brightness(0.5) saturate(2.5) hue-rotate(280deg) contrast(1.4); }
               .ze-header .ze-title { font-family: 'EB Garamond', serif; font-size: 56px; font-weight: 800; letter-spacing: 0.3px; color: #0B3D91; }
               .ze-watermark { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 0; pointer-events: none; opacity: 0.06; }
-              .ze-watermark img { max-width: 80%; max-height: 80%; object-fit: contain; filter: brightness(0.6) saturate(2.0) hue-rotate(240deg) contrast(1.3); }
+              .ze-watermark img { max-width: 80%; max-height: 80%; object-fit: contain; filter: brightness(0.5) saturate(2.5) hue-rotate(280deg) contrast(1.4); }
               .ze-content { position: relative; z-index: 1; }
               .message-block { margin: 0 0 8px; }
               .role-label { font-weight: 900; color: #0B3D91; font-size: 24px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px; }
