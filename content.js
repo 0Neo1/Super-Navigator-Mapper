@@ -1356,68 +1356,146 @@ const createZeroEkaIconButton = () => {
           });
           
         } else {
-          // ChatGPT: Comprehensive conversation extraction capturing all content
+          // ChatGPT: Comprehensive conversation extraction capturing all content including generated images
           const conversationBlocks = [];
           
-          // Try multiple approaches to capture all conversation content
+          // Strategy 1: Use data-message-id approach (most reliable)
           let messages = Array.from(document.querySelectorAll('[data-message-id]'));
           
-          if (messages.length === 0) {
-            // Fallback: look for article elements
-            messages = Array.from(document.querySelectorAll('article, [data-message-author-role]'));
-          }
-          
-          if (messages.length === 0) {
-            // Another fallback: look for any message-like containers
-            messages = Array.from(document.querySelectorAll('.markdown, .prose, [role="article"]'));
-          }
-          
-          messages.forEach((message, idx) => {
-            let role = 'assistant';
-            let content = '';
+          if (messages.length > 0) {
+            console.log('[ChatGPT PDF] Found', messages.length, 'messages with data-message-id');
             
-            try {
-              // Determine role
-              if (message.getAttribute && message.getAttribute('data-message-author-role')) {
-                role = message.getAttribute('data-message-author-role');
-              } else if (message.querySelector && message.querySelector('[data-message-author-role="user"]')) {
-                role = 'user';
-              } else if (message.classList && (message.classList.contains('markdown') || message.classList.contains('prose'))) {
-                role = 'assistant';
+            messages.forEach((message, idx) => {
+              let role = 'assistant';
+              let content = '';
+              
+              try {
+                // Determine role from attribute
+                if (message.getAttribute('data-message-author-role')) {
+                  role = message.getAttribute('data-message-author-role');
+                }
+                
+                // Get the main content - try multiple selectors for comprehensive capture
+                let contentEl = message;
+                const markdownEl = message.querySelector('.markdown, .prose');
+                if (markdownEl) {
+                  contentEl = markdownEl;
+                }
+                
+                // Get HTML content first
+                content = contentEl.innerHTML || contentEl.textContent || '';
+                
+                // If no content found, try the entire message
+                if (!content.trim()) {
+                  content = message.innerHTML || message.textContent || '';
+                }
+                
+                // CRITICAL: Capture ALL images in the message, including generated ones
+                const allImages = message.querySelectorAll('img');
+                console.log(`[ChatGPT PDF] Message ${idx + 1} (${role}) has ${allImages.length} images`);
+                
+                if (allImages.length > 0) {
+                  allImages.forEach((img, imgIdx) => {
+                    try {
+                      const imgSrc = resolveImgSrc(img);
+                      if (imgSrc) {
+                        console.log(`[ChatGPT PDF] Adding image ${imgIdx + 1}:`, imgSrc);
+                        content += `<img src="${imgSrc}" style="max-width: 100%; height: auto; margin: 8px 0;" />`;
+                      }
+                    } catch(imgErr) {
+                      console.warn('[ChatGPT PDF] Error processing image:', imgErr);
+                    }
+                  });
+                }
+                
+                // Only add if we have meaningful content
+                if (content.trim() && content.length > 10) {
+                  conversationBlocks.push({ type: role, content: content, index: idx });
+                  console.log(`[ChatGPT PDF] Added ${role} message ${idx + 1} with ${content.length} chars`);
+                }
+                
+              } catch(err) {
+                console.warn('[ChatGPT PDF] Error processing message:', err);
               }
-              
-              // Get the main content - try multiple selectors
-              let contentEl = message;
-              if (message.querySelector) {
-                contentEl = message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div, div[tabindex="-1"]') || message;
-              }
-              
-              // Get HTML content
-              content = contentEl.innerHTML || contentEl.textContent || '';
-              
-              // If no content found, try the entire message
-              if (!content.trim()) {
-                content = message.innerHTML || message.textContent || '';
-              }
-              
-              // Capture all images in the message
-              const allImages = message.querySelectorAll('img');
-              if (allImages.length > 0) {
-                allImages.forEach(img => {
-                  const imgSrc = resolveImgSrc(img);
-                  if (imgSrc) {
-                    content += `<img src="${imgSrc}" style="max-width: 100%; height: auto; margin: 8px 0;" />`;
+            });
+            
+          } else {
+            // Strategy 2: Fallback to article elements
+            console.log('[ChatGPT PDF] No data-message-id found, trying article elements');
+            messages = Array.from(document.querySelectorAll('article, [data-message-author-role]'));
+            
+            if (messages.length > 0) {
+              messages.forEach((message, idx) => {
+                let role = 'assistant';
+                let content = '';
+                
+                try {
+                  // Determine role
+                  if (message.querySelector('[data-message-author-role="user"]')) {
+                    role = 'user';
+                  } else if (message.classList && (message.classList.contains('markdown') || message.classList.contains('prose'))) {
+                    role = 'assistant';
                   }
-                });
-              }
-              
-              // Only add if we have meaningful content
-              if (content.trim() && content.length > 10) {
-                conversationBlocks.push({ type: role, content: content, index: idx });
-              }
-              
-            } catch(_) {}
-          });
+                  
+                  // Get content
+                  const contentEl = message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || message;
+                  content = contentEl.innerHTML || contentEl.textContent || '';
+                  
+                  // Capture images
+                  const allImages = message.querySelectorAll('img');
+                  if (allImages.length > 0) {
+                    allImages.forEach(img => {
+                      const imgSrc = resolveImgSrc(img);
+                      if (imgSrc) {
+                        content += `<img src="${imgSrc}" style="max-width: 100%; height: auto; margin: 8px 0;" />`;
+                      }
+                    });
+                  }
+                  
+                  if (content.trim() && content.length > 10) {
+                    conversationBlocks.push({ type: role, content: content, index: idx });
+                  }
+                  
+                } catch(_) {}
+              });
+            }
+          }
+          
+          // Strategy 3: If still no content, try broader selectors
+          if (conversationBlocks.length === 0) {
+            console.log('[ChatGPT PDF] No content found with standard selectors, trying broader approach');
+            
+            // Look for any content containers
+            const allContent = Array.from(document.querySelectorAll('.markdown, .prose, [role="article"], .message, .response'));
+            allContent.forEach((el, idx) => {
+              try {
+                let content = el.innerHTML || el.textContent || '';
+                let role = 'assistant';
+                
+                // Try to determine role from context
+                if (el.closest('[data-message-author-role="user"]')) {
+                  role = 'user';
+                }
+                
+                // Capture images
+                const images = el.querySelectorAll('img');
+                if (images.length > 0) {
+                  images.forEach(img => {
+                    const imgSrc = resolveImgSrc(img);
+                    if (imgSrc) {
+                      content += `<img src="${imgSrc}" style="max-width: 100%; height: auto; margin: 8px 0;" />`;
+                    }
+                  });
+                }
+                
+                if (content.trim() && content.length > 10) {
+                  conversationBlocks.push({ type: role, content: content, index: idx });
+                }
+              } catch(_) {}
+            });
+          }
+          
+          console.log('[ChatGPT PDF] Total conversation blocks found:', conversationBlocks.length);
           
           // Write blocks in conversation order
           conversationBlocks.forEach(block => {
