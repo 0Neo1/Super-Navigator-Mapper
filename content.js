@@ -1216,12 +1216,16 @@ const createZeroEkaIconButton = () => {
               if (el.className && /zeroeka/i.test(el.className)) el.remove();
             });
             
-            // Remove large icons and logos that clutter the PDF
-            wrapper.querySelectorAll('img[src*="gemini"], img[src*="chatgpt"], img[src*="openai"], img[src*="logo"], svg[class*="icon"], svg[class*="logo"]').forEach(el => {
-              const rect = el.getBoundingClientRect();
-              if (rect.width > 100 || rect.height > 100) {
-                el.remove();
-              }
+            // Remove obvious UI logos/icons (avoid removing actual content images)
+            wrapper.querySelectorAll('header img, header svg, [class*="logo"], [id*="logo"], [class*="brand"], [class*="icon"]').forEach(el => {
+              try {
+                // Keep if inside typical message containers
+                if (el.closest('.markdown, .prose, .query-text, .model-response-text')) return;
+                // Remove only if it looks like a stand-alone branding asset
+                const rect = el.getBoundingClientRect();
+                const looksLikeLogo = (rect.width >= 48 && rect.height >= 48) || /logo|brand/i.test(el.getAttribute('alt') || '') || /logo|brand/i.test(el.className || '');
+                if (looksLikeLogo) el.remove();
+              } catch(_) {}
             });
             
             // Clean up empty paragraphs and divs
@@ -1273,64 +1277,102 @@ const createZeroEkaIconButton = () => {
         let index = 0;
 
         if (IS_GEMINI) {
-          // Gemini: Comprehensive conversation extraction capturing all content
+          // Gemini: Clean conversation extraction maintaining order
           const conversationBlocks = [];
           
-          // Find all conversation elements in order
-          const allElements = Array.from(document.querySelectorAll('user-query-content, .model-response-text, [data-message-author-role]'));
-          
-          allElements.forEach((element, idx) => {
-            let content = '';
-            let role = 'assistant';
-            
+          // Find all user query containers
+          const userQueries = Array.from(document.querySelectorAll('user-query-content'));
+          userQueries.forEach((userQuery, idx) => {
+            // Extract user prompt with images
+            let userContent = '';
             try {
-              if (element.tagName && element.tagName.toLowerCase() === 'user-query-content') {
-                // User input - capture everything including images and text
-                role = 'user';
+              // Get the query text
+              const queryText = userQuery.querySelector('.query-text');
+              if (queryText) {
+                userContent = queryText.innerHTML || queryText.textContent || '';
+              }
+              
+              // Get any images in the user query
+              const userImages = userQuery.querySelectorAll('img');
+              if (userImages.length > 0) {
+                userImages.forEach(img => {
+                  const imgSrc = resolveImgSrc(img);
+                  if (imgSrc) {
+                    userContent += `<img src="${imgSrc}" style="max-width: 100%; height: auto; margin: 8px 0;" />`;
+                  }
+                });
+              }
+            } catch(_) {}
+            
+            if (userContent.trim()) {
+              conversationBlocks.push({ type: 'user', content: userContent, index: idx });
+            }
+            
+            // Find the corresponding assistant response
+            let nextUserQuery = userQueries[idx + 1];
+            let responseEnd = nextUserQuery ? nextUserQuery : document.body;
+            
+            // Look for model response between this user query and the next
+            const responses = [];
+            let current = userQuery.nextElementSibling;
+            while (current && current !== responseEnd) {
+              if (current.classList && current.classList.contains('model-response-text')) {
+                let responseContent = '';
+                try {
+                  responseContent = current.innerHTML || current.textContent || '';
+                  
+                  // Get any images in the response
+                  const responseImages = current.querySelectorAll('img');
+                  if (responseImages.length > 0) {
+                    responseImages.forEach(img => {
+                      const imgSrc = resolveImgSrc(img);
+                      if (imgSrc) {
+                        responseContent += `<img src="${imgSrc}" style="max-width: 100%; height: auto; margin: 8px 0;" />`;
+                      }
+                    });
+                  }
+                } catch(_) {}
                 
-                // Get the main query text
-                const queryText = element.querySelector('.query-text, [data-message-author-role="user"] + div, [data-message-author-role="user"] ~ div');
-                if (queryText) {
-                  content = queryText.innerHTML || queryText.textContent || '';
-                } else {
-                  // Fallback: get all content from the user query container
-                  content = element.innerHTML || element.textContent || '';
+                if (responseContent.trim()) {
+                  responses.push(responseContent);
                 }
-                
-                // Also capture any images that might be outside the query-text
-                const allImages = element.querySelectorAll('img');
-                if (allImages.length > 0) {
-                  allImages.forEach(img => {
-                    const imgSrc = resolveImgSrc(img);
-                    if (imgSrc) {
-                      content += `<img src="${imgSrc}" style="max-width: 100%; height: auto; margin: 8px 0;" />`;
-                    }
-                  });
-                }
-                
-              } else if (element.classList && element.classList.contains('model-response-text')) {
-                // Assistant response
-                role = 'assistant';
-                content = element.innerHTML || element.textContent || '';
-                
-                // Capture any images in the response
-                const responseImages = element.querySelectorAll('img');
-                if (responseImages.length > 0) {
-                  responseImages.forEach(img => {
-                    const imgSrc = resolveImgSrc(img);
-                    if (imgSrc) {
-                      content += `<img src="${imgSrc}" style="max-width: 100%; height: auto; margin: 8px 0;" />`;
-                    }
-                  });
-                }
-                
-              } else if (element.getAttribute && element.getAttribute('data-message-author-role')) {
-                // Alternative message format
-                role = element.getAttribute('data-message-author-role');
-                const contentEl = element.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || element;
+                break; // Only take the first response for this user query
+              }
+              current = current.nextElementSibling;
+            }
+            
+            // Add responses
+            responses.forEach(response => {
+              conversationBlocks.push({ type: 'assistant', content: response, index: idx });
+            });
+          });
+          
+          // Write blocks in conversation order (user then assistant per pair)
+          conversationBlocks
+            .sort((a, b) => a.index - b.index || (a.type === 'user' ? -1 : 1))
+            .forEach(block => {
+              writeBlock(block.type, block.content, block.index);
+            });
+          
+        } else {
+          // ChatGPT: Clean conversation extraction maintaining order
+          const conversationBlocks = [];
+          
+          // Find all message containers
+          const messages = Array.from(document.querySelectorAll('[data-message-id]'));
+          if (messages.length === 0) {
+            // Fallback to article elements
+            const articles = Array.from(document.querySelectorAll('article'));
+            articles.forEach((article, idx) => {
+              const role = article.querySelector('[data-message-author-role="user"]') ? 'user' : 'assistant';
+              let content = '';
+              
+              try {
+                // Get the main content
+                const contentEl = article.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || article;
                 content = contentEl.innerHTML || contentEl.textContent || '';
                 
-                // Capture images
+                // Get any images
                 const images = contentEl.querySelectorAll('img');
                 if (images.length > 0) {
                   images.forEach(img => {
@@ -1340,145 +1382,25 @@ const createZeroEkaIconButton = () => {
                     }
                   });
                 }
-              }
+              } catch(_) {}
               
-              // Only add if we have meaningful content
-              if (content.trim() && content.length > 10) {
+              if (content.trim()) {
                 conversationBlocks.push({ type: role, content: content, index: idx });
               }
-              
-            } catch(_) {}
-          });
-          
-          // Write blocks in conversation order
-          conversationBlocks.forEach(block => {
-            writeBlock(block.type, block.content, block.index);
-          });
-          
-        } else {
-          // ChatGPT: Comprehensive conversation extraction capturing all content including generated images
-          const conversationBlocks = [];
-          
-          // Strategy 1: Use data-message-id approach (most reliable)
-          let messages = Array.from(document.querySelectorAll('[data-message-id]'));
-          
-          if (messages.length > 0) {
-            console.log('[ChatGPT PDF] Found', messages.length, 'messages with data-message-id');
-            
+            });
+          } else {
+            // Use data-message-id approach
             messages.forEach((message, idx) => {
-              let role = 'assistant';
+              const role = message.getAttribute('data-message-author-role') || 'assistant';
               let content = '';
               
               try {
-                // Determine role from attribute
-                if (message.getAttribute('data-message-author-role')) {
-                  role = message.getAttribute('data-message-author-role');
-                }
-                
-                // Get the main content - try multiple selectors for comprehensive capture
-                let contentEl = message;
-                const markdownEl = message.querySelector('.markdown, .prose');
-                if (markdownEl) {
-                  contentEl = markdownEl;
-                }
-                
-                // Get HTML content first
+                // Get the main content
+                const contentEl = message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || message;
                 content = contentEl.innerHTML || contentEl.textContent || '';
                 
-                // If no content found, try the entire message
-                if (!content.trim()) {
-                  content = message.innerHTML || message.textContent || '';
-                }
-                
-                // CRITICAL: Capture ALL images in the message, including generated ones
-                const allImages = message.querySelectorAll('img');
-                console.log(`[ChatGPT PDF] Message ${idx + 1} (${role}) has ${allImages.length} images`);
-                
-                if (allImages.length > 0) {
-                  allImages.forEach((img, imgIdx) => {
-                    try {
-                      const imgSrc = resolveImgSrc(img);
-                      if (imgSrc) {
-                        console.log(`[ChatGPT PDF] Adding image ${imgIdx + 1}:`, imgSrc);
-                        content += `<img src="${imgSrc}" style="max-width: 100%; height: auto; margin: 8px 0;" />`;
-                      }
-                    } catch(imgErr) {
-                      console.warn('[ChatGPT PDF] Error processing image:', imgErr);
-                    }
-                  });
-                }
-                
-                // Only add if we have meaningful content
-                if (content.trim() && content.length > 10) {
-                  conversationBlocks.push({ type: role, content: content, index: idx });
-                  console.log(`[ChatGPT PDF] Added ${role} message ${idx + 1} with ${content.length} chars`);
-                }
-                
-              } catch(err) {
-                console.warn('[ChatGPT PDF] Error processing message:', err);
-              }
-            });
-            
-          } else {
-            // Strategy 2: Fallback to article elements
-            console.log('[ChatGPT PDF] No data-message-id found, trying article elements');
-            messages = Array.from(document.querySelectorAll('article, [data-message-author-role]'));
-            
-            if (messages.length > 0) {
-              messages.forEach((message, idx) => {
-                let role = 'assistant';
-                let content = '';
-                
-                try {
-                  // Determine role
-                  if (message.querySelector('[data-message-author-role="user"]')) {
-                    role = 'user';
-                  } else if (message.classList && (message.classList.contains('markdown') || message.classList.contains('prose'))) {
-                    role = 'assistant';
-                  }
-                  
-                  // Get content
-                  const contentEl = message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || message;
-                  content = contentEl.innerHTML || contentEl.textContent || '';
-                  
-                  // Capture images
-                  const allImages = message.querySelectorAll('img');
-                  if (allImages.length > 0) {
-                    allImages.forEach(img => {
-                      const imgSrc = resolveImgSrc(img);
-                      if (imgSrc) {
-                        content += `<img src="${imgSrc}" style="max-width: 100%; height: auto; margin: 8px 0;" />`;
-                      }
-                    });
-                  }
-                  
-                  if (content.trim() && content.length > 10) {
-                    conversationBlocks.push({ type: role, content: content, index: idx });
-                  }
-                  
-                } catch(_) {}
-              });
-            }
-          }
-          
-          // Strategy 3: If still no content, try broader selectors
-          if (conversationBlocks.length === 0) {
-            console.log('[ChatGPT PDF] No content found with standard selectors, trying broader approach');
-            
-            // Look for any content containers
-            const allContent = Array.from(document.querySelectorAll('.markdown, .prose, [role="article"], .message, .response'));
-            allContent.forEach((el, idx) => {
-              try {
-                let content = el.innerHTML || el.textContent || '';
-                let role = 'assistant';
-                
-                // Try to determine role from context
-                if (el.closest('[data-message-author-role="user"]')) {
-                  role = 'user';
-                }
-                
-                // Capture images
-                const images = el.querySelectorAll('img');
+                // Get any images
+                const images = contentEl.querySelectorAll('img');
                 if (images.length > 0) {
                   images.forEach(img => {
                     const imgSrc = resolveImgSrc(img);
@@ -1487,20 +1409,20 @@ const createZeroEkaIconButton = () => {
                     }
                   });
                 }
-                
-                if (content.trim() && content.length > 10) {
-                  conversationBlocks.push({ type: role, content: content, index: idx });
-                }
               } catch(_) {}
+              
+              if (content.trim()) {
+                conversationBlocks.push({ type: role, content: content, index: idx });
+              }
             });
           }
           
-          console.log('[ChatGPT PDF] Total conversation blocks found:', conversationBlocks.length);
-          
-          // Write blocks in conversation order
-          conversationBlocks.forEach(block => {
-            writeBlock(block.type, block.content, block.index);
-          });
+          // Write blocks in conversation order (by index as captured from DOM)
+          conversationBlocks
+            .sort((a, b) => a.index - b.index)
+            .forEach(block => {
+              writeBlock(block.type, block.content, block.index);
+            });
         }
 
         iframeDoc.write('</div></body></html>');
