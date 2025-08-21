@@ -1194,23 +1194,47 @@ const createZeroEkaIconButton = () => {
             wrapper.innerHTML = unsafeHtml || '';
             
             // Remove extension UI artifacts (stars, buttons, sidebars)
-            wrapper.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]').forEach(el => el.remove());
+            wrapper.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [id^="zeroeka-"], [class*="zeroeka-"]').forEach(el => el.remove());
             
             // Remove any contenteditable or interactive controls that may add spacing
             wrapper.querySelectorAll('button, [role="button"]').forEach(el => {
               if (el.className && /zeroeka/i.test(el.className)) el.remove();
             });
             
-            // Ensure images are properly preserved and accessible
+            // Process and fix images to ensure they work in PDF
             wrapper.querySelectorAll('img').forEach(img => {
-              // Ensure image has proper attributes for PDF
-              if (img.src && !img.alt) {
-                img.alt = 'Image';
+              try {
+                // Ensure image has proper attributes for PDF
+                if (img.src && !img.alt) {
+                  img.alt = 'Image';
+                }
+                
+                // Fix relative URLs to absolute URLs
+                if (img.src && !img.src.startsWith('http') && !img.src.startsWith('data:') && !img.src.startsWith('blob:')) {
+                  try {
+                    const absoluteUrl = new URL(img.src, window.location.href).href;
+                    img.src = absoluteUrl;
+                  } catch (e) {
+                    console.warn('Could not resolve image URL:', img.src, e);
+                  }
+                }
+                
+                // Remove any inline styles that might interfere with PDF rendering
+                img.removeAttribute('style');
+                
+                // Ensure image is visible and properly sized for PDF
+                img.style.cssText = 'max-width: 100%; height: auto; display: block; margin: 8px 0; border: 1px solid #ddd;';
+                
+                // Add loading attribute to ensure proper loading
+                img.loading = 'eager';
+                
+                // Ensure image is not lazy loaded
+                img.removeAttribute('loading');
+                img.removeAttribute('lazy');
+                
+              } catch (e) {
+                console.warn('Error processing image for PDF:', e);
               }
-              // Remove any inline styles that might interfere with PDF rendering
-              img.removeAttribute('style');
-              // Ensure image is visible and properly sized
-              img.style.cssText = 'max-width: 100%; height: auto; display: block; margin: 8px 0;';
             });
             
             return wrapper.innerHTML;
@@ -1221,6 +1245,13 @@ const createZeroEkaIconButton = () => {
 
         const writeBlock = (role, html, index) => {
           const safeHtml = sanitizeForPdf(html);
+          
+          // Debug logging for image detection
+          const hasImages = safeHtml.includes('<img');
+          if (hasImages) {
+            console.log(`[PDF Export] ${role} message ${index + 1} contains images:`, safeHtml.match(/<img[^>]+>/g));
+          }
+          
           iframeDoc.write(`
             <div class="message-block">
               <div class="role-label">${role === 'user' ? 'USER PROMPT' : 'OUTPUT'}</div>
@@ -1359,9 +1390,52 @@ const createZeroEkaIconButton = () => {
           }, 5000);
         };
 
-        // Wait for iframe load then trigger print; keep a single fallback
-        iframe.onload = () => setTimeout(finalizeOnce, 50);
-        setTimeout(() => { finalizeOnce(); }, 1500);
+        // Wait for iframe load and ensure images are loaded before printing
+        iframe.onload = () => {
+          // Wait a bit more for images to load
+          setTimeout(() => {
+            // Check if there are images and wait for them to load
+            const images = iframeDoc.querySelectorAll('img');
+            if (images.length > 0) {
+              let loadedImages = 0;
+              const totalImages = images.length;
+              
+              const checkImageLoad = () => {
+                loadedImages++;
+                if (loadedImages >= totalImages) {
+                  // All images loaded, proceed with print
+                  setTimeout(finalizeOnce, 100);
+                }
+              };
+              
+              images.forEach(img => {
+                if (img.complete) {
+                  checkImageLoad();
+                } else {
+                  img.onload = checkImageLoad;
+                  img.onerror = checkImageLoad; // Continue even if some images fail
+                }
+              });
+              
+              // Fallback: if images take too long, proceed anyway
+              setTimeout(() => {
+                if (!hasPrinted) {
+                  finalizeOnce();
+                }
+              }, 3000);
+            } else {
+              // No images, proceed immediately
+              setTimeout(finalizeOnce, 100);
+            }
+          }, 200);
+        };
+        
+        // Fallback timeout
+        setTimeout(() => { 
+          if (!hasPrinted) {
+            finalizeOnce(); 
+          }
+        }, 5000);
       } catch (error) {
         console.error('Error during PDF export:', error);
         alert('Error creating PDF export. Please try again.');
