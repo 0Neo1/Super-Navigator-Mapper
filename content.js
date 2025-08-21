@@ -1187,6 +1187,7 @@ const createZeroEkaIconButton = () => {
             <div class="ze-content">
         `);
 
+        // Resolve lazy-loaded images and srcsets to concrete src so they print
         const resolveImgSrc = (imgEl) => {
           try {
             const direct = imgEl.getAttribute('src') || imgEl.currentSrc;
@@ -1215,13 +1216,12 @@ const createZeroEkaIconButton = () => {
             // Normalize images so they render in the print iframe
             wrapper.querySelectorAll('img').forEach(img => {
               try {
-                // Prefer explicit src
-                let srcVal = resolveImgSrc(img);
+                const srcVal = resolveImgSrc(img);
                 if (srcVal && (!img.getAttribute('src') || img.getAttribute('src') !== srcVal)) {
                   img.setAttribute('src', srcVal);
                 }
-                // Remove lazy attrs that could block printing
                 img.removeAttribute('loading');
+                img.removeAttribute('decoding');
                 img.style.maxWidth = '100%';
                 img.style.height = 'auto';
               } catch(_) {}
@@ -1245,7 +1245,7 @@ const createZeroEkaIconButton = () => {
         let index = 0;
 
         if (IS_GEMINI) {
-          // Gemini: capture user blocks along with any adjacent attachments by using a Range until the next marker
+          // Gemini: capture user blocks with any adjacent attachments by using a Range until the next response
           const markers = Array.from(document.querySelectorAll('user-query-content, .model-response-text'));
           markers.forEach((node, i) => {
             const isUser = node.tagName && node.tagName.toLowerCase() === 'user-query-content';
@@ -1276,7 +1276,7 @@ const createZeroEkaIconButton = () => {
           messages.forEach((message) => {
             const role = message.getAttribute && message.getAttribute('data-message-author-role') ||
               (message.querySelector('[data-message-author-role="user"]') ? 'user' : (message.querySelector('.markdown, .prose') ? 'assistant' : 'assistant'));
-            // For ChatGPT include the entire message block to ensure images/attachments are included
+            // Include the entire message block to ensure images/attachments are included
             const contentEl = message;
             // Remove resident ZeroEka star from cloned content to avoid overlap in PDF
             Array.from(message.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star')).forEach(el => { try { el.remove(); } catch(_){} });
@@ -1329,7 +1329,7 @@ const createZeroEkaIconButton = () => {
           }, 5000);
         };
 
-        // Wait for iframe load and images to finish before printing
+        // Wait for iframe load and images to be ready, then print
         const waitForImages = async (doc, timeoutMs = 8000) => {
           try {
             const imgs = Array.from((doc && doc.images) || []);
