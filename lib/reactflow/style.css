@@ -243,15 +243,20 @@
       box-shadow: 0 1px 4px 1px rgba(0, 0, 0, 0.08);
     }
 .react-flow__node-default.selectable.selected,
-    .react-flow__node-default.selectable:focus,
-    .react-flow__node-default.selectable:focus-visible,
     .react-flow__node-input.selectable.selected,
+    .react-flow__node-output.selectable.selected,
+    .react-flow__node-group.selectable.selected {
+      background-color: #10a37f !important;
+      color: white !important;
+      box-shadow: 0 0 0 2px #0e8a6f;
+    }
+    
+.react-flow__node-default.selectable:focus,
+    .react-flow__node-default.selectable:focus-visible,
     .react-flow__node-input.selectable:focus,
     .react-flow__node-input.selectable:focus-visible,
-    .react-flow__node-output.selectable.selected,
     .react-flow__node-output.selectable:focus,
     .react-flow__node-output.selectable:focus-visible,
-    .react-flow__node-group.selectable.selected,
     .react-flow__node-group.selectable:focus,
     .react-flow__node-group.selectable:focus-visible {
       box-shadow: 0 0 0 0.5px #1a192b;

@@ -82,7 +82,7 @@ jmnode:hover {
     color: #333;
 }
 jmnode.selected {
-    background-color: #11f;
+    background-color: #10a37f;
     color: #fff;
     box-shadow: 2px 2px 8px #000;
 }
@@ -117,7 +117,7 @@ jmnodes.theme-primary jmnode:hover {
     border-color: #285e8e;
 }
 jmnodes.theme-primary jmnode.selected {
-    background-color: #f1c40f;
+    background-color: #10a37f;
     color: #fff;
 }
 jmnodes.theme-primary jmnode.root {
@@ -138,7 +138,7 @@ jmnodes.theme-warning jmnode:hover {
     border-color: #d58512;
 }
 jmnodes.theme-warning jmnode.selected {
-    background-color: #11f;
+    background-color: #10a37f;
     color: #fff;
 }
 jmnodes.theme-warning jmnode.root {
@@ -159,7 +159,7 @@ jmnodes.theme-danger jmnode:hover {
     border-color: #ac2925;
 }
 jmnodes.theme-danger jmnode.selected {
-    background-color: #11f;
+    background-color: #10a37f;
     color: #fff;
 }
 jmnodes.theme-danger jmnode.root {
@@ -180,7 +180,7 @@ jmnodes.theme-success jmnode:hover {
     border-color: #398439;
 }
 jmnodes.theme-success jmnode.selected {
-    background-color: #11f;
+    background-color: #10a37f;
     color: #fff;
 }
 jmnodes.theme-success jmnode.root {
@@ -201,7 +201,7 @@ jmnodes.theme-info jmnode:hover {
     border-color: #269abc;
 }
 jmnodes.theme-info jmnode.selected {
-    background-color: #11f;
+    background-color: #10a37f;
     color: #fff;
 }
 jmnodes.theme-info jmnode.root {
@@ -220,7 +220,7 @@ jmnodes.theme-greensea jmnode:hover {
     background-color: #16a085;
 }
 jmnodes.theme-greensea jmnode.selected {
-    background-color: #11f;
+    background-color: #10a37f;
     color: #fff;
 }
 jmnodes.theme-greensea jmnode.root {
@@ -239,7 +239,7 @@ jmnodes.theme-nephrite jmnode:hover {
     background-color: #27ae60;
 }
 jmnodes.theme-nephrite jmnode.selected {
-    background-color: #11f;
+    background-color: #10a37f;
     color: #fff;
 }
 jmnodes.theme-nephrite jmnode.root {
@@ -258,7 +258,7 @@ jmnodes.theme-belizehole jmnode:hover {
     background-color: #2980b9;
 }
 jmnodes.theme-belizehole jmnode.selected {
-    background-color: #11f;
+    background-color: #10a37f;
     color: #fff;
 }
 jmnodes.theme-belizehole jmnode.root {
@@ -277,7 +277,7 @@ jmnodes.theme-wisteria jmnode:hover {
     background-color: #8e44ad;
 }
 jmnodes.theme-wisteria jmnode.selected {
-    background-color: #11f;
+    background-color: #10a37f;
     color: #fff;
 }
 jmnodes.theme-wisteria jmnode.root {
@@ -296,7 +296,7 @@ jmnodes.theme-asphalt jmnode:hover {
     background-color: #2c3e50;
 }
 jmnodes.theme-asphalt jmnode.selected {
-    background-color: #11f;
+    background-color: #10a37f;
     color: #fff;
 }
 jmnodes.theme-asphalt jmnode.root {
@@ -315,7 +315,7 @@ jmnodes.theme-orange jmnode:hover {
     background-color: #f39c12;
 }
 jmnodes.theme-orange jmnode.selected {
-    background-color: #11f;
+    background-color: #10a37f;
     color: #fff;
 }
 jmnodes.theme-orange jmnode.root {
@@ -334,7 +334,7 @@ jmnodes.theme-pumpkin jmnode:hover {
     background-color: #d35400;
 }
 jmnodes.theme-pumpkin jmnode.selected {
-    background-color: #11f;
+    background-color: #10a37f;
     color: #fff;
 }
 jmnodes.theme-pumpkin jmnode.root {
@@ -353,7 +353,7 @@ jmnodes.theme-pomegranate jmnode:hover {
     background-color: #c0392b;
 }
 jmnodes.theme-pomegranate jmnode.selected {
-    background-color: #11f;
+    background-color: #10a37f;
     color: #fff;
 }
 jmnodes.theme-pomegranate jmnode.root {
@@ -372,7 +372,7 @@ jmnodes.theme-clouds jmnode:hover {
     background-color: #bdc3c7;
 }
 jmnodes.theme-clouds jmnode.selected {
-    background-color: #11f;
+    background-color: #10a37f;
     color: #fff;
 }
 jmnodes.theme-clouds jmnode.root {
@@ -391,7 +391,7 @@ jmnodes.theme-asbestos jmnode:hover {
     background-color: #7f8c8d;
 }
 jmnodes.theme-asbestos jmnode.selected {
-    background-color: #11f;
+    background-color: #10a37f;
     color: #fff;
 }
 jmnodes.theme-asbestos jmnode.root {

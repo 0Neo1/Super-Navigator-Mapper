@@ -1163,12 +1163,11 @@ const createZeroEkaIconButton = () => {
               .ze-watermark img { max-width: 80%; max-height: 80%; object-fit: contain; }
               .ze-content { position: relative; z-index: 1; }
               .message-block { margin: 0 0 8px; }
-              .role-label { font-weight: 800; color: #222; font-size: 24px; margin: 0 0 3px; text-transform: uppercase; }
+              .role-label { font-weight: 700; color: #222; font-size: 12px; margin: 0 0 3px; }
               .message-content { white-space: normal; overflow-wrap: anywhere; }
               pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
               pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
-              img, svg, canvas, video { max-width: 100%; height: auto; display: block; margin: 8px 0; }
-              img { page-break-inside: avoid; break-inside: avoid; }
+              img, svg, canvas, video { max-width: 100%; height: auto; }
               table { border-collapse: collapse; }
               table, th, td { border: 1px solid #ddd; }
               th, td { padding: 6px 8px; }
@@ -1192,51 +1191,12 @@ const createZeroEkaIconButton = () => {
           try {
             const wrapper = (iframeDoc || document).createElement('div');
             wrapper.innerHTML = unsafeHtml || '';
-            
             // Remove extension UI artifacts (stars, buttons, sidebars)
-            wrapper.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [id^="zeroeka-"], [class*="zeroeka-"]').forEach(el => el.remove());
-            
+            wrapper.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]').forEach(el => el.remove());
             // Remove any contenteditable or interactive controls that may add spacing
             wrapper.querySelectorAll('button, [role="button"]').forEach(el => {
               if (el.className && /zeroeka/i.test(el.className)) el.remove();
             });
-            
-            // Process and fix images to ensure they work in PDF
-            wrapper.querySelectorAll('img').forEach(img => {
-              try {
-                // Ensure image has proper attributes for PDF
-                if (img.src && !img.alt) {
-                  img.alt = 'Image';
-                }
-                
-                // Fix relative URLs to absolute URLs
-                if (img.src && !img.src.startsWith('http') && !img.src.startsWith('data:') && !img.src.startsWith('blob:')) {
-                  try {
-                    const absoluteUrl = new URL(img.src, window.location.href).href;
-                    img.src = absoluteUrl;
-                  } catch (e) {
-                    console.warn('Could not resolve image URL:', img.src, e);
-                  }
-                }
-                
-                // Remove any inline styles that might interfere with PDF rendering
-                img.removeAttribute('style');
-                
-                // Ensure image is visible and properly sized for PDF
-                img.style.cssText = 'max-width: 100%; height: auto; display: block; margin: 8px 0; border: 1px solid #ddd;';
-                
-                // Add loading attribute to ensure proper loading
-                img.loading = 'eager';
-                
-                // Ensure image is not lazy loaded
-                img.removeAttribute('loading');
-                img.removeAttribute('lazy');
-                
-              } catch (e) {
-                console.warn('Error processing image for PDF:', e);
-              }
-            });
-            
             return wrapper.innerHTML;
           } catch (_) {
             return unsafeHtml || '';
@@ -1245,16 +1205,9 @@ const createZeroEkaIconButton = () => {
 
         const writeBlock = (role, html, index) => {
           const safeHtml = sanitizeForPdf(html);
-          
-          // Debug logging for image detection
-          const hasImages = safeHtml.includes('<img');
-          if (hasImages) {
-            console.log(`[PDF Export] ${role} message ${index + 1} contains images:`, safeHtml.match(/<img[^>]+>/g));
-          }
-          
           iframeDoc.write(`
             <div class="message-block">
-              <div class="role-label">${role === 'user' ? 'USER PROMPT' : 'OUTPUT'}</div>
+              <div class="role-label">${role === 'user' ? 'User prompt' : 'Output'}</div>
               <div class="message-content">${safeHtml}</div>
             </div>
           `);
@@ -1267,30 +1220,8 @@ const createZeroEkaIconButton = () => {
           const nodes = Array.from(document.querySelectorAll('user-query-content .query-text, .model-response-text'));
           nodes.forEach((node) => {
             const isUser = node.matches('user-query-content .query-text');
-            
-            // Enhanced content extraction to preserve images and formatting
-            let html = '';
-            try {
-              // First try to get the full HTML content
-              html = node.innerHTML || '';
-              
-              // If no HTML content, try to get the parent container that might have images
-              if (!html || html.trim() === '') {
-                const parentContainer = node.closest('[data-message-author], .message-container, .chat-message') || node.parentElement;
-                if (parentContainer && parentContainer !== node) {
-                  html = parentContainer.innerHTML || '';
-                }
-              }
-              
-              // Fallback to text content if still no HTML
-              if (!html || html.trim() === '') {
-                html = (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
-              }
-            } catch (e) {
-              console.warn('Error extracting Gemini content:', e);
-              html = (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
-            }
-            
+            // Prefer HTML content, fallback to text
+            const html = node.innerHTML || (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
             writeBlock(isUser ? 'user' : 'assistant', html, index++);
           });
         } else {
@@ -1302,46 +1233,10 @@ const createZeroEkaIconButton = () => {
           messages.forEach((message) => {
             const role = message.getAttribute && message.getAttribute('data-message-author-role') ||
               (message.querySelector('[data-message-author-role="user"]') ? 'user' : (message.querySelector('.markdown, .prose') ? 'assistant' : 'assistant'));
-            
-            // Enhanced content extraction to preserve images and formatting
-            let contentEl = message.querySelector && (message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || message.querySelector('div[tabindex="-1"], [data-message-author-role]')) || message;
-            
-            // If no specific content element found, try to get the full message content
-            if (!contentEl || contentEl === message) {
-              // Look for any content container within the message
-              const contentContainer = message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div, div[tabindex="-1"]');
-              if (contentContainer) {
-                contentEl = contentContainer;
-              }
-            }
-            
+            const contentEl = message.querySelector && (message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || message.querySelector('div[tabindex="-1"], [data-message-author-role]')) || message;
             // Remove resident ZeroEka star from cloned content to avoid overlap in PDF
             Array.from(message.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star')).forEach(el => { try { el.remove(); } catch(_){} });
-            
-            // Get HTML content with fallbacks
-            let html = '';
-            try {
-              if (contentEl && contentEl.innerHTML) {
-                html = contentEl.innerHTML;
-              } else if (message.innerHTML) {
-                html = message.innerHTML;
-              } else {
-                html = (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
-              }
-              
-              // Ensure we're getting the full content including images
-              if (html && !html.includes('<img') && message.querySelector('img')) {
-                // If HTML doesn't contain images but message does, try to get the full message HTML
-                const fullMessageHtml = message.outerHTML || message.innerHTML || '';
-                if (fullMessageHtml.includes('<img')) {
-                  html = fullMessageHtml;
-                }
-              }
-            } catch (e) {
-              console.warn('Error extracting ChatGPT content:', e);
-              html = (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
-            }
-            
+            const html = (contentEl && contentEl.innerHTML) || (message.innerHTML) || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
             writeBlock(role === 'user' ? 'user' : 'assistant', html, index++);
           });
         }
@@ -1390,52 +1285,9 @@ const createZeroEkaIconButton = () => {
           }, 5000);
         };
 
-        // Wait for iframe load and ensure images are loaded before printing
-        iframe.onload = () => {
-          // Wait a bit more for images to load
-          setTimeout(() => {
-            // Check if there are images and wait for them to load
-            const images = iframeDoc.querySelectorAll('img');
-            if (images.length > 0) {
-              let loadedImages = 0;
-              const totalImages = images.length;
-              
-              const checkImageLoad = () => {
-                loadedImages++;
-                if (loadedImages >= totalImages) {
-                  // All images loaded, proceed with print
-                  setTimeout(finalizeOnce, 100);
-                }
-              };
-              
-              images.forEach(img => {
-                if (img.complete) {
-                  checkImageLoad();
-                } else {
-                  img.onload = checkImageLoad;
-                  img.onerror = checkImageLoad; // Continue even if some images fail
-                }
-              });
-              
-              // Fallback: if images take too long, proceed anyway
-              setTimeout(() => {
-                if (!hasPrinted) {
-                  finalizeOnce();
-                }
-              }, 3000);
-            } else {
-              // No images, proceed immediately
-              setTimeout(finalizeOnce, 100);
-            }
-          }, 200);
-        };
-        
-        // Fallback timeout
-        setTimeout(() => { 
-          if (!hasPrinted) {
-            finalizeOnce(); 
-          }
-        }, 5000);
+        // Wait for iframe load then trigger print; keep a single fallback
+        iframe.onload = () => setTimeout(finalizeOnce, 50);
+        setTimeout(() => { finalizeOnce(); }, 1500);
       } catch (error) {
         console.error('Error during PDF export:', error);
         alert('Error creating PDF export. Please try again.');
