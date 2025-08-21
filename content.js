@@ -1237,17 +1237,11 @@ const createZeroEkaIconButton = () => {
         let index = 0;
 
         if (IS_GEMINI) {
-          // Gemini: capture full user block (including uploaded images) and assistant blocks
-          const nodes = Array.from(document.querySelectorAll('user-query-content .query-text, .model-response-text'));
+          // Gemini: capture ALL user blocks (including images) and assistant responses
+          const nodes = Array.from(document.querySelectorAll('user-query-content, .model-response-text'));
           nodes.forEach((node) => {
-            const isUser = node.matches('user-query-content .query-text');
-            let html = '';
-            if (isUser) {
-              const container = node.closest('user-query-content') || node.parentElement || node;
-              html = (container && container.innerHTML) || node.innerHTML || (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
-            } else {
-              html = node.innerHTML || (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
-            }
+            const isUser = node.tagName && node.tagName.toLowerCase() === 'user-query-content';
+            const html = node.innerHTML || (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
             writeBlock(isUser ? 'user' : 'assistant', html, index++);
           });
         } else {
@@ -1312,9 +1306,31 @@ const createZeroEkaIconButton = () => {
           }, 5000);
         };
 
-        // Wait for iframe load then trigger print; keep a single fallback
-        iframe.onload = () => setTimeout(finalizeOnce, 50);
-        setTimeout(() => { finalizeOnce(); }, 1500);
+        // Wait for iframe load and images to finish before printing
+        const waitForImages = async (doc, timeoutMs = 8000) => {
+          try {
+            const imgs = Array.from(doc.images || []);
+            if (!imgs.length) return;
+            await Promise.race([
+              Promise.all(imgs.map(img => new Promise(resolve => {
+                try {
+                  img.loading = 'eager';
+                  img.decoding = 'sync';
+                } catch(_) {}
+                if (img.complete) return resolve();
+                img.addEventListener('load', () => resolve(), { once: true });
+                img.addEventListener('error', () => resolve(), { once: true });
+              })) ,
+              new Promise(res => setTimeout(res, timeoutMs))
+            ]);
+          } catch(_) {}
+        };
+
+        iframe.onload = async () => {
+          try { await waitForImages(iframe.contentDocument || iframeDoc); } catch(_) {}
+          setTimeout(finalizeOnce, 50);
+        };
+        setTimeout(() => { finalizeOnce(); }, 4000);
       } catch (error) {
         console.error('Error during PDF export:', error);
         alert('Error creating PDF export. Please try again.');
