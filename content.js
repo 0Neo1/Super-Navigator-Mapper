@@ -1187,6 +1187,21 @@ const createZeroEkaIconButton = () => {
             <div class="ze-content">
         `);
 
+        const resolveImgSrc = (imgEl) => {
+          try {
+            const direct = imgEl.getAttribute('src') || imgEl.currentSrc;
+            if (direct && direct.length > 5) return direct;
+            const dataSrc = imgEl.getAttribute('data-src') || imgEl.getAttribute('data-original') || imgEl.getAttribute('data-lazy-src');
+            if (dataSrc) return dataSrc;
+            const srcset = imgEl.getAttribute('srcset') || '';
+            if (srcset) {
+              const candidates = srcset.split(',').map(s => s.trim().split(' ')[0]).filter(Boolean);
+              if (candidates.length) return candidates[candidates.length - 1];
+            }
+          } catch(_) {}
+          return '';
+        };
+
         const sanitizeForPdf = (unsafeHtml) => {
           try {
             const wrapper = (iframeDoc || document).createElement('div');
@@ -1201,16 +1216,9 @@ const createZeroEkaIconButton = () => {
             wrapper.querySelectorAll('img').forEach(img => {
               try {
                 // Prefer explicit src
-                if (!img.getAttribute('src')) {
-                  const dataSrc = img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('data-lazy-src');
-                  if (dataSrc) img.setAttribute('src', dataSrc);
-                }
-                // If srcset exists but src is tiny/empty, pick highest-resolution candidate
-                const src = img.getAttribute('src') || '';
-                const srcset = img.getAttribute('srcset') || '';
-                if ((!src || src.length < 5) && srcset) {
-                  const candidates = srcset.split(',').map(s => s.trim().split(' ')[0]).filter(Boolean);
-                  if (candidates.length) img.setAttribute('src', candidates[candidates.length - 1]);
+                let srcVal = resolveImgSrc(img);
+                if (srcVal && (!img.getAttribute('src') || img.getAttribute('src') !== srcVal)) {
+                  img.setAttribute('src', srcVal);
                 }
                 // Remove lazy attrs that could block printing
                 img.removeAttribute('loading');
@@ -1241,7 +1249,40 @@ const createZeroEkaIconButton = () => {
           const nodes = Array.from(document.querySelectorAll('user-query-content, .model-response-text'));
           nodes.forEach((node) => {
             const isUser = node.tagName && node.tagName.toLowerCase() === 'user-query-content';
-            const html = node.innerHTML || (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+            let html = '';
+            if (isUser) {
+              // Prefer shadow DOM content if present (Gemini often renders inside shadowRoot)
+              const container = node;
+              if (container && container.shadowRoot) {
+                try {
+                  const frag = document.createElement('div');
+                  // Text
+                  const textEl = container.shadowRoot.querySelector('.query-text, [data-text], .text, [role="textbox"], p, div');
+                  const text = textEl && textEl.textContent ? textEl.textContent.trim() : '';
+                  if (text) {
+                    const p = document.createElement('p');
+                    p.textContent = text;
+                    frag.appendChild(p);
+                  }
+                  // Images inside shadow
+                  const imgs = Array.from(container.shadowRoot.querySelectorAll('img'));
+                  imgs.forEach(orig => {
+                    const img = document.createElement('img');
+                    const src = resolveImgSrc(orig);
+                    if (src) img.setAttribute('src', src);
+                    img.alt = orig.alt || '';
+                    img.style.maxWidth = '100%'; img.style.height = 'auto';
+                    frag.appendChild(img);
+                  });
+                  html = frag.innerHTML;
+                } catch(_) {}
+              }
+              if (!html) {
+                html = node.innerHTML || (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+              }
+            } else {
+              html = node.innerHTML || (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+            }
             writeBlock(isUser ? 'user' : 'assistant', html, index++);
           });
         } else {
