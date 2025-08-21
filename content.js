@@ -1218,9 +1218,16 @@ const createZeroEkaIconButton = () => {
             
             // Remove large icons and logos that clutter the PDF
             wrapper.querySelectorAll('img[src*="gemini"], img[src*="chatgpt"], img[src*="openai"], img[src*="logo"], svg[class*="icon"], svg[class*="logo"]').forEach(el => {
-              const rect = el.getBoundingClientRect();
-              if (rect.width > 100 || rect.height > 100) {
-                el.remove();
+              try {
+                const rect = el.getBoundingClientRect();
+                if (rect.width > 100 || rect.height > 100) {
+                  el.remove();
+                }
+              } catch(_) {
+                // If getBoundingClientRect fails, remove large images by src pattern
+                if (el.src && (el.src.includes('logo') || el.src.includes('icon'))) {
+                  el.remove();
+                }
               }
             });
             
@@ -1248,13 +1255,39 @@ const createZeroEkaIconButton = () => {
             });
             
             // Clean up excessive whitespace and empty elements
-            const cleanHtml = wrapper.innerHTML
+            let cleanHtml = wrapper.innerHTML
               .replace(/\s+/g, ' ')
               .replace(/>\s+</g, '><')
               .replace(/\s+>/g, '>')
               .replace(/<\s+/g, '<');
             
-            return cleanHtml;
+            // Remove duplicate images that might have been added multiple times
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = cleanHtml;
+            
+            // Find and remove duplicate images with same src
+            const seenSrcs = new Set();
+            tempDiv.querySelectorAll('img').forEach(img => {
+              const src = img.src || img.getAttribute('src');
+              if (src && seenSrcs.has(src)) {
+                img.remove();
+              } else if (src) {
+                seenSrcs.add(src);
+              }
+            });
+            
+            // Remove duplicate text content blocks
+            const seenTexts = new Set();
+            tempDiv.querySelectorAll('p, div').forEach(el => {
+              const text = el.textContent?.trim();
+              if (text && text.length > 10 && seenTexts.has(text)) {
+                el.remove();
+              } else if (text && text.length > 10) {
+                seenTexts.add(text);
+              }
+            });
+            
+            return tempDiv.innerHTML;
           } catch (_) {
             return unsafeHtml || '';
           }
@@ -1288,28 +1321,18 @@ const createZeroEkaIconButton = () => {
                 userContent = queryText.innerHTML || queryText.textContent || '';
               }
               
-              // Get any images in the user query
-              const userImages = userQuery.querySelectorAll('img');
-              if (userImages.length > 0) {
-                userImages.forEach(img => {
-                  const imgSrc = resolveImgSrc(img);
-                  if (imgSrc) {
-                    userContent += `<img src="${imgSrc}" style="max-width: 100%; height: auto; margin: 8px 0;" />`;
-                  }
-                });
+              // Don't duplicate images - they're already in the HTML content
+              // Just ensure they're properly resolved
+              if (userContent.trim()) {
+                conversationBlocks.push({ type: 'user', content: userContent, index: idx });
               }
             } catch(_) {}
-            
-            if (userContent.trim()) {
-              conversationBlocks.push({ type: 'user', content: userContent, index: idx });
-            }
             
             // Find the corresponding assistant response
             let nextUserQuery = userQueries[idx + 1];
             let responseEnd = nextUserQuery ? nextUserQuery : document.body;
             
             // Look for model response between this user query and the next
-            const responses = [];
             let current = userQuery.nextElementSibling;
             while (current && current !== responseEnd) {
               if (current.classList && current.classList.contains('model-response-text')) {
@@ -1317,30 +1340,17 @@ const createZeroEkaIconButton = () => {
                 try {
                   responseContent = current.innerHTML || current.textContent || '';
                   
-                  // Get any images in the response
-                  const responseImages = current.querySelectorAll('img');
-                  if (responseImages.length > 0) {
-                    responseImages.forEach(img => {
-                      const imgSrc = resolveImgSrc(img);
-                      if (imgSrc) {
-                        responseContent += `<img src="${imgSrc}" style="max-width: 100%; height: auto; margin: 8px 0;" />`;
-                      }
-                    });
-                  }
+                  // Don't duplicate images - they're already in the HTML content
+                  // Just ensure they're properly resolved
                 } catch(_) {}
                 
                 if (responseContent.trim()) {
-                  responses.push(responseContent);
+                  conversationBlocks.push({ type: 'assistant', content: responseContent, index: idx });
                 }
                 break; // Only take the first response for this user query
               }
               current = current.nextElementSibling;
             }
-            
-            // Add responses
-            responses.forEach(response => {
-              conversationBlocks.push({ type: 'assistant', content: response, index: idx });
-            });
           });
           
           // Write blocks in conversation order
@@ -1366,16 +1376,8 @@ const createZeroEkaIconButton = () => {
                 const contentEl = article.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || article;
                 content = contentEl.innerHTML || contentEl.textContent || '';
                 
-                // Get any images
-                const images = contentEl.querySelectorAll('img');
-                if (images.length > 0) {
-                  images.forEach(img => {
-                    const imgSrc = resolveImgSrc(img);
-                    if (imgSrc) {
-                      content += `<img src="${imgSrc}" style="max-width: 100%; height: auto; margin: 8px 0;" />`;
-                    }
-                  });
-                }
+                // Don't duplicate images - they're already in the HTML content
+                // Just ensure they're properly resolved
               } catch(_) {}
               
               if (content.trim()) {
@@ -1393,16 +1395,8 @@ const createZeroEkaIconButton = () => {
                 const contentEl = message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || message;
                 content = contentEl.innerHTML || contentEl.textContent || '';
                 
-                // Get any images
-                const images = contentEl.querySelectorAll('img');
-                if (images.length > 0) {
-                  images.forEach(img => {
-                    const imgSrc = resolveImgSrc(img);
-                    if (imgSrc) {
-                      content += `<img src="${imgSrc}" style="max-width: 100%; height: auto; margin: 8px 0;" />`;
-                    }
-                  });
-                }
+                // Don't duplicate images - they're already in the HTML content
+                // Just ensure they're properly resolved
               } catch(_) {}
               
               if (content.trim()) {
