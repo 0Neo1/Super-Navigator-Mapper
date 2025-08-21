@@ -4796,6 +4796,18 @@ const updateTextSize = (container, size) => {
         createZeroEkaIconButton();
       } else {
         console.log('Contracted sidebar already exists');
+        // Enforce baseline visibility in case page CSS interferes
+        try {
+          const cs = getComputedStyle(existingSidebar);
+          if (!cs || cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) {
+            existingSidebar.style.display = 'flex';
+            existingSidebar.style.visibility = 'visible';
+            existingSidebar.style.opacity = '1';
+          }
+          existingSidebar.style.right = '0px';
+          existingSidebar.style.position = 'fixed';
+          existingSidebar.style.zIndex = '2147483646';
+        } catch(_) {}
       }
     } catch (error) {
       console.error('Error ensuring contracted sidebar:', error);
@@ -4878,11 +4890,45 @@ const updateTextSize = (container, size) => {
     if (!sidebar) {
       console.log('Sidebar disappeared, recreating...');
       createZeroEkaIconButton();
+      return;
     }
+    // If present but hidden, restore it
+    try {
+      const cs = getComputedStyle(sidebar);
+      if (!cs || cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) {
+        sidebar.style.display = 'flex';
+        sidebar.style.visibility = 'visible';
+        sidebar.style.opacity = '1';
+        sidebar.style.right = '0px';
+        sidebar.style.position = 'fixed';
+        sidebar.style.zIndex = '2147483646';
+      }
+    } catch(_) {}
   };
 
   // Monitor every 5 seconds
-  setInterval(monitorSidebar, 5000);
+  setInterval(monitorSidebar, 2000);
+
+  // Add a protective style so site CSS cannot hide the contracted sidebar
+  (function ensureSidebarGlobalStyle(){
+    if (!document.getElementById('zeroeka-contracted-sidebar-style')) {
+      const s = document.createElement('style');
+      s.id = 'zeroeka-contracted-sidebar-style';
+      s.textContent = `#zeroeka-contracted-sidebar{display:flex!important;visibility:visible!important;opacity:1!important;position:fixed!important;right:0!important;top:0!important;z-index:2147483646!important}`;
+      document.head.appendChild(s);
+    }
+  })();
+
+  // Observe DOM tree to re-create the sidebar if removed
+  try {
+    const bodyObserver = new MutationObserver(() => {
+      const el = document.getElementById('zeroeka-contracted-sidebar');
+      if (!el) {
+        createZeroEkaIconButton();
+      }
+    });
+    bodyObserver.observe(document.body, { childList: true, subtree: true });
+  } catch(_) {}
 
   // Add message listener for extension reloads
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
