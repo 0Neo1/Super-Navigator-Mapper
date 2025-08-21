@@ -1245,43 +1245,25 @@ const createZeroEkaIconButton = () => {
         let index = 0;
 
         if (IS_GEMINI) {
-          // Gemini: capture ALL user blocks (including images) and assistant responses
-          const nodes = Array.from(document.querySelectorAll('user-query-content, .model-response-text'));
-          nodes.forEach((node) => {
+          // Gemini: capture user blocks along with any adjacent attachments by using a Range until the next marker
+          const markers = Array.from(document.querySelectorAll('user-query-content, .model-response-text'));
+          markers.forEach((node, i) => {
             const isUser = node.tagName && node.tagName.toLowerCase() === 'user-query-content';
             let html = '';
             if (isUser) {
-              // Prefer shadow DOM content if present (Gemini often renders inside shadowRoot)
-              const container = node;
-              if (container && container.shadowRoot) {
-                try {
-                  const frag = document.createElement('div');
-                  // Text
-                  const textEl = container.shadowRoot.querySelector('.query-text, [data-text], .text, [role="textbox"], p, div');
-                  const text = textEl && textEl.textContent ? textEl.textContent.trim() : '';
-                  if (text) {
-                    const p = document.createElement('p');
-                    p.textContent = text;
-                    frag.appendChild(p);
-                  }
-                  // Images inside shadow
-                  const imgs = Array.from(container.shadowRoot.querySelectorAll('img'));
-                  imgs.forEach(orig => {
-                    const img = document.createElement('img');
-                    const src = resolveImgSrc(orig);
-                    if (src) img.setAttribute('src', src);
-                    img.alt = orig.alt || '';
-                    img.style.maxWidth = '100%'; img.style.height = 'auto';
-                    frag.appendChild(img);
-                  });
-                  html = frag.innerHTML;
-                } catch(_) {}
-              }
-              if (!html) {
-                html = node.innerHTML || (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
-              }
+              try {
+                const range = document.createRange();
+                range.setStartBefore(node);
+                const next = markers[i + 1];
+                if (next) range.setEndBefore(next); else range.setEndAfter(node);
+                const frag = range.cloneContents();
+                const div = document.createElement('div');
+                div.appendChild(frag);
+                html = div.innerHTML;
+              } catch(_) {}
+              if (!html) html = node.outerHTML || node.innerHTML || (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
             } else {
-              html = node.innerHTML || (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+              html = node.outerHTML || node.innerHTML || (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
             }
             writeBlock(isUser ? 'user' : 'assistant', html, index++);
           });
