@@ -1197,6 +1197,27 @@ const createZeroEkaIconButton = () => {
             wrapper.querySelectorAll('button, [role="button"]').forEach(el => {
               if (el.className && /zeroeka/i.test(el.className)) el.remove();
             });
+            // Normalize images so they render in the print iframe
+            wrapper.querySelectorAll('img').forEach(img => {
+              try {
+                // Prefer explicit src
+                if (!img.getAttribute('src')) {
+                  const dataSrc = img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('data-lazy-src');
+                  if (dataSrc) img.setAttribute('src', dataSrc);
+                }
+                // If srcset exists but src is tiny/empty, pick highest-resolution candidate
+                const src = img.getAttribute('src') || '';
+                const srcset = img.getAttribute('srcset') || '';
+                if ((!src || src.length < 5) && srcset) {
+                  const candidates = srcset.split(',').map(s => s.trim().split(' ')[0]).filter(Boolean);
+                  if (candidates.length) img.setAttribute('src', candidates[candidates.length - 1]);
+                }
+                // Remove lazy attrs that could block printing
+                img.removeAttribute('loading');
+                img.style.maxWidth = '100%';
+                img.style.height = 'auto';
+              } catch(_) {}
+            });
             return wrapper.innerHTML;
           } catch (_) {
             return unsafeHtml || '';
@@ -1216,12 +1237,17 @@ const createZeroEkaIconButton = () => {
         let index = 0;
 
         if (IS_GEMINI) {
-          // Gemini: sequence user prompts and model responses by DOM order
+          // Gemini: capture full user block (including uploaded images) and assistant blocks
           const nodes = Array.from(document.querySelectorAll('user-query-content .query-text, .model-response-text'));
           nodes.forEach((node) => {
             const isUser = node.matches('user-query-content .query-text');
-            // Prefer HTML content, fallback to text
-            const html = node.innerHTML || (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+            let html = '';
+            if (isUser) {
+              const container = node.closest('user-query-content') || node.parentElement || node;
+              html = (container && container.innerHTML) || node.innerHTML || (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+            } else {
+              html = node.innerHTML || (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+            }
             writeBlock(isUser ? 'user' : 'assistant', html, index++);
           });
         } else {
@@ -1233,7 +1259,8 @@ const createZeroEkaIconButton = () => {
           messages.forEach((message) => {
             const role = message.getAttribute && message.getAttribute('data-message-author-role') ||
               (message.querySelector('[data-message-author-role="user"]') ? 'user' : (message.querySelector('.markdown, .prose') ? 'assistant' : 'assistant'));
-            const contentEl = message.querySelector && (message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || message.querySelector('div[tabindex="-1"], [data-message-author-role]')) || message;
+            // For ChatGPT include the entire message block to ensure images/attachments are included
+            const contentEl = message;
             // Remove resident ZeroEka star from cloned content to avoid overlap in PDF
             Array.from(message.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star')).forEach(el => { try { el.remove(); } catch(_){} });
             const html = (contentEl && contentEl.innerHTML) || (message.innerHTML) || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
