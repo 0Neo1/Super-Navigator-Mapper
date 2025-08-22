@@ -1092,11 +1092,14 @@ const createZeroEkaIconButton = () => {
 
   // Add click functionality for PDF export button
   pdfExportButton.addEventListener('click', () => {
+    console.log('[PDF Export] Button clicked, starting export...');
     const exportToPDF = () => {
       try {
+        console.log('[PDF Export] exportToPDF function started');
         const IS_GEMINI = /gemini\.google\.com/.test(location.hostname) || (typeof isGemini !== 'undefined' && isGemini);
 
         // Create print iframe with proper permissions for images
+        console.log('[PDF Export] Creating iframe...');
         const iframe = document.createElement('iframe');
         iframe.style.cssText = `
           position: fixed;
@@ -1107,17 +1110,15 @@ const createZeroEkaIconButton = () => {
           border: none;
           visibility: hidden;
         `;
-        iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts allow-forms');
-        iframe.setAttribute('allow', 'fullscreen');
+        // Remove sandbox restrictions that might interfere with PDF generation
+        // iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts allow-forms');
+        // iframe.setAttribute('allow', 'fullscreen');
         document.body.appendChild(iframe);
+        console.log('[PDF Export] Iframe created and appended to body');
 
         const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
         
-        // Set base URL to ensure relative image URLs work properly
-        iframeDoc.open();
-        iframeDoc.write('<base href="' + window.location.origin + window.location.pathname + '">');
-        iframeDoc.close();
-        iframeDoc.open();
+
         
         // Prefer lowercase zeroeka_main.png with graceful fallback to legacy name
         const logoPrimary = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL)
@@ -1157,6 +1158,7 @@ const createZeroEkaIconButton = () => {
           <html>
           <head>
             <meta charset="utf-8" />
+            <base href="${window.location.origin}${window.location.pathname}" />
             <title>${htmlEscape(pdfTitle)}</title>
             <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@600;700;800&display=swap" rel="stylesheet" />
             <style>
