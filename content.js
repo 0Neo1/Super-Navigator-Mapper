@@ -1110,7 +1110,11 @@ const createZeroEkaIconButton = () => {
         document.body.appendChild(iframe);
 
         const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-        const logoSrc = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL)
+        // Prefer lowercase zeroeka_main.png with graceful fallback to legacy name
+        const logoPrimary = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL)
+          ? chrome.runtime.getURL('images/zeroeka_main.png')
+          : '';
+        const logoFallback = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL)
           ? chrome.runtime.getURL('images/ZeroEka_main.png')
           : '';
         const htmlEscape = (s) => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1157,10 +1161,10 @@ const createZeroEkaIconButton = () => {
                 background: #ffffff;
               }
               .ze-header { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 24px; }
-              .ze-header img { width: 128px; height: 128px; object-fit: contain; filter: hue-rotate(220deg) saturate(160%) brightness(85%); }
+              .ze-header img { width: 128px; height: 128px; object-fit: contain; }
               .ze-header .ze-title { font-family: 'EB Garamond', serif; font-size: 56px; font-weight: 800; letter-spacing: 0.3px; color: #0B3D91; }
               .ze-watermark { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 0; pointer-events: none; opacity: 0.06; }
-              .ze-watermark img { max-width: 80%; max-height: 80%; object-fit: contain; filter: hue-rotate(220deg) saturate(160%) brightness(85%); }
+              .ze-watermark img { max-width: 80%; max-height: 80%; object-fit: contain; }
               .ze-content { position: relative; z-index: 1; }
               .message-block { margin: 0 0 8px; }
               .role-label { font-weight: 900; color: #0B3D91; font-size: 24px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px; }
@@ -1180,10 +1184,10 @@ const createZeroEkaIconButton = () => {
           </head>
           <body>
             <div class="ze-header">
-              ${logoSrc ? `<img src="${logoSrc}" alt="ZeroEka" />` : ''}
+              ${logoPrimary ? `<img src="${logoPrimary}" onerror="this.onerror=null; this.src='${logoFallback}';" alt="ZeroEka" />` : ''}
               <span class="ze-title">ZeroEka</span>
             </div>
-            <div class="ze-watermark">${logoSrc ? `<img src="${logoSrc}" alt="ZeroEka watermark" />` : ''}</div>
+            <div class="ze-watermark">${logoPrimary ? `<img src="${logoPrimary}" onerror="this.onerror=null; this.src='${logoFallback}';" alt="ZeroEka watermark" />` : ''}</div>
             <div class="ze-content">
         `);
 
