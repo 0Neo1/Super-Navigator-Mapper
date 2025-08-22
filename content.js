@@ -1224,15 +1224,37 @@ const createZeroEkaIconButton = () => {
               if (el.className && /zeroeka/i.test(el.className)) el.remove();
             });
             
-            // ENHANCED IMAGE HANDLING - More aggressive preservation
+            // IMAGE DEDUPLICATION - Remove duplicate images to prevent multiple copies
             const images = wrapper.querySelectorAll('img');
-            console.log('[PDF Export] Found images in HTML:', images.length);
+            console.log('[PDF Export] Found images in HTML before deduplication:', images.length);
+            
+            // Track unique images by src to prevent duplicates
+            const uniqueImages = new Map();
+            const duplicateImages = [];
             
             images.forEach((img, imgIndex) => {
-              console.log(`[PDF Export] Processing image ${imgIndex}:`, img.src, img.alt);
+              const imgSrc = img.src || img.getAttribute('data-src') || img.getAttribute('data-original') || '';
+              
+              if (!imgSrc || imgSrc === '#' || imgSrc === '') {
+                console.log(`[PDF Export] Removing image ${imgIndex} with no valid src`);
+                img.remove();
+                return;
+              }
+              
+              // Check if we've already seen this image
+              if (uniqueImages.has(imgSrc)) {
+                console.log(`[PDF Export] Removing duplicate image ${imgIndex} with src:`, imgSrc);
+                duplicateImages.push(img);
+                img.remove();
+                return;
+              }
+              
+              // This is a unique image, keep it and track it
+              uniqueImages.set(imgSrc, img);
+              console.log(`[PDF Export] Keeping unique image ${imgIndex}:`, imgSrc, img.alt);
               
               // Ensure image has proper attributes for PDF rendering
-              if (img.src && !img.alt) {
+              if (!img.alt) {
                 img.alt = 'Image';
               }
               
@@ -1247,20 +1269,9 @@ const createZeroEkaIconButton = () => {
               // Re-apply our PDF-friendly styles
               img.style.cssText = 'max-width: 100%; height: auto; display: block; margin: 10px 0; border: 1px solid #ddd;';
               
-              // If image has no src or invalid src, try to find alternative
-              if (!img.src || img.src === '#' || img.src === '') {
-                console.log(`[PDF Export] Image ${imgIndex} has no valid src, trying to find alternative`);
-                // Look for data-src or other attributes
-                const alternativeSrc = img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('srcset');
-                if (alternativeSrc) {
-                  img.src = alternativeSrc;
-                  console.log(`[PDF Export] Found alternative src for image ${imgIndex}:`, alternativeSrc);
-                }
-              }
-              
               // Convert external images to data URLs for better PDF inclusion
-              if (img.src && (img.src.startsWith('http') || img.src.startsWith('//'))) {
-                console.log(`[PDF Export] Converting external image ${imgIndex} to data URL:`, img.src);
+              if (imgSrc.startsWith('http') || imgSrc.startsWith('//')) {
+                console.log(`[PDF Export] Converting external image ${imgIndex} to data URL:`, imgSrc);
                 try {
                   // Create a canvas to convert image to data URL
                   const canvas = document.createElement('canvas');
@@ -1282,10 +1293,10 @@ const createZeroEkaIconButton = () => {
                   };
                   
                   tempImg.onerror = () => {
-                    console.log(`[PDF Export] Could not load external image ${imgIndex} for conversion:`, img.src);
+                    console.log(`[PDF Export] Could not load external image ${imgIndex} for conversion:`, imgSrc);
                   };
                   
-                  tempImg.src = img.src;
+                  tempImg.src = imgSrc;
                 } catch (e) {
                   console.log(`[PDF Export] Error processing image ${imgIndex}:`, e);
                 }
@@ -1293,7 +1304,8 @@ const createZeroEkaIconButton = () => {
             });
             
             const finalHtml = wrapper.innerHTML;
-            console.log('[PDF Export] Sanitized HTML length:', finalHtml.length, 'Images preserved:', images.length);
+            console.log('[PDF Export] Deduplication complete - Unique images:', uniqueImages.size, 'Duplicates removed:', duplicateImages.length);
+            console.log('[PDF Export] Sanitized HTML length:', finalHtml.length);
             
             return finalHtml;
           } catch (error) {
@@ -1367,8 +1379,34 @@ const createZeroEkaIconButton = () => {
               writeBlock(role, html, index++);
             });
           } else {
+            // DEDUPLICATE MESSAGES to prevent processing the same content multiple times
+            const uniqueMessages = new Map();
+            const processedContent = new Set();
+            
             messageBlocks.forEach((message, msgIndex) => {
               try {
+                // Create a content signature to identify duplicates
+                const contentSignature = message.textContent?.trim() || message.innerHTML?.trim() || '';
+                const messageId = message.getAttribute('data-message-id') || `msg-${msgIndex}`;
+                
+                // Skip if we've already processed this exact content
+                if (processedContent.has(contentSignature) && contentSignature.length > 20) {
+                  console.log(`[PDF Export] Skipping duplicate message ${msgIndex} with signature:`, contentSignature.substring(0, 50) + '...');
+                  return;
+                }
+                
+                // Skip if we've already processed this message ID
+                if (uniqueMessages.has(messageId)) {
+                  console.log(`[PDF Export] Skipping duplicate message ID:`, messageId);
+                  return;
+                }
+                
+                // Mark this content as processed
+                processedContent.add(contentSignature);
+                uniqueMessages.set(messageId, message);
+                
+                console.log(`[PDF Export] Processing unique message ${msgIndex} with ID:`, messageId);
+                
                 // Determine role
                 let role = 'assistant';
                 if (message.getAttribute('data-message-author-role') === 'user' ||
@@ -1418,6 +1456,8 @@ const createZeroEkaIconButton = () => {
                 }
               }
             });
+            
+                        console.log(`[PDF Export] Message deduplication complete - Processed ${uniqueMessages.size} unique messages out of ${messageBlocks.length} total`);
           }
         }
 
