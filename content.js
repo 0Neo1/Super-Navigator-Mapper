@@ -1147,6 +1147,7 @@ const createZeroEkaIconButton = () => {
           <!DOCTYPE html>
           <html>
           <head>
+            <base href="${location.origin}/">
             <meta charset="utf-8" />
             <title>${htmlEscape(pdfTitle)}</title>
             <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -1191,6 +1192,8 @@ const createZeroEkaIconButton = () => {
             <div class="ze-content">
         `);
 
+        const toAbsoluteUrl = (u) => { try { return new URL(u, document.baseURI || location.href).href; } catch(_) { return u; } };
+
         const sanitizeForPdf = (unsafeHtml) => {
           try {
             const wrapper = (iframeDoc || document).createElement('div');
@@ -1208,9 +1211,46 @@ const createZeroEkaIconButton = () => {
                 img.setAttribute('decoding', 'sync');
                 if (!img.hasAttribute('referrerpolicy')) img.setAttribute('referrerpolicy', 'no-referrer');
                 if (!img.hasAttribute('crossorigin')) img.setAttribute('crossorigin', 'anonymous');
+                // Resolve lazy and relative sources
+                const dataSrc = img.getAttribute('data-src') || img.getAttribute('data-original');
+                if (dataSrc && !img.getAttribute('src')) img.setAttribute('src', dataSrc);
+                const src = img.getAttribute('src');
+                if (src) img.setAttribute('src', toAbsoluteUrl(src));
+                const srcset = img.getAttribute('srcset');
+                if (srcset) {
+                  const absSet = srcset.split(',').map(s => {
+                    const parts = s.trim().split(' ');
+                    parts[0] = toAbsoluteUrl(parts[0]);
+                    return parts.join(' ');
+                  }).join(', ');
+                  img.setAttribute('srcset', absSet);
+                }
                 // Ensure images don't overflow
                 const style = img.getAttribute('style') || '';
                 if (!/max-width/i.test(style)) img.setAttribute('style', `${style}; max-width: 100%; height: auto;`);
+              } catch(_) {}
+            });
+            // Picture/source: absolutize srcset
+            wrapper.querySelectorAll('source[srcset]').forEach(source => {
+              try {
+                const srcset = source.getAttribute('srcset');
+                if (srcset) {
+                  const absSet = srcset.split(',').map(s => {
+                    const parts = s.trim().split(' ');
+                    parts[0] = toAbsoluteUrl(parts[0]);
+                    return parts.join(' ');
+                  }).join(', ');
+                  source.setAttribute('srcset', absSet);
+                }
+              } catch(_) {}
+            });
+            // Inline background-image url(...) to absolute
+            wrapper.querySelectorAll('*[style*="background"]').forEach(el => {
+              try {
+                const st = el.getAttribute('style');
+                if (!st) return;
+                const replaced = st.replace(/url\((['\"]?)([^)]+)\1\)/g, (m, q, url) => `url(${toAbsoluteUrl(url)})`);
+                if (replaced !== st) el.setAttribute('style', replaced);
               } catch(_) {}
             });
             return wrapper.innerHTML;
