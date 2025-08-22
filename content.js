@@ -1201,6 +1201,18 @@ const createZeroEkaIconButton = () => {
             wrapper.querySelectorAll('button, [role="button"]').forEach(el => {
               if (el.className && /zeroeka/i.test(el.className)) el.remove();
             });
+            // Prepare images for print: disable lazy loading and hint to load cross-origin
+            wrapper.querySelectorAll('img').forEach(img => {
+              try {
+                img.removeAttribute('loading');
+                img.setAttribute('decoding', 'sync');
+                if (!img.hasAttribute('referrerpolicy')) img.setAttribute('referrerpolicy', 'no-referrer');
+                if (!img.hasAttribute('crossorigin')) img.setAttribute('crossorigin', 'anonymous');
+                // Ensure images don't overflow
+                const style = img.getAttribute('style') || '';
+                if (!/max-width/i.test(style)) img.setAttribute('style', `${style}; max-width: 100%; height: auto;`);
+              } catch(_) {}
+            });
             return wrapper.innerHTML;
           } catch (_) {
             return unsafeHtml || '';
@@ -1266,7 +1278,33 @@ const createZeroEkaIconButton = () => {
 
         let printOpenedAt = 0;
         const previousTitle = document.title;
-        const finalizeOnce = () => {
+        const waitForImages = async () => {
+          try {
+            const imgs = Array.from((iframeDoc || iframe.contentDocument).images || []);
+            if (!imgs.length) return;
+            await new Promise(resolve => {
+              let remaining = imgs.length;
+              const done = () => { remaining -= 1; if (remaining <= 0) resolve(); };
+              const fallback = setTimeout(resolve, 5000);
+              imgs.forEach(img => {
+                try {
+                  img.removeAttribute('loading');
+                  img.setAttribute('decoding', 'sync');
+                  if (!img.hasAttribute('referrerpolicy')) img.setAttribute('referrerpolicy', 'no-referrer');
+                  if (!img.hasAttribute('crossorigin')) img.setAttribute('crossorigin', 'anonymous');
+                  if (img.complete && img.naturalWidth > 0) { done(); return; }
+                  img.addEventListener('load', done, { once: true });
+                  img.addEventListener('error', done, { once: true });
+                } catch(_) { done(); }
+              });
+              // Clear fallback when done
+              const clear = () => { try { clearTimeout(fallback); } catch(_) {} };
+              imgs.length ? imgs[imgs.length-1].addEventListener('load', clear, { once: true }) : clear();
+            });
+          } catch(_) {}
+        };
+
+        const finalizeOnce = async () => {
           if (hasPrinted) return;
           hasPrinted = true;
           try {
@@ -1280,6 +1318,8 @@ const createZeroEkaIconButton = () => {
           try {
             if (IS_GEMINI) { try { document.title = pdfTitle; } catch(_) {} }
             printOpenedAt = Date.now();
+            // Ensure images are loaded before printing
+            await waitForImages();
             iframe.contentWindow.print();
           } catch(_) {}
           // Safety cleanup in case onafterprint does not fire
@@ -1290,8 +1330,8 @@ const createZeroEkaIconButton = () => {
         };
 
         // Wait for iframe load then trigger print; keep a single fallback
-        iframe.onload = () => setTimeout(finalizeOnce, 50);
-        setTimeout(() => { finalizeOnce(); }, 1500);
+        iframe.onload = () => setTimeout(finalizeOnce, 80);
+        setTimeout(() => { finalizeOnce(); }, 2200);
       } catch (error) {
         console.error('Error during PDF export:', error);
         alert('Error creating PDF export. Please try again.');
