@@ -1147,7 +1147,6 @@ const createZeroEkaIconButton = () => {
           <!DOCTYPE html>
           <html>
           <head>
-            <base href="${location.origin}/">
             <meta charset="utf-8" />
             <title>${htmlEscape(pdfTitle)}</title>
             <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -1172,7 +1171,14 @@ const createZeroEkaIconButton = () => {
               .message-content { white-space: normal; overflow-wrap: anywhere; }
               pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
               pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
-              img, svg, canvas, video { max-width: 100%; height: auto; }
+              img, svg, canvas, video { 
+                max-width: 100%; 
+                height: auto; 
+                display: block; 
+                margin: 10px 0; 
+                page-break-inside: avoid; 
+                break-inside: avoid; 
+              }
               table { border-collapse: collapse; }
               table, th, td { border: 1px solid #ddd; }
               th, td { padding: 6px 8px; }
@@ -1192,67 +1198,31 @@ const createZeroEkaIconButton = () => {
             <div class="ze-content">
         `);
 
-        const toAbsoluteUrl = (u) => { try { return new URL(u, document.baseURI || location.href).href; } catch(_) { return u; } };
-
         const sanitizeForPdf = (unsafeHtml) => {
           try {
             const wrapper = (iframeDoc || document).createElement('div');
             wrapper.innerHTML = unsafeHtml || '';
+            
             // Remove extension UI artifacts (stars, buttons, sidebars)
             wrapper.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]').forEach(el => el.remove());
+            
             // Remove any contenteditable or interactive controls that may add spacing
             wrapper.querySelectorAll('button, [role="button"]').forEach(el => {
               if (el.className && /zeroeka/i.test(el.className)) el.remove();
             });
-            // Prepare images for print: disable lazy loading and hint to load cross-origin
+            
+            // Ensure images are properly preserved and accessible
             wrapper.querySelectorAll('img').forEach(img => {
-              try {
-                img.removeAttribute('loading');
-                img.setAttribute('decoding', 'sync');
-                if (!img.hasAttribute('referrerpolicy')) img.setAttribute('referrerpolicy', 'no-referrer');
-                if (!img.hasAttribute('crossorigin')) img.setAttribute('crossorigin', 'anonymous');
-                // Resolve lazy and relative sources
-                const dataSrc = img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('data-lazy-src');
-                if (dataSrc && !img.getAttribute('src')) img.setAttribute('src', dataSrc);
-                const src = img.getAttribute('src');
-                if (src) img.setAttribute('src', toAbsoluteUrl(src));
-                const srcset = img.getAttribute('srcset');
-                if (srcset) {
-                  const absSet = srcset.split(',').map(s => {
-                    const parts = s.trim().split(' ');
-                    parts[0] = toAbsoluteUrl(parts[0]);
-                    return parts.join(' ');
-                  }).join(', ');
-                  img.setAttribute('srcset', absSet);
-                }
-                // Ensure images don't overflow
-                const style = img.getAttribute('style') || '';
-                if (!/max-width/i.test(style)) img.setAttribute('style', `${style}; max-width: 100%; height: auto;`);
-              } catch(_) {}
+              // Ensure image has proper attributes for PDF rendering
+              if (img.src && !img.alt) {
+                img.alt = 'Image';
+              }
+              // Remove any inline styles that might interfere with PDF rendering
+              img.removeAttribute('style');
+              // Ensure image is visible and properly sized for PDF
+              img.style.cssText = 'max-width: 100%; height: auto; display: block; margin: 10px 0;';
             });
-            // Picture/source: absolutize srcset
-            wrapper.querySelectorAll('source[srcset]').forEach(source => {
-              try {
-                const srcset = source.getAttribute('srcset');
-                if (srcset) {
-                  const absSet = srcset.split(',').map(s => {
-                    const parts = s.trim().split(' ');
-                    parts[0] = toAbsoluteUrl(parts[0]);
-                    return parts.join(' ');
-                  }).join(', ');
-                  source.setAttribute('srcset', absSet);
-                }
-              } catch(_) {}
-            });
-            // Inline background-image url(...) to absolute
-            wrapper.querySelectorAll('*[style*="background"]').forEach(el => {
-              try {
-                const st = el.getAttribute('style');
-                if (!st) return;
-                const replaced = st.replace(/url\((['\"]?)([^)]+)\1\)/g, (m, q, url) => `url(${toAbsoluteUrl(url)})`);
-                if (replaced !== st) el.setAttribute('style', replaced);
-              } catch(_) {}
-            });
+            
             return wrapper.innerHTML;
           } catch (_) {
             return unsafeHtml || '';
@@ -1318,32 +1288,7 @@ const createZeroEkaIconButton = () => {
 
         let printOpenedAt = 0;
         const previousTitle = document.title;
-        const waitForImages = async () => {
-          try {
-            const imgs = Array.from((iframeDoc || iframe.contentDocument).images || []);
-            if (!imgs.length) return;
-            await new Promise(resolve => {
-              let remaining = imgs.length;
-              const done = () => { remaining -= 1; if (remaining <= 0) resolve(); };
-              const fallback = setTimeout(resolve, 5000);
-              imgs.forEach(img => {
-                try {
-                  img.removeAttribute('loading');
-                  img.setAttribute('decoding', 'sync');
-                  if (!img.hasAttribute('referrerpolicy')) img.setAttribute('referrerpolicy', 'no-referrer');
-                  if (!img.hasAttribute('crossorigin')) img.setAttribute('crossorigin', 'anonymous');
-                  if (img.complete && img.naturalWidth > 0) { done(); return; }
-                  img.addEventListener('load', done, { once: true });
-                  img.addEventListener('error', done, { once: true });
-                } catch(_) { done(); }
-              });
-              const clear = () => { try { clearTimeout(fallback); } catch(_) {} };
-              imgs.length ? imgs[imgs.length-1].addEventListener('load', clear, { once: true }) : clear();
-            });
-          } catch(_) {}
-        };
-
-        const finalizeOnce = async () => {
+        const finalizeOnce = () => {
           if (hasPrinted) return;
           hasPrinted = true;
           try {
@@ -1357,7 +1302,6 @@ const createZeroEkaIconButton = () => {
           try {
             if (IS_GEMINI) { try { document.title = pdfTitle; } catch(_) {} }
             printOpenedAt = Date.now();
-            await waitForImages();
             iframe.contentWindow.print();
           } catch(_) {}
           // Safety cleanup in case onafterprint does not fire
@@ -1367,9 +1311,36 @@ const createZeroEkaIconButton = () => {
           }, 5000);
         };
 
-        // Wait for iframe load then trigger print; keep a single fallback
-        iframe.onload = () => setTimeout(finalizeOnce, 50);
-        setTimeout(() => { finalizeOnce(); }, 1500);
+        // Wait for iframe load and ensure images are loaded before printing
+        iframe.onload = () => {
+          // Wait for images to load before triggering print
+          const images = iframeDoc.querySelectorAll('img');
+          if (images.length > 0) {
+            let loadedImages = 0;
+            const totalImages = images.length;
+            
+            const checkAllImagesLoaded = () => {
+              loadedImages++;
+              if (loadedImages >= totalImages) {
+                setTimeout(finalizeOnce, 100);
+              }
+            };
+            
+            images.forEach(img => {
+              if (img.complete) {
+                checkAllImagesLoaded();
+              } else {
+                img.onload = checkAllImagesLoaded;
+                img.onerror = checkAllImagesLoaded; // Continue even if some images fail
+              }
+            });
+          } else {
+            setTimeout(finalizeOnce, 100);
+          }
+        };
+        
+        // Fallback timeout in case images don't load
+        setTimeout(() => { finalizeOnce(); }, 3000);
       } catch (error) {
         console.error('Error during PDF export:', error);
         alert('Error creating PDF export. Please try again.');
