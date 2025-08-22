@@ -1224,37 +1224,15 @@ const createZeroEkaIconButton = () => {
               if (el.className && /zeroeka/i.test(el.className)) el.remove();
             });
             
-            // IMAGE DEDUPLICATION - Remove duplicate images to prevent multiple copies
+            // ENHANCED IMAGE HANDLING - More aggressive preservation
             const images = wrapper.querySelectorAll('img');
-            console.log('[PDF Export] Found images in HTML before deduplication:', images.length);
-            
-            // Track unique images by src to prevent duplicates
-            const uniqueImages = new Map();
-            const duplicateImages = [];
+            console.log('[PDF Export] Found images in HTML:', images.length);
             
             images.forEach((img, imgIndex) => {
-              const imgSrc = img.src || img.getAttribute('data-src') || img.getAttribute('data-original') || '';
-              
-              if (!imgSrc || imgSrc === '#' || imgSrc === '') {
-                console.log(`[PDF Export] Removing image ${imgIndex} with no valid src`);
-                img.remove();
-                return;
-              }
-              
-              // Check if we've already seen this image
-              if (uniqueImages.has(imgSrc)) {
-                console.log(`[PDF Export] Removing duplicate image ${imgIndex} with src:`, imgSrc);
-                duplicateImages.push(img);
-                img.remove();
-                return;
-              }
-              
-              // This is a unique image, keep it and track it
-              uniqueImages.set(imgSrc, img);
-              console.log(`[PDF Export] Keeping unique image ${imgIndex}:`, imgSrc, img.alt);
+              console.log(`[PDF Export] Processing image ${imgIndex}:`, img.src, img.alt);
               
               // Ensure image has proper attributes for PDF rendering
-              if (!img.alt) {
+              if (img.src && !img.alt) {
                 img.alt = 'Image';
               }
               
@@ -1269,9 +1247,20 @@ const createZeroEkaIconButton = () => {
               // Re-apply our PDF-friendly styles
               img.style.cssText = 'max-width: 100%; height: auto; display: block; margin: 10px 0; border: 1px solid #ddd;';
               
+              // If image has no src or invalid src, try to find alternative
+              if (!img.src || img.src === '#' || img.src === '') {
+                console.log(`[PDF Export] Image ${imgIndex} has no valid src, trying to find alternative`);
+                // Look for data-src or other attributes
+                const alternativeSrc = img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('srcset');
+                if (alternativeSrc) {
+                  img.src = alternativeSrc;
+                  console.log(`[PDF Export] Found alternative src for image ${imgIndex}:`, alternativeSrc);
+                }
+              }
+              
               // Convert external images to data URLs for better PDF inclusion
-              if (imgSrc.startsWith('http') || imgSrc.startsWith('//')) {
-                console.log(`[PDF Export] Converting external image ${imgIndex} to data URL:`, imgSrc);
+              if (img.src && (img.src.startsWith('http') || img.src.startsWith('//'))) {
+                console.log(`[PDF Export] Converting external image ${imgIndex} to data URL:`, img.src);
                 try {
                   // Create a canvas to convert image to data URL
                   const canvas = document.createElement('canvas');
@@ -1293,10 +1282,10 @@ const createZeroEkaIconButton = () => {
                   };
                   
                   tempImg.onerror = () => {
-                    console.log(`[PDF Export] Could not load external image ${imgIndex} for conversion:`, imgSrc);
+                    console.log(`[PDF Export] Could not load external image ${imgIndex} for conversion:`, img.src);
                   };
                   
-                  tempImg.src = imgSrc;
+                  tempImg.src = img.src;
                 } catch (e) {
                   console.log(`[PDF Export] Error processing image ${imgIndex}:`, e);
                 }
@@ -1304,8 +1293,7 @@ const createZeroEkaIconButton = () => {
             });
             
             const finalHtml = wrapper.innerHTML;
-            console.log('[PDF Export] Deduplication complete - Unique images:', uniqueImages.size, 'Duplicates removed:', duplicateImages.length);
-            console.log('[PDF Export] Sanitized HTML length:', finalHtml.length);
+            console.log('[PDF Export] Sanitized HTML length:', finalHtml.length, 'Images preserved:', images.length);
             
             return finalHtml;
           } catch (error) {
@@ -1336,128 +1324,86 @@ const createZeroEkaIconButton = () => {
             writeBlock(isUser ? 'user' : 'assistant', html, index++);
           });
         } else {
-          // ChatGPT: NEW APPROACH - Direct content capture with aggressive image handling
-          console.log('[PDF Export] Using new ChatGPT content extraction approach');
+          // ChatGPT: PRECISE APPROACH - Deduplicated content extraction
+          console.log('[PDF Export] Using precise ChatGPT content extraction approach');
           
-          // Try multiple selectors to find conversation content
-          let conversationContainer = document.querySelector('[data-testid="conversation-turn-2"]')?.parentElement ||
-                                   document.querySelector('[data-testid="conversation-turn-2"]')?.closest('div[class*="conversation"]') ||
-                                   document.querySelector('main') ||
-                                   document.querySelector('[role="main"]') ||
-                                   document.body;
+          // Use the most specific selector first - ChatGPT's conversation turns
+          const conversationTurns = Array.from(document.querySelectorAll('[data-testid^="conversation-turn-"]'));
+          console.log('[PDF Export] Found conversation turns:', conversationTurns.length);
           
-          if (!conversationContainer) {
-            console.log('[PDF Export] No conversation container found, trying alternative approach');
-            conversationContainer = document.body;
-          }
-          
-          console.log('[PDF Export] Using conversation container:', conversationContainer);
-          
-          // Find all message blocks using a more comprehensive approach
-          const messageBlocks = conversationContainer.querySelectorAll('[data-message-id], article, [class*="message"], [class*="turn"]');
-          console.log('[PDF Export] Found message blocks:', messageBlocks.length);
-          
-          if (messageBlocks.length === 0) {
-            // Fallback: try to find any content that looks like a conversation
-            const allDivs = conversationContainer.querySelectorAll('div');
-            const conversationDivs = Array.from(allDivs).filter(div => {
-              const text = div.textContent || '';
-              const hasContent = text.length > 50;
-              const hasUserContent = div.querySelector('[data-message-author-role="user"]') || 
-                                   div.textContent.includes('User') || 
-                                   div.textContent.includes('user');
-              const hasAssistantContent = div.querySelector('.markdown, .prose') || 
-                                        div.textContent.includes('Assistant') || 
-                                        div.textContent.includes('assistant');
-              return hasContent && (hasUserContent || hasAssistantContent);
-            });
-            
-            console.log('[PDF Export] Fallback: found conversation divs:', conversationDivs.length);
-            conversationDivs.forEach((div, divIndex) => {
-              const role = div.querySelector('[data-message-author-role="user"]') ? 'user' : 'assistant';
-              const html = div.innerHTML || div.textContent || '';
-              writeBlock(role, html, index++);
+          if (conversationTurns.length > 0) {
+            // Process conversation turns in order
+            conversationTurns.forEach((turn, turnIndex) => {
+              try {
+                // Find user and assistant content within each turn
+                const userContent = turn.querySelector('[data-message-author-role="user"]');
+                const assistantContent = turn.querySelector('.markdown, .prose, [data-message-author-role="assistant"]');
+                
+                // Process user content if present
+                if (userContent) {
+                  const userHtml = userContent.innerHTML || userContent.textContent || '';
+                  if (userHtml.trim().length > 0) {
+                    console.log(`[PDF Export] Turn ${turnIndex} - User content length:`, userHtml.length);
+                    writeBlock('user', userHtml, index++);
+                  }
+                }
+                
+                // Process assistant content if present
+                if (assistantContent) {
+                  const assistantHtml = assistantContent.innerHTML || assistantContent.textContent || '';
+                  if (assistantHtml.trim().length > 0) {
+                    console.log(`[PDF Export] Turn ${turnIndex} - Assistant content length:`, assistantHtml.length);
+                    writeBlock('assistant', assistantHtml, index++);
+                  }
+                }
+              } catch (error) {
+                console.error(`[PDF Export] Error processing turn ${turnIndex}:`, error);
+              }
             });
           } else {
-            // DEDUPLICATE MESSAGES to prevent processing the same content multiple times
-            const uniqueMessages = new Map();
-            const processedContent = new Set();
+            // Fallback: try data-message-id approach with deduplication
+            console.log('[PDF Export] No conversation turns found, trying data-message-id approach');
+            const messages = Array.from(document.querySelectorAll('[data-message-id]'));
+            console.log('[PDF Export] Found messages with data-message-id:', messages.length);
             
-            messageBlocks.forEach((message, msgIndex) => {
-              try {
-                // Create a content signature to identify duplicates
-                const contentSignature = message.textContent?.trim() || message.innerHTML?.trim() || '';
-                const messageId = message.getAttribute('data-message-id') || `msg-${msgIndex}`;
-                
-                // Skip if we've already processed this exact content
-                if (processedContent.has(contentSignature) && contentSignature.length > 20) {
-                  console.log(`[PDF Export] Skipping duplicate message ${msgIndex} with signature:`, contentSignature.substring(0, 50) + '...');
-                  return;
-                }
-                
-                // Skip if we've already processed this message ID
-                if (uniqueMessages.has(messageId)) {
-                  console.log(`[PDF Export] Skipping duplicate message ID:`, messageId);
-                  return;
-                }
-                
-                // Mark this content as processed
+            // Create a Set to track processed content and avoid duplicates
+            const processedContent = new Set();
+            const uniqueMessages = [];
+            
+            messages.forEach((message) => {
+              const messageId = message.getAttribute('data-message-id');
+              const role = message.getAttribute('data-message-author-role') || 'assistant';
+              
+              // Create a content signature to detect duplicates
+              const content = message.innerHTML || message.textContent || '';
+              const contentSignature = `${role}-${content.length}-${content.substring(0, 100)}`;
+              
+              if (!processedContent.has(contentSignature)) {
                 processedContent.add(contentSignature);
-                uniqueMessages.set(messageId, message);
-                
-                console.log(`[PDF Export] Processing unique message ${msgIndex} with ID:`, messageId);
-                
-                // Determine role
-                let role = 'assistant';
-                if (message.getAttribute('data-message-author-role') === 'user' ||
-                    message.querySelector('[data-message-author-role="user"]') ||
-                    message.textContent.includes('User') ||
-                    message.textContent.includes('user')) {
-                  role = 'user';
-                }
-                
-                // Find the actual content element
-                let contentEl = message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') ||
-                               message.querySelector('div[tabindex="-1"]') ||
-                               message;
-                
-                // If still no specific content, use the entire message
-                if (!contentEl || contentEl === message) {
-                  contentEl = message;
-                }
-                
-                // Remove ZeroEka UI elements
-                Array.from(contentEl.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]'))
-                  .forEach(el => { try { el.remove(); } catch(_){} });
-                
-                // Check for images and log them
-                const images = contentEl.querySelectorAll('img');
-                if (images.length > 0) {
-                  console.log(`[PDF Export] Message ${msgIndex} contains ${images.length} images:`, images);
-                  images.forEach((img, imgIndex) => {
-                    console.log(`[PDF Export] Image ${imgIndex}:`, img.src, img.alt, img.className);
-                  });
-                }
-                
-                // Get HTML content
-                const html = contentEl.innerHTML || message.innerHTML || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
-                
-                console.log(`[PDF Export] Message ${msgIndex} role: ${role}, content length: ${html.length}, has images: ${images.length > 0}`);
-                
-                writeBlock(role, html, index++);
-              } catch (error) {
-                console.error(`[PDF Export] Error processing message ${msgIndex}:`, error);
-                // Fallback: try to get basic content
-                try {
-                  const html = message.innerHTML || message.textContent || '';
-                  writeBlock('assistant', html, index++);
-                } catch (fallbackError) {
-                  console.error(`[PDF Export] Fallback also failed for message ${msgIndex}:`, fallbackError);
-                }
+                uniqueMessages.push({ message, role, content });
+              } else {
+                console.log(`[PDF Export] Skipping duplicate message:`, contentSignature);
               }
             });
             
-                        console.log(`[PDF Export] Message deduplication complete - Processed ${uniqueMessages.size} unique messages out of ${messageBlocks.length} total`);
+            console.log('[PDF Export] Unique messages after deduplication:', uniqueMessages.length);
+            
+            uniqueMessages.forEach(({ message, role, content }, msgIndex) => {
+              try {
+                // Remove ZeroEka UI elements
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = content;
+                Array.from(tempDiv.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]'))
+                  .forEach(el => { try { el.remove(); } catch(_){} });
+                
+                const cleanHtml = tempDiv.innerHTML;
+                console.log(`[PDF Export] Message ${msgIndex} role: ${role}, content length: ${cleanHtml.length}`);
+                
+                writeBlock(role, cleanHtml, index++);
+              } catch (error) {
+                console.error(`[PDF Export] Error processing unique message ${msgIndex}:`, error);
+              }
+            });
           }
         }
 
