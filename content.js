@@ -1096,7 +1096,7 @@ const createZeroEkaIconButton = () => {
       try {
         const IS_GEMINI = /gemini\.google\.com/.test(location.hostname) || (typeof isGemini !== 'undefined' && isGemini);
 
-        // Create print iframe
+        // Create print iframe with proper configuration for image handling
         const iframe = document.createElement('iframe');
         iframe.style.cssText = `
           position: fixed;
@@ -1107,6 +1107,11 @@ const createZeroEkaIconButton = () => {
           border: none;
           visibility: hidden;
         `;
+        
+        // Set iframe properties for better image handling
+        iframe.setAttribute('allow', 'same-origin');
+        iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts');
+        
         document.body.appendChild(iframe);
 
         const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
@@ -1251,18 +1256,85 @@ const createZeroEkaIconButton = () => {
             writeBlock(isUser ? 'user' : 'assistant', html, index++);
           });
         } else {
-          // ChatGPT: try attribute-based messages first; fallback to markdown/article content
+          // ChatGPT: Enhanced content extraction to properly capture images and text
           let messages = Array.from(document.querySelectorAll('[data-message-id]'));
           if (!messages.length) {
             messages = Array.from(document.querySelectorAll('article'));
           }
-          messages.forEach((message) => {
+          
+          console.log('[PDF Export] Found', messages.length, 'ChatGPT messages');
+          
+          messages.forEach((message, msgIndex) => {
             const role = message.getAttribute && message.getAttribute('data-message-author-role') ||
               (message.querySelector('[data-message-author-role="user"]') ? 'user' : (message.querySelector('.markdown, .prose') ? 'assistant' : 'assistant'));
-            const contentEl = message.querySelector && (message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || message.querySelector('div[tabindex="-1"], [data-message-author-role]')) || message;
-            // Remove resident ZeroEka star from cloned content to avoid overlap in PDF
-            Array.from(message.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star')).forEach(el => { try { el.remove(); } catch(_){} });
-            const html = (contentEl && contentEl.innerHTML) || (message.innerHTML) || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+            
+            // Enhanced content extraction for ChatGPT
+            let contentEl = null;
+            let html = '';
+            
+            // Try multiple selectors to find the actual content
+            const contentSelectors = [
+              '.markdown, .prose',
+              '[data-message-author-role] + div',
+              '[data-message-author-role] ~ div',
+              'div[tabindex="-1"]',
+              '.text-base',
+              '.whitespace-pre-wrap'
+            ];
+            
+            for (const selector of contentSelectors) {
+              contentEl = message.querySelector(selector);
+              if (contentEl && contentEl.innerHTML.trim()) {
+                break;
+              }
+            }
+            
+            // If no specific content element found, use the message itself
+            if (!contentEl || !contentEl.innerHTML.trim()) {
+              contentEl = message;
+            }
+            
+            // Remove ZeroEka UI elements
+            Array.from(message.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star')).forEach(el => { 
+              try { el.remove(); } catch(_){} 
+            });
+            
+            // Enhanced HTML extraction with image preservation
+            if (contentEl && contentEl.innerHTML) {
+              // Create a temporary container to work with the content
+              const tempContainer = document.createElement('div');
+              tempContainer.innerHTML = contentEl.innerHTML;
+              
+              // Ensure images are properly captured
+              const images = tempContainer.querySelectorAll('img');
+              console.log(`[PDF Export] Message ${msgIndex + 1} contains ${images.length} images`);
+              
+              images.forEach((img, imgIndex) => {
+                console.log(`[PDF Export] Image ${imgIndex + 1}:`, {
+                  src: img.src,
+                  alt: img.alt,
+                  width: img.width,
+                  height: img.height
+                });
+                
+                // Ensure image has proper attributes for PDF
+                if (img.src) {
+                  img.setAttribute('data-pdf-image', 'true');
+                  if (!img.alt) img.alt = 'Generated Image';
+                  // Remove any inline styles that might interfere
+                  img.removeAttribute('style');
+                  // Set PDF-friendly styling
+                  img.style.cssText = 'max-width: 100%; height: auto; display: block; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px;';
+                }
+              });
+              
+              html = tempContainer.innerHTML;
+            } else {
+              // Fallback to text content
+              html = (contentEl && contentEl.textContent) || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+            }
+            
+            console.log(`[PDF Export] Message ${msgIndex + 1} role: ${role}, content length: ${html.length}`);
             writeBlock(role === 'user' ? 'user' : 'assistant', html, index++);
           });
         }
@@ -1313,34 +1385,90 @@ const createZeroEkaIconButton = () => {
 
         // Wait for iframe load and ensure images are loaded before printing
         iframe.onload = () => {
+          console.log('[PDF Export] Iframe loaded, checking for images...');
+          
           // Wait for images to load before triggering print
           const images = iframeDoc.querySelectorAll('img');
+          console.log('[PDF Export] Found', images.length, 'images in iframe');
+          
           if (images.length > 0) {
             let loadedImages = 0;
+            let failedImages = 0;
             const totalImages = images.length;
             
             const checkAllImagesLoaded = () => {
               loadedImages++;
-              if (loadedImages >= totalImages) {
-                setTimeout(finalizeOnce, 100);
+              console.log(`[PDF Export] Image loaded: ${loadedImages}/${totalImages}`);
+              
+              if (loadedImages + failedImages >= totalImages) {
+                console.log('[PDF Export] All images processed, proceeding with print');
+                setTimeout(finalizeOnce, 200);
               }
             };
             
-            images.forEach(img => {
-              if (img.complete) {
+            const handleImageError = (img) => {
+              failedImages++;
+              console.log(`[PDF Export] Image failed to load: ${img.src}`);
+              
+              // Try to replace failed images with a placeholder or text
+              try {
+                img.style.display = 'none';
+                const placeholder = iframeDoc.createElement('div');
+                placeholder.textContent = '[Image could not be loaded]';
+                placeholder.style.cssText = 'padding: 20px; background: #f0f0f0; border: 1px dashed #ccc; text-align: center; color: #666; margin: 10px 0;';
+                img.parentNode.insertBefore(placeholder, img.nextSibling);
+              } catch(e) {
+                console.warn('[PDF Export] Could not create placeholder for failed image:', e);
+              }
+              
+              if (loadedImages + failedImages >= totalImages) {
+                console.log('[PDF Export] All images processed, proceeding with print');
+                setTimeout(finalizeOnce, 200);
+              }
+            };
+            
+            images.forEach((img, imgIndex) => {
+              console.log(`[PDF Export] Processing image ${imgIndex + 1}:`, {
+                src: img.src,
+                complete: img.complete,
+                naturalWidth: img.naturalWidth,
+                naturalHeight: img.naturalHeight
+              });
+              
+              if (img.complete && img.naturalWidth > 0) {
+                // Image is already loaded
                 checkAllImagesLoaded();
               } else {
-                img.onload = checkAllImagesLoaded;
-                img.onerror = checkAllImagesLoaded; // Continue even if some images fail
+                // Wait for image to load
+                img.onload = () => {
+                  console.log(`[PDF Export] Image ${imgIndex + 1} loaded successfully`);
+                  checkAllImagesLoaded();
+                };
+                img.onerror = () => {
+                  console.warn(`[PDF Export] Image ${imgIndex + 1} failed to load`);
+                  handleImageError(img);
+                };
+                
+                // Set a timeout for each image
+                setTimeout(() => {
+                  if (!img.complete || img.naturalWidth === 0) {
+                    console.warn(`[PDF Export] Image ${imgIndex + 1} timeout, treating as failed`);
+                    handleImageError(img);
+                  }
+                }, 5000); // 5 second timeout per image
               }
             });
           } else {
+            console.log('[PDF Export] No images found, proceeding with print');
             setTimeout(finalizeOnce, 100);
           }
         };
         
-        // Fallback timeout in case images don't load
-        setTimeout(() => { finalizeOnce(); }, 3000);
+        // Fallback timeout in case iframe doesn't load or images take too long
+        setTimeout(() => { 
+          console.log('[PDF Export] Fallback timeout reached, proceeding with print');
+          finalizeOnce(); 
+        }, 10000);
       } catch (error) {
         console.error('Error during PDF export:', error);
         alert('Error creating PDF export. Please try again.');
