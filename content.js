@@ -1214,6 +1214,8 @@ const createZeroEkaIconButton = () => {
             const wrapper = (iframeDoc || document).createElement('div');
             wrapper.innerHTML = unsafeHtml || '';
             
+            console.log('[PDF Export] Sanitizing HTML, length:', unsafeHtml.length);
+            
             // Remove extension UI artifacts (stars, buttons, sidebars)
             wrapper.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]').forEach(el => el.remove());
             
@@ -1222,15 +1224,43 @@ const createZeroEkaIconButton = () => {
               if (el.className && /zeroeka/i.test(el.className)) el.remove();
             });
             
-            // Ensure images are properly preserved and accessible
-            wrapper.querySelectorAll('img').forEach(img => {
+            // ENHANCED IMAGE HANDLING - More aggressive preservation
+            const images = wrapper.querySelectorAll('img');
+            console.log('[PDF Export] Found images in HTML:', images.length);
+            
+            images.forEach((img, imgIndex) => {
+              console.log(`[PDF Export] Processing image ${imgIndex}:`, img.src, img.alt);
+              
               // Ensure image has proper attributes for PDF rendering
               if (img.src && !img.alt) {
                 img.alt = 'Image';
               }
               
-              // Convert external images to data URLs if possible to ensure they're included in PDF
-              if (img.src && img.src.startsWith('http')) {
+              // Force image to be visible and properly sized
+              img.style.cssText = 'max-width: 100%; height: auto; display: block; margin: 10px 0; border: 1px solid #ddd;';
+              
+              // Remove any attributes that might interfere with PDF rendering
+              img.removeAttribute('style');
+              img.removeAttribute('class');
+              img.removeAttribute('data-*');
+              
+              // Re-apply our PDF-friendly styles
+              img.style.cssText = 'max-width: 100%; height: auto; display: block; margin: 10px 0; border: 1px solid #ddd;';
+              
+              // If image has no src or invalid src, try to find alternative
+              if (!img.src || img.src === '#' || img.src === '') {
+                console.log(`[PDF Export] Image ${imgIndex} has no valid src, trying to find alternative`);
+                // Look for data-src or other attributes
+                const alternativeSrc = img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('srcset');
+                if (alternativeSrc) {
+                  img.src = alternativeSrc;
+                  console.log(`[PDF Export] Found alternative src for image ${imgIndex}:`, alternativeSrc);
+                }
+              }
+              
+              // Convert external images to data URLs for better PDF inclusion
+              if (img.src && (img.src.startsWith('http') || img.src.startsWith('//'))) {
+                console.log(`[PDF Export] Converting external image ${imgIndex} to data URL:`, img.src);
                 try {
                   // Create a canvas to convert image to data URL
                   const canvas = document.createElement('canvas');
@@ -1239,35 +1269,35 @@ const createZeroEkaIconButton = () => {
                   tempImg.crossOrigin = 'anonymous';
                   
                   tempImg.onload = () => {
-                    canvas.width = tempImg.width;
-                    canvas.height = tempImg.height;
-                    ctx.drawImage(tempImg, 0, 0);
                     try {
+                      canvas.width = tempImg.width;
+                      canvas.height = tempImg.height;
+                      ctx.drawImage(tempImg, 0, 0);
                       const dataURL = canvas.toDataURL('image/png');
                       img.src = dataURL;
+                      console.log(`[PDF Export] Successfully converted image ${imgIndex} to data URL`);
                     } catch (e) {
-                      console.log('[PDF Export] Could not convert image to data URL:', e);
+                      console.log(`[PDF Export] Could not convert image ${imgIndex} to data URL:`, e);
                     }
                   };
                   
                   tempImg.onerror = () => {
-                    console.log('[PDF Export] Could not load external image for conversion:', img.src);
+                    console.log(`[PDF Export] Could not load external image ${imgIndex} for conversion:`, img.src);
                   };
                   
                   tempImg.src = img.src;
                 } catch (e) {
-                  console.log('[PDF Export] Error processing image:', e);
+                  console.log(`[PDF Export] Error processing image ${imgIndex}:`, e);
                 }
               }
-              
-              // Remove any inline styles that might interfere with PDF rendering
-              img.removeAttribute('style');
-              // Ensure image is visible and properly sized for PDF
-              img.style.cssText = 'max-width: 100%; height: auto; display: block; margin: 10px 0;';
             });
             
-            return wrapper.innerHTML;
-          } catch (_) {
+            const finalHtml = wrapper.innerHTML;
+            console.log('[PDF Export] Sanitized HTML length:', finalHtml.length, 'Images preserved:', images.length);
+            
+            return finalHtml;
+          } catch (error) {
+            console.error('[PDF Export] Error in sanitizeForPdf:', error);
             return unsafeHtml || '';
           }
         };
@@ -1294,106 +1324,101 @@ const createZeroEkaIconButton = () => {
             writeBlock(isUser ? 'user' : 'assistant', html, index++);
           });
         } else {
-          // ChatGPT: try attribute-based messages first; fallback to markdown/article content
-          let messages = Array.from(document.querySelectorAll('[data-message-id]'));
-          if (!messages.length) {
-            messages = Array.from(document.querySelectorAll('article'));
+          // ChatGPT: NEW APPROACH - Direct content capture with aggressive image handling
+          console.log('[PDF Export] Using new ChatGPT content extraction approach');
+          
+          // Try multiple selectors to find conversation content
+          let conversationContainer = document.querySelector('[data-testid="conversation-turn-2"]')?.parentElement ||
+                                   document.querySelector('[data-testid="conversation-turn-2"]')?.closest('div[class*="conversation"]') ||
+                                   document.querySelector('main') ||
+                                   document.querySelector('[role="main"]') ||
+                                   document.body;
+          
+          if (!conversationContainer) {
+            console.log('[PDF Export] No conversation container found, trying alternative approach');
+            conversationContainer = document.body;
           }
           
-          console.log('[PDF Export] Found ChatGPT messages:', messages.length);
+          console.log('[PDF Export] Using conversation container:', conversationContainer);
           
-          messages.forEach((message, msgIndex) => {
-            const role = message.getAttribute && message.getAttribute('data-message-author-role') ||
-              (message.querySelector('[data-message-author-role="user"]') ? 'user' : (message.querySelector('.markdown, .prose') ? 'assistant' : 'assistant'));
+          // Find all message blocks using a more comprehensive approach
+          const messageBlocks = conversationContainer.querySelectorAll('[data-message-id], article, [class*="message"], [class*="turn"]');
+          console.log('[PDF Export] Found message blocks:', messageBlocks.length);
+          
+          if (messageBlocks.length === 0) {
+            // Fallback: try to find any content that looks like a conversation
+            const allDivs = conversationContainer.querySelectorAll('div');
+            const conversationDivs = Array.from(allDivs).filter(div => {
+              const text = div.textContent || '';
+              const hasContent = text.length > 50;
+              const hasUserContent = div.querySelector('[data-message-author-role="user"]') || 
+                                   div.textContent.includes('User') || 
+                                   div.textContent.includes('user');
+              const hasAssistantContent = div.querySelector('.markdown, .prose') || 
+                                        div.textContent.includes('Assistant') || 
+                                        div.textContent.includes('assistant');
+              return hasContent && (hasUserContent || hasAssistantContent);
+            });
             
-            console.log(`[PDF Export] Processing message ${msgIndex}, role: ${role}`);
-            
-            // For ChatGPT, try to find the actual content container that holds images
-            let contentEl = null;
-            
-            // Try ChatGPT-specific selectors first
-            if (role === 'assistant') {
-              // For assistant messages, look for the markdown content container
-              contentEl = message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') ||
-                         message.querySelector('div[dir="auto"]') ||
-                         message.querySelector('[data-message-text]') ||
-                         message.querySelector('.message-text') ||
-                         message.querySelector('div[tabindex="-1"]');
-            } else {
-              // For user messages, look for the input content
-              contentEl = message.querySelector('[data-message-author-role="user"] + div') ||
-                         message.querySelector('div[dir="auto"]') ||
-                         message.querySelector('[data-message-text]') ||
-                         message.querySelector('.message-text');
-            }
-            
-            // If no specific content element found, use the entire message
-            if (!contentEl) {
-              contentEl = message;
-              console.log(`[PDF Export] No specific content element found, using entire message`);
-            }
-            
-            // Remove resident ZeroEka star from cloned content to avoid overlap in PDF
-            Array.from(message.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star')).forEach(el => { try { el.remove(); } catch(_){} });
-            
-            // Check if this message contains images - try multiple approaches
-            let images = contentEl.querySelectorAll('img');
-            
-            // If no images found in contentEl, try the entire message
-            if (images.length === 0) {
-              images = message.querySelectorAll('img');
-              console.log(`[PDF Export] No images in contentEl, checking entire message: found ${images.length} images`);
-            }
-            
-            // Also check for any other image-like elements
-            const imageElements = message.querySelectorAll('img, svg, canvas, [data-testid*="image"], [class*="image"]');
-            if (imageElements.length > 0) {
-              console.log(`[PDF Export] Found ${imageElements.length} image-like elements in message ${msgIndex}:`, imageElements);
-            }
-            
-            if (images.length > 0) {
-              console.log(`[PDF Export] Message ${msgIndex} contains ${images.length} images:`, images);
-              images.forEach((img, imgIndex) => {
-                console.log(`[PDF Export] Image ${imgIndex}:`, img.src, img.alt, img.className);
-                // Log the parent elements to understand the structure
-                let parent = img.parentElement;
-                let level = 0;
-                while (parent && level < 5) {
-                  console.log(`[PDF Export] Image ${imgIndex} parent level ${level}:`, parent.tagName, parent.className, parent.id);
-                  parent = parent.parentElement;
-                  level++;
+            console.log('[PDF Export] Fallback: found conversation divs:', conversationDivs.length);
+            conversationDivs.forEach((div, divIndex) => {
+              const role = div.querySelector('[data-message-author-role="user"]') ? 'user' : 'assistant';
+              const html = div.innerHTML || div.textContent || '';
+              writeBlock(role, html, index++);
+            });
+          } else {
+            messageBlocks.forEach((message, msgIndex) => {
+              try {
+                // Determine role
+                let role = 'assistant';
+                if (message.getAttribute('data-message-author-role') === 'user' ||
+                    message.querySelector('[data-message-author-role="user"]') ||
+                    message.textContent.includes('User') ||
+                    message.textContent.includes('user')) {
+                  role = 'user';
                 }
-              });
-            } else {
-              console.log(`[PDF Export] Message ${msgIndex} has no images`);
-            }
-            
-            // Use innerHTML to preserve images and other HTML content
-            let html = contentEl.innerHTML || message.innerHTML || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
-            
-            // If we still don't have images but the message contains them, try to get the raw HTML
-            if (images.length === 0 && message.innerHTML && message.innerHTML.includes('<img')) {
-              console.log(`[PDF Export] Message ${msgIndex} has img tags in innerHTML but not in contentEl, using message.innerHTML`);
-              html = message.innerHTML;
-              // Re-check for images in the raw HTML
-              const tempDiv = document.createElement('div');
-              tempDiv.innerHTML = html;
-              const rawImages = tempDiv.querySelectorAll('img');
-              if (rawImages.length > 0) {
-                console.log(`[PDF Export] Found ${rawImages.length} images in raw HTML for message ${msgIndex}`);
-                images = rawImages;
+                
+                // Find the actual content element
+                let contentEl = message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') ||
+                               message.querySelector('div[tabindex="-1"]') ||
+                               message;
+                
+                // If still no specific content, use the entire message
+                if (!contentEl || contentEl === message) {
+                  contentEl = message;
+                }
+                
+                // Remove ZeroEka UI elements
+                Array.from(contentEl.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]'))
+                  .forEach(el => { try { el.remove(); } catch(_){} });
+                
+                // Check for images and log them
+                const images = contentEl.querySelectorAll('img');
+                if (images.length > 0) {
+                  console.log(`[PDF Export] Message ${msgIndex} contains ${images.length} images:`, images);
+                  images.forEach((img, imgIndex) => {
+                    console.log(`[PDF Export] Image ${imgIndex}:`, img.src, img.alt, img.className);
+                  });
+                }
+                
+                // Get HTML content
+                const html = contentEl.innerHTML || message.innerHTML || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+                
+                console.log(`[PDF Export] Message ${msgIndex} role: ${role}, content length: ${html.length}, has images: ${images.length > 0}`);
+                
+                writeBlock(role, html, index++);
+              } catch (error) {
+                console.error(`[PDF Export] Error processing message ${msgIndex}:`, error);
+                // Fallback: try to get basic content
+                try {
+                  const html = message.innerHTML || message.textContent || '';
+                  writeBlock('assistant', html, index++);
+                } catch (fallbackError) {
+                  console.error(`[PDF Export] Fallback also failed for message ${msgIndex}:`, fallbackError);
+                }
               }
-            }
-            
-            console.log(`[PDF Export] Message ${msgIndex} role: ${role}, content length: ${html.length}, has images: ${images.length > 0}`);
-            
-            // Log a sample of the HTML content to see what's being captured
-            if (html.length > 0) {
-              console.log(`[PDF Export] Message ${msgIndex} HTML sample:`, html.substring(0, 200) + '...');
-            }
-            
-            writeBlock(role === 'user' ? 'user' : 'assistant', html, index++);
-          });
+            });
+          }
         }
 
         iframeDoc.write('</div></body></html>');
