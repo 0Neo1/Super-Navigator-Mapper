@@ -1212,7 +1212,7 @@ const createZeroEkaIconButton = () => {
                 if (!img.hasAttribute('referrerpolicy')) img.setAttribute('referrerpolicy', 'no-referrer');
                 if (!img.hasAttribute('crossorigin')) img.setAttribute('crossorigin', 'anonymous');
                 // Resolve lazy and relative sources
-                const dataSrc = img.getAttribute('data-src') || img.getAttribute('data-original');
+                const dataSrc = img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('data-lazy-src');
                 if (dataSrc && !img.getAttribute('src')) img.setAttribute('src', dataSrc);
                 const src = img.getAttribute('src');
                 if (src) img.setAttribute('src', toAbsoluteUrl(src));
@@ -1337,7 +1337,6 @@ const createZeroEkaIconButton = () => {
                   img.addEventListener('error', done, { once: true });
                 } catch(_) { done(); }
               });
-              // Clear fallback when done
               const clear = () => { try { clearTimeout(fallback); } catch(_) {} };
               imgs.length ? imgs[imgs.length-1].addEventListener('load', clear, { once: true }) : clear();
             });
@@ -1358,7 +1357,6 @@ const createZeroEkaIconButton = () => {
           try {
             if (IS_GEMINI) { try { document.title = pdfTitle; } catch(_) {} }
             printOpenedAt = Date.now();
-            // Ensure images are loaded before printing
             await waitForImages();
             iframe.contentWindow.print();
           } catch(_) {}
@@ -1370,8 +1368,8 @@ const createZeroEkaIconButton = () => {
         };
 
         // Wait for iframe load then trigger print; keep a single fallback
-        iframe.onload = () => setTimeout(finalizeOnce, 80);
-        setTimeout(() => { finalizeOnce(); }, 2200);
+        iframe.onload = () => setTimeout(finalizeOnce, 50);
+        setTimeout(() => { finalizeOnce(); }, 1500);
       } catch (error) {
         console.error('Error during PDF export:', error);
         alert('Error creating PDF export. Please try again.');
