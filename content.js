@@ -1306,32 +1306,91 @@ const createZeroEkaIconButton = () => {
             const role = message.getAttribute && message.getAttribute('data-message-author-role') ||
               (message.querySelector('[data-message-author-role="user"]') ? 'user' : (message.querySelector('.markdown, .prose') ? 'assistant' : 'assistant'));
             
-            // Try multiple selectors to find the content element with images
-            let contentEl = message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || 
-                           message.querySelector('div[tabindex="-1"], [data-message-author-role]') || 
-                           message;
+            console.log(`[PDF Export] Processing message ${msgIndex}, role: ${role}`);
+            
+            // For ChatGPT, try to find the actual content container that holds images
+            let contentEl = null;
+            
+            // Try ChatGPT-specific selectors first
+            if (role === 'assistant') {
+              // For assistant messages, look for the markdown content container
+              contentEl = message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') ||
+                         message.querySelector('div[dir="auto"]') ||
+                         message.querySelector('[data-message-text]') ||
+                         message.querySelector('.message-text') ||
+                         message.querySelector('div[tabindex="-1"]');
+            } else {
+              // For user messages, look for the input content
+              contentEl = message.querySelector('[data-message-author-role="user"] + div') ||
+                         message.querySelector('div[dir="auto"]') ||
+                         message.querySelector('[data-message-text]') ||
+                         message.querySelector('.message-text');
+            }
             
             // If no specific content element found, use the entire message
-            if (!contentEl || contentEl === message) {
+            if (!contentEl) {
               contentEl = message;
+              console.log(`[PDF Export] No specific content element found, using entire message`);
             }
             
             // Remove resident ZeroEka star from cloned content to avoid overlap in PDF
             Array.from(message.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star')).forEach(el => { try { el.remove(); } catch(_){} });
             
-            // Check if this message contains images
-            const images = contentEl.querySelectorAll('img');
+            // Check if this message contains images - try multiple approaches
+            let images = contentEl.querySelectorAll('img');
+            
+            // If no images found in contentEl, try the entire message
+            if (images.length === 0) {
+              images = message.querySelectorAll('img');
+              console.log(`[PDF Export] No images in contentEl, checking entire message: found ${images.length} images`);
+            }
+            
+            // Also check for any other image-like elements
+            const imageElements = message.querySelectorAll('img, svg, canvas, [data-testid*="image"], [class*="image"]');
+            if (imageElements.length > 0) {
+              console.log(`[PDF Export] Found ${imageElements.length} image-like elements in message ${msgIndex}:`, imageElements);
+            }
+            
             if (images.length > 0) {
               console.log(`[PDF Export] Message ${msgIndex} contains ${images.length} images:`, images);
               images.forEach((img, imgIndex) => {
-                console.log(`[PDF Export] Image ${imgIndex}:`, img.src, img.alt);
+                console.log(`[PDF Export] Image ${imgIndex}:`, img.src, img.alt, img.className);
+                // Log the parent elements to understand the structure
+                let parent = img.parentElement;
+                let level = 0;
+                while (parent && level < 5) {
+                  console.log(`[PDF Export] Image ${imgIndex} parent level ${level}:`, parent.tagName, parent.className, parent.id);
+                  parent = parent.parentElement;
+                  level++;
+                }
               });
+            } else {
+              console.log(`[PDF Export] Message ${msgIndex} has no images`);
             }
             
             // Use innerHTML to preserve images and other HTML content
-            const html = contentEl.innerHTML || message.innerHTML || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+            let html = contentEl.innerHTML || message.innerHTML || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+            
+            // If we still don't have images but the message contains them, try to get the raw HTML
+            if (images.length === 0 && message.innerHTML && message.innerHTML.includes('<img')) {
+              console.log(`[PDF Export] Message ${msgIndex} has img tags in innerHTML but not in contentEl, using message.innerHTML`);
+              html = message.innerHTML;
+              // Re-check for images in the raw HTML
+              const tempDiv = document.createElement('div');
+              tempDiv.innerHTML = html;
+              const rawImages = tempDiv.querySelectorAll('img');
+              if (rawImages.length > 0) {
+                console.log(`[PDF Export] Found ${rawImages.length} images in raw HTML for message ${msgIndex}`);
+                images = rawImages;
+              }
+            }
             
             console.log(`[PDF Export] Message ${msgIndex} role: ${role}, content length: ${html.length}, has images: ${images.length > 0}`);
+            
+            // Log a sample of the HTML content to see what's being captured
+            if (html.length > 0) {
+              console.log(`[PDF Export] Message ${msgIndex} HTML sample:`, html.substring(0, 200) + '...');
+            }
             
             writeBlock(role === 'user' ? 'user' : 'assistant', html, index++);
           });
