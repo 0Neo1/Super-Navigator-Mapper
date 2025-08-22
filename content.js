@@ -1303,7 +1303,22 @@ const createZeroEkaIconButton = () => {
         };
 
         const writeBlock = (role, html, index) => {
+          console.log(`[PDF Export] writeBlock called for ${role}, original HTML length:`, html.length);
+          
+          // Check for images in the original HTML before sanitization
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = html;
+          const originalImages = tempDiv.querySelectorAll('img');
+          console.log(`[PDF Export] Original HTML contains ${originalImages.length} images`);
+          
           const safeHtml = sanitizeForPdf(html);
+          
+          // Check for images in the sanitized HTML
+          const finalDiv = document.createElement('div');
+          finalDiv.innerHTML = safeHtml;
+          const finalImages = finalDiv.querySelectorAll('img');
+          console.log(`[PDF Export] Sanitized HTML contains ${finalImages.length} images`);
+          
           iframeDoc.write(`
             <div class="message-block">
               <div class="role-label">${role === 'user' ? 'USER PROMPT' : 'OUTPUT'}</div>
@@ -1343,6 +1358,15 @@ const createZeroEkaIconButton = () => {
                 if (userContent) {
                   const userHtml = userContent.innerHTML || userContent.textContent || '';
                   if (userHtml.trim().length > 0) {
+                    // Check for images in user content
+                    const userImages = userContent.querySelectorAll('img');
+                    if (userImages.length > 0) {
+                      console.log(`[PDF Export] Turn ${turnIndex} - User content contains ${userImages.length} images`);
+                      userImages.forEach((img, imgIndex) => {
+                        console.log(`[PDF Export] User image ${imgIndex}:`, img.src, img.alt);
+                      });
+                    }
+                    
                     console.log(`[PDF Export] Turn ${turnIndex} - User content length:`, userHtml.length);
                     writeBlock('user', userHtml, index++);
                   }
@@ -1352,6 +1376,15 @@ const createZeroEkaIconButton = () => {
                 if (assistantContent) {
                   const assistantHtml = assistantContent.innerHTML || assistantContent.textContent || '';
                   if (assistantHtml.trim().length > 0) {
+                    // Check for images in assistant content
+                    const assistantImages = assistantContent.querySelectorAll('img');
+                    if (assistantImages.length > 0) {
+                      console.log(`[PDF Export] Turn ${turnIndex} - Assistant content contains ${assistantImages.length} images`);
+                      assistantImages.forEach((img, imgIndex) => {
+                        console.log(`[PDF Export] Assistant image ${imgIndex}:`, img.src, img.alt);
+                      });
+                    }
+                    
                     console.log(`[PDF Export] Turn ${turnIndex} - Assistant content length:`, assistantHtml.length);
                     writeBlock('assistant', assistantHtml, index++);
                   }
@@ -1396,8 +1429,17 @@ const createZeroEkaIconButton = () => {
                 Array.from(tempDiv.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]'))
                   .forEach(el => { try { el.remove(); } catch(_){} });
                 
+                // Check for images in the content
+                const images = tempDiv.querySelectorAll('img');
+                if (images.length > 0) {
+                  console.log(`[PDF Export] Message ${msgIndex} contains ${images.length} images`);
+                  images.forEach((img, imgIndex) => {
+                    console.log(`[PDF Export] Message ${msgIndex} image ${imgIndex}:`, img.src, img.alt);
+                  });
+                }
+                
                 const cleanHtml = tempDiv.innerHTML;
-                console.log(`[PDF Export] Message ${msgIndex} role: ${role}, content length: ${cleanHtml.length}`);
+                console.log(`[PDF Export] Message ${msgIndex} role: ${role}, content length: ${cleanHtml.length}, has images: ${images.length > 0}`);
                 
                 writeBlock(role, cleanHtml, index++);
               } catch (error) {
