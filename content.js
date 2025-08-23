@@ -1201,19 +1201,56 @@ const createZeroEkaIconButton = () => {
             wrapper.querySelectorAll('button, [role="button"]').forEach(el => {
               if (el.className && /zeroeka/i.test(el.className)) el.remove();
             });
-            // Normalize images for printing: force eager load and ensure src exists
+            // Normalize <picture>/<img> for printing: force eager load and ensure concrete src
+            wrapper.querySelectorAll('picture').forEach(pic => {
+              const img = pic.querySelector('img');
+              if (img) {
+                try { img.removeAttribute('loading'); } catch(_) {}
+                const srcset = img.getAttribute('srcset');
+                const chosen = img.currentSrc || img.getAttribute('src') || (srcset ? (srcset.split(',')[0] || '').trim().split(' ')[0] : '');
+                if (!img.getAttribute('src') && chosen) img.setAttribute('src', chosen);
+              }
+            });
             wrapper.querySelectorAll('img').forEach(img => {
               try {
-                // Remove lazy-loading to ensure images load before printing
                 img.removeAttribute('loading');
-                // If src is missing, try common data attributes
-                if (!img.getAttribute('src')) {
-                  const ds = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || img.getAttribute('data-original');
-                  if (ds) img.setAttribute('src', ds);
-                }
-                // Basic sizing to fit page width
+                const srcset = img.getAttribute('srcset');
+                let preferred = img.currentSrc || img.getAttribute('src') || (srcset ? (srcset.split(',')[0] || '').trim().split(' ')[0] : '');
+                if (!preferred) preferred = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || img.getAttribute('data-original') || '';
+                if (preferred && !img.getAttribute('src')) img.setAttribute('src', preferred);
                 img.style.maxWidth = '100%';
                 img.style.height = 'auto';
+              } catch(_) {}
+            });
+            // Convert canvas to images
+            wrapper.querySelectorAll('canvas').forEach(canvas => {
+              try {
+                if (canvas && canvas.toDataURL) {
+                  const png = canvas.toDataURL('image/png');
+                  if (png && /^data:image\/png/.test(png)) {
+                    const img = (iframeDoc || document).createElement('img');
+                    img.setAttribute('src', png);
+                    img.style.maxWidth = '100%';
+                    img.style.height = 'auto';
+                    canvas.parentNode.replaceChild(img, canvas);
+                  }
+                }
+              } catch(_) {}
+            });
+            // Extract inline background-image URLs into <img> tags
+            wrapper.querySelectorAll('[style*="background-image"]').forEach(el => {
+              try {
+                const m = (el.getAttribute('style') || '').match(/background-image\s*:\s*url\(([^)]+)\)/i);
+                if (m && m[1]) {
+                  let url = m[1].trim().replace(/^['"]|['"]$/g, '');
+                  if (url) {
+                    const img = (iframeDoc || document).createElement('img');
+                    img.setAttribute('src', url);
+                    img.style.maxWidth = '100%';
+                    img.style.height = 'auto';
+                    el.appendChild(img);
+                  }
+                }
               } catch(_) {}
             });
             return wrapper.innerHTML;
@@ -1235,12 +1272,22 @@ const createZeroEkaIconButton = () => {
         let index = 0;
 
         if (IS_GEMINI) {
-          // Gemini: sequence user prompts and model responses by DOM order
+          // Gemini: sequence user prompts and model responses by DOM order, include attachments
           const nodes = Array.from(document.querySelectorAll('user-query-content .query-text, .model-response-text'));
           nodes.forEach((node) => {
             const isUser = node.matches('user-query-content .query-text');
-            // Prefer HTML content, fallback to text
-            const html = node.innerHTML || (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+            let html = node.innerHTML || '';
+            // If the immediate node lacks media, climb to container that may hold attachments
+            if (!/\<img|\<picture|\<canvas|\<video/i.test(html)) {
+              if (isUser) {
+                const container = node.closest('user-query-content') || node.parentElement;
+                if (container && container.innerHTML) html = container.innerHTML;
+              } else {
+                const container = node.closest('[data-test-id="model-response"], .model-response-text');
+                if (container && container.innerHTML) html = container.innerHTML;
+              }
+            }
+            if (!html) html = (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
             writeBlock(isUser ? 'user' : 'assistant', html, index++);
           });
         } else {
@@ -1254,6 +1301,20 @@ const createZeroEkaIconButton = () => {
               (message.querySelector('[data-message-author-role="user"]') ? 'user' : (message.querySelector('.markdown, .prose') ? 'assistant' : 'assistant'));
             // Clone the entire message to preserve all media (images, figures, etc.)
             const clone = message.cloneNode(true);
+            // If no media inside the clone, include a media sibling (some UIs render attachments adjacent)
+            if (clone && !clone.querySelector('img, picture, canvas, video')) {
+              try {
+                const sib = message.nextElementSibling;
+                if (sib && sib.querySelector && sib.querySelector('img, picture, canvas, video')) {
+                  const wrap = (iframeDoc || document).createElement('div');
+                  wrap.appendChild(clone);
+                  wrap.appendChild(sib.cloneNode(true));
+                  const html = wrap.innerHTML || (message.innerHTML) || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+                  writeBlock(role === 'user' ? 'user' : 'assistant', html, index++);
+                  return;
+                }
+              } catch(_) {}
+            }
             const html = (clone && clone.innerHTML) || (message.innerHTML) || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
             writeBlock(role === 'user' ? 'user' : 'assistant', html, index++);
           });
@@ -1321,13 +1382,13 @@ const createZeroEkaIconButton = () => {
               }
             });
             // Max wait in case some images never fire
-            setTimeout(() => { finalizeOnce(); }, 3500);
+            setTimeout(() => { finalizeOnce(); }, 7000);
           } catch(_) {
             finalizeOnce();
           }
         };
         // Absolute safety fallback
-        setTimeout(() => { finalizeOnce(); }, 5000);
+        setTimeout(() => { finalizeOnce(); }, 9000);
       } catch (error) {
         console.error('Error during PDF export:', error);
         alert('Error creating PDF export. Please try again.');
