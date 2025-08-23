@@ -1226,7 +1226,7 @@ const createZeroEkaIconButton = () => {
             <div class="ze-content">
         `);
 
-        // NEW APPROACH: Process all images first, then generate PDF
+        // ENHANCED IMAGE PROCESSING: Comprehensive approach for ChatGPT generated images
         const processImagesForPdf = async (html) => {
           try {
             const wrapper = document.createElement('div');
@@ -1238,44 +1238,150 @@ const createZeroEkaIconButton = () => {
               if (el.className && /zeroeka/i.test(el.className)) el.remove();
             });
             
-            const images = wrapper.querySelectorAll('img');
-            if (images.length === 0) {
-              return wrapper.innerHTML;
+            // SPECIAL HANDLING FOR CHATGPT DALL-E IMAGES
+            const handleDalleImages = () => {
+              // Look for ChatGPT's specific DALL-E image containers
+              const dalleContainers = wrapper.querySelectorAll('[data-testid*="dalle"], [data-testid*="image"], [class*="dalle"], [class*="generated-image"]');
+              dalleContainers.forEach(container => {
+                // If it's a container, look for the actual image inside
+                const actualImage = container.querySelector('img') || container.querySelector('canvas') || container.querySelector('svg');
+                if (actualImage) {
+                  console.log('[PDF Export] Found DALL-E image container with actual image:', actualImage);
+                  // Ensure the image is visible and properly styled
+                  actualImage.style.display = 'block';
+                  actualImage.style.maxWidth = '100%';
+                  actualImage.style.height = 'auto';
+                }
+              });
+            };
+            
+            // ENHANCED IMAGE DETECTION: Look for all possible image elements
+            const allImages = [
+              ...wrapper.querySelectorAll('img'), // Standard img tags
+              ...wrapper.querySelectorAll('picture img'), // Picture elements
+              ...wrapper.querySelectorAll('[data-testid*="image"]'), // ChatGPT image containers
+              ...wrapper.querySelectorAll('[data-testid*="dalle"]'), // DALL-E specific containers
+              ...wrapper.querySelectorAll('[class*="image"]'), // Elements with image in class
+              ...wrapper.querySelectorAll('[class*="generated"]'), // Generated content
+              ...wrapper.querySelectorAll('[class*="dalle"]'), // DALL-E specific classes
+              ...wrapper.querySelectorAll('canvas'), // Canvas elements (might contain images)
+              ...wrapper.querySelectorAll('svg'), // SVG elements
+            ];
+            
+            // Remove duplicates and filter out non-image elements
+            const uniqueImages = Array.from(new Set(allImages)).filter(el => {
+              if (el.tagName === 'IMG') return true;
+              if (el.tagName === 'CANVAS') return true;
+              if (el.tagName === 'SVG') return true;
+              // Check if element contains or represents an image
+              return el.querySelector('img') || el.style.backgroundImage || el.getAttribute('data-testid')?.includes('image');
+            });
+            
+            // Call DALL-E handling function
+            handleDalleImages();
+            
+            if (uniqueImages.length === 0) {
+              console.log('[PDF Export] No images found in this content block');
+              // Even if no images found, still process the content to ensure DALL-E containers are included
+              console.log('[PDF Export] Processing content without images to include any DALL-E containers');
             }
             
-            console.log(`[PDF Export] Processing ${images.length} images for PDF...`);
+            console.log(`[PDF Export] Found ${uniqueImages.length} potential image elements:`, uniqueImages);
+            console.log('[PDF Export] Raw HTML content length:', html.length);
+            console.log('[PDF Export] Wrapper HTML content length:', wrapper.innerHTML.length);
             
-            // Process all images synchronously using Promise.all
-            const imagePromises = Array.from(images).map(async (img, index) => {
+            // Process all images with enhanced detection
+            const imagePromises = uniqueImages.map(async (imgElement, index) => {
               return new Promise((resolve) => {
                 try {
-                  // Ensure image has proper attributes
-                  if (img.src && !img.alt) {
-                    img.alt = 'Image';
+                  let imgSrc = null;
+                  let imgAlt = 'Generated Image';
+                  
+                  // Handle different types of image elements
+                  if (imgElement.tagName === 'IMG') {
+                    imgSrc = imgElement.src;
+                    imgAlt = imgElement.alt || 'Generated Image';
+                  } else if (imgElement.tagName === 'CANVAS') {
+                    // Convert canvas to data URL
+                    try {
+                      imgSrc = imgElement.toDataURL('image/png');
+                      imgAlt = 'Canvas Image';
+                    } catch (e) {
+                      console.log(`[PDF Export] Could not convert canvas ${index} to data URL:`, e);
+                      resolve();
+                      return;
+                    }
+                  } else if (imgElement.tagName === 'SVG') {
+                    // Convert SVG to data URL
+                    try {
+                      const svgData = new XMLSerializer().serializeToString(imgElement);
+                      const svgBlob = new Blob([svgData], { type: 'image/svg+xml' });
+                      imgSrc = URL.createObjectURL(svgBlob);
+                      imgAlt = 'SVG Image';
+                    } catch (e) {
+                      console.log(`[PDF Export] Could not convert SVG ${index} to data URL:`, e);
+                      resolve();
+                      return;
+                    }
+                  } else {
+                    // Check for background images or other image representations
+                    const backgroundImage = imgElement.style.backgroundImage;
+                    if (backgroundImage && backgroundImage !== 'none') {
+                      imgSrc = backgroundImage.replace(/url\(['"]?(.*?)['"]?\)/g, '$1');
+                      imgAlt = 'Background Image';
+                    } else {
+                      // Look for nested img elements
+                      const nestedImg = imgElement.querySelector('img');
+                      if (nestedImg) {
+                        imgSrc = nestedImg.src;
+                        imgAlt = nestedImg.alt || 'Nested Image';
+                      }
+                    }
                   }
                   
-                  // If image is already a data URL, it's ready
-                  if (img.src && img.src.startsWith('data:')) {
+                  if (!imgSrc) {
+                    console.log(`[PDF Export] No image source found for element ${index}`);
+                    resolve();
+                    return;
+                  }
+                  
+                  console.log(`[PDF Export] Processing image ${index}:`, imgSrc, imgAlt);
+                  
+                  // If already a data URL, it's ready
+                  if (imgSrc.startsWith('data:')) {
                     console.log(`[PDF Export] Image ${index} is already a data URL`);
                     resolve();
                     return;
                   }
                   
-                  // If image has no src, try to find alternative
-                  if (!img.src || img.src === '#' || img.src === '') {
-                    const alternativeSrc = img.getAttribute('data-src') || 
-                                        img.getAttribute('data-original') || 
-                                        img.getAttribute('srcset') ||
-                                        img.getAttribute('data-lazy-src');
-                    if (alternativeSrc) {
-                      img.src = alternativeSrc;
-                      console.log(`[PDF Export] Found alternative src for image ${index}:`, alternativeSrc);
+                  // If blob URL, convert to data URL
+                  if (imgSrc.startsWith('blob:')) {
+                    try {
+                      fetch(imgSrc)
+                        .then(response => response.blob())
+                        .then(blob => {
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            imgSrc = reader.result;
+                            console.log(`[PDF Export] Converted blob ${index} to data URL`);
+                            resolve();
+                          };
+                          reader.readAsDataURL(blob);
+                        })
+                        .catch(e => {
+                          console.log(`[PDF Export] Could not convert blob ${index}:`, e);
+                          resolve();
+                        });
+                    } catch (e) {
+                      console.log(`[PDF Export] Error processing blob ${index}:`, e);
+                      resolve();
                     }
+                    return;
                   }
                   
                   // Convert external images to data URLs
-                  if (img.src && (img.src.startsWith('http') || img.src.startsWith('//'))) {
-                    console.log(`[PDF Export] Converting image ${index} to data URL:`, img.src);
+                  if (imgSrc.startsWith('http') || imgSrc.startsWith('//')) {
+                    console.log(`[PDF Export] Converting external image ${index} to data URL:`, imgSrc);
                     
                     const tempImg = new Image();
                     tempImg.crossOrigin = 'anonymous';
@@ -1289,7 +1395,7 @@ const createZeroEkaIconButton = () => {
                         ctx.drawImage(tempImg, 0, 0);
                         
                         const dataURL = canvas.toDataURL('image/png');
-                        img.src = dataURL;
+                        imgSrc = dataURL;
                         console.log(`[PDF Export] Successfully converted image ${index} to data URL`);
                         resolve();
                       } catch (e) {
@@ -1299,16 +1405,16 @@ const createZeroEkaIconButton = () => {
                     };
                     
                     tempImg.onerror = () => {
-                      console.log(`[PDF Export] Could not load image ${index} for conversion:`, img.src);
+                      console.log(`[PDF Export] Could not load external image ${index} for conversion:`, imgSrc);
                       resolve();
                     };
                     
-                    tempImg.src = img.src;
+                    tempImg.src = imgSrc;
                   } else {
                     resolve();
                   }
                 } catch (error) {
-                  console.error(`[PDF Export] Error processing image ${index}:`, error);
+                  console.error(`[PDF Export] Error processing image element ${index}:`, error);
                   resolve();
                 }
               });
@@ -1316,15 +1422,22 @@ const createZeroEkaIconButton = () => {
             
             // Wait for ALL images to be processed
             await Promise.all(imagePromises);
-            console.log(`[PDF Export] All ${images.length} images processed successfully`);
+            console.log(`[PDF Export] All ${uniqueImages.length} images processed successfully`);
+            
+            // Create a new wrapper with processed images
+            const processedWrapper = document.createElement('div');
+            processedWrapper.innerHTML = html || '';
+            
+            // Remove extension UI artifacts again
+            processedWrapper.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]').forEach(el => el.remove());
             
             // Apply PDF-friendly styling to all images
-            images.forEach((img) => {
+            processedWrapper.querySelectorAll('img, canvas, svg').forEach((img) => {
               img.removeAttribute('style');
               img.style.cssText = 'max-width: 100%; height: auto; display: block; margin: 10px 0; border: 1px solid #ddd;';
             });
             
-            return wrapper.innerHTML;
+            return processedWrapper.innerHTML;
           } catch (error) {
             console.error('[PDF Export] Error in processImagesForPdf:', error);
             return html || '';
@@ -1386,12 +1499,36 @@ const createZeroEkaIconButton = () => {
               
               if (extractionMethod === 'data-message-id') {
                 role = message.getAttribute('data-message-author-role') || 'assistant';
+                // ENHANCED CONTENT EXTRACTION: Look for all possible content containers
                 contentEl = message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || 
                            message.querySelector('div[tabindex="-1"], [data-message-author-role]') || 
                            message;
+                
+                // ENHANCED IMAGE DETECTION: Look for ChatGPT's specific image containers
+                const imageContainers = message.querySelectorAll('[data-testid*="image"], [class*="image"], [class*="generated"], picture, canvas, svg');
+                if (imageContainers.length > 0) {
+                  console.log(`[PDF Export] Message ${msgIndex} contains ${imageContainers.length} image containers:`, imageContainers);
+                  // Include image containers in content
+                  imageContainers.forEach(container => {
+                    if (!contentEl.contains(container)) {
+                      contentEl.appendChild(container.cloneNode(true));
+                    }
+                  });
+                }
               } else if (extractionMethod === 'article') {
                 role = message.querySelector('[data-message-author-role="user"]') ? 'user' : 'assistant';
                 contentEl = message.querySelector('.markdown, .prose') || message;
+                
+                // Also check for images in article content
+                const imageContainers = message.querySelectorAll('[data-testid*="image"], [class*="image"], [class*="generated"], picture, canvas, svg');
+                if (imageContainers.length > 0) {
+                  console.log(`[PDF Export] Article ${msgIndex} contains ${imageContainers.length} image containers`);
+                  imageContainers.forEach(container => {
+                    if (!contentEl.contains(container)) {
+                      contentEl.appendChild(container.cloneNode(true));
+                    }
+                  });
+                }
               } else if (extractionMethod === 'conversation-turn') {
                 const userContent = message.querySelector('[data-message-author-role="user"]');
                 const assistantContent = message.querySelector('.markdown, .prose');
@@ -1418,17 +1555,26 @@ const createZeroEkaIconButton = () => {
               Array.from(contentEl.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]'))
                 .forEach(el => { try { el.remove(); } catch(_){} });
               
-              // Check for images
-              const images = contentEl.querySelectorAll('img');
-              if (images.length > 0) {
-                console.log(`[PDF Export] Message ${msgIndex} contains ${images.length} images`);
-                images.forEach((img, imgIndex) => {
-                  console.log(`[PDF Export] Image ${imgIndex}:`, img.src, img.alt);
+              // ENHANCED IMAGE DETECTION: Look for all types of images
+              const allImageElements = [
+                ...contentEl.querySelectorAll('img'),
+                ...contentEl.querySelectorAll('picture img'),
+                ...contentEl.querySelectorAll('[data-testid*="image"]'),
+                ...contentEl.querySelectorAll('[class*="image"]'),
+                ...contentEl.querySelectorAll('[class*="generated"]'),
+                ...contentEl.querySelectorAll('canvas'),
+                ...contentEl.querySelectorAll('svg')
+              ];
+              
+              if (allImageElements.length > 0) {
+                console.log(`[PDF Export] Message ${msgIndex} contains ${allImageElements.length} image elements:`, allImageElements);
+                allImageElements.forEach((img, imgIndex) => {
+                  console.log(`[PDF Export] Image ${imgIndex}:`, img.tagName, img.src || img.getAttribute('data-testid'), img.alt);
                 });
               }
               
               const html = contentEl.innerHTML || message.innerHTML || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
-              console.log(`[PDF Export] Message ${msgIndex} role: ${role}, content length: ${html.length}, has images: ${images.length > 0}`);
+              console.log(`[PDF Export] Message ${msgIndex} role: ${role}, content length: ${html.length}, has images: ${allImageElements.length > 0}`);
               
               await writeBlock(role, html, index++);
             } catch (error) {
