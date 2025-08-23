@@ -1169,28 +1169,9 @@ const createZeroEkaIconButton = () => {
               .message-block { margin: 0 0 8px; }
               .role-label { font-weight: 900; color: #0B3D91; font-size: 24px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px; }
               .message-content { white-space: normal; overflow-wrap: anywhere; }
-                              pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-                pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
-                img, svg, canvas, video { 
-                  max-width: 100%; 
-                  height: auto; 
-                  display: block; 
-                  margin: 8px 0; 
-                  border-radius: 4px; 
-                }
-                img { 
-                  page-break-inside: avoid; 
-                  break-inside: avoid; 
-                }
-                svg { 
-                  page-break-inside: avoid; 
-                  break-inside: avoid; 
-                }
-                canvas { 
-                  page-break-inside: avoid; 
-                  break-inside: avoid; 
-                  border: 1px solid #ddd; 
-                }
+              pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+              pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
+              img, svg, canvas, video { max-width: 100%; height: auto; }
               table { border-collapse: collapse; }
               table, th, td { border: 1px solid #ddd; }
               th, td { padding: 6px 8px; }
@@ -1214,63 +1195,27 @@ const createZeroEkaIconButton = () => {
           try {
             const wrapper = (iframeDoc || document).createElement('div');
             wrapper.innerHTML = unsafeHtml || '';
-            
             // Remove extension UI artifacts (stars, buttons, sidebars)
             wrapper.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]').forEach(el => el.remove());
-            
             // Remove any contenteditable or interactive controls that may add spacing
             wrapper.querySelectorAll('button, [role="button"]').forEach(el => {
               if (el.className && /zeroeka/i.test(el.className)) el.remove();
             });
-            
-            // Ensure images are properly preserved and styled for PDF
+            // Normalize images for printing: force eager load and ensure src exists
             wrapper.querySelectorAll('img').forEach(img => {
-              // Remove any inline styles that might interfere with PDF rendering
-              img.removeAttribute('style');
-              img.removeAttribute('class');
-              
-              // Handle different image source types
-              if (img.src) {
-                // For data URLs, ensure they're properly formatted
-                if (img.src.startsWith('data:')) {
-                  console.log('PDF Export: Found data URL image');
-                } else if (img.src.startsWith('blob:')) {
-                  // Convert blob URLs to data URLs if possible
-                  console.log('PDF Export: Found blob URL image');
-                } else if (img.src.startsWith('http')) {
-                  // External images - ensure they're accessible
-                  console.log('PDF Export: Found external image:', img.src);
+              try {
+                // Remove lazy-loading to ensure images load before printing
+                img.removeAttribute('loading');
+                // If src is missing, try common data attributes
+                if (!img.getAttribute('src')) {
+                  const ds = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || img.getAttribute('data-original');
+                  if (ds) img.setAttribute('src', ds);
                 }
-              }
-              
-              // Set consistent image styling for PDF
-              img.style.cssText = 'max-width: 100%; height: auto; display: block; margin: 8px 0; border-radius: 4px;';
-              
-              // Ensure image has proper alt text for accessibility
-              if (!img.alt) img.alt = 'Image';
-              
-              // Add error handling for images
-              img.onerror = function() {
-                console.warn('PDF Export: Image failed to load:', this.src);
-                // Replace failed image with a placeholder
-                this.style.display = 'none';
-                const placeholder = document.createElement('div');
-                placeholder.textContent = '[Image failed to load]';
-                placeholder.style.cssText = 'padding: 20px; background: #f0f0f0; border: 1px dashed #ccc; text-align: center; color: #666; border-radius: 4px; margin: 8px 0;';
-                this.parentNode.insertBefore(placeholder, this);
-              };
+                // Basic sizing to fit page width
+                img.style.maxWidth = '100%';
+                img.style.height = 'auto';
+              } catch(_) {}
             });
-            
-            // Handle any SVG elements
-            wrapper.querySelectorAll('svg').forEach(svg => {
-              svg.style.cssText = 'max-width: 100%; height: auto; display: block; margin: 8px 0;';
-            });
-            
-            // Handle any canvas elements
-            wrapper.querySelectorAll('canvas').forEach(canvas => {
-              canvas.style.cssText = 'max-width: 100%; height: auto; display: block; margin: 8px 0; border: 1px solid #ddd; border-radius: 4px;';
-            });
-            
             return wrapper.innerHTML;
           } catch (_) {
             return unsafeHtml || '';
@@ -1294,26 +1239,8 @@ const createZeroEkaIconButton = () => {
           const nodes = Array.from(document.querySelectorAll('user-query-content .query-text, .model-response-text'));
           nodes.forEach((node) => {
             const isUser = node.matches('user-query-content .query-text');
-            
-            // For Gemini, get the most complete content including images
-            let html = '';
-            if (node.innerHTML) {
-              html = node.innerHTML;
-            } else if (node.textContent) {
-              html = (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
-            }
-            
-            // If this is an assistant response and doesn't contain images, try to find images in parent containers
-            if (!isUser && html && !html.includes('<img')) {
-              const parentContainer = node.closest('.model-response-text, [data-test-id="model-response"], .response-content');
-              if (parentContainer) {
-                const fullContent = parentContainer.innerHTML;
-                if (fullContent.includes('<img')) {
-                  html = fullContent;
-                }
-              }
-            }
-            
+            // Prefer HTML content, fallback to text
+            const html = node.innerHTML || (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
             writeBlock(isUser ? 'user' : 'assistant', html, index++);
           });
         } else {
@@ -1325,39 +1252,9 @@ const createZeroEkaIconButton = () => {
           messages.forEach((message) => {
             const role = message.getAttribute && message.getAttribute('data-message-author-role') ||
               (message.querySelector('[data-message-author-role="user"]') ? 'user' : (message.querySelector('.markdown, .prose') ? 'assistant' : 'assistant'));
-            
-            // For ChatGPT, try to get the most complete content including images
-            let contentEl = message.querySelector('.markdown, .prose');
-            if (!contentEl) {
-              // Fallback to other content selectors
-              contentEl = message.querySelector('[data-message-author-role] + div, [data-message-author-role] ~ div') || 
-                         message.querySelector('div[tabindex="-1"]') || 
-                         message.querySelector('[data-message-author-role]') ||
-                         message;
-            }
-            
-            // Remove resident ZeroEka star from cloned content to avoid overlap in PDF
-            Array.from(message.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star')).forEach(el => { try { el.remove(); } catch(_){} });
-            
-            // Get HTML content, prioritizing the content element but falling back to full message
-            let html = '';
-            if (contentEl && contentEl.innerHTML) {
-              html = contentEl.innerHTML;
-            } else if (message.innerHTML) {
-              html = message.innerHTML;
-            } else {
-              html = (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
-            }
-            
-            // Ensure we're not losing any image content
-            if (html && !html.includes('<img') && message.querySelector('img')) {
-              // If HTML doesn't contain images but message does, get the full message content
-              const fullContent = message.innerHTML;
-              if (fullContent.includes('<img')) {
-                html = fullContent;
-              }
-            }
-            
+            // Clone the entire message to preserve all media (images, figures, etc.)
+            const clone = message.cloneNode(true);
+            const html = (clone && clone.innerHTML) || (message.innerHTML) || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
             writeBlock(role === 'user' ? 'user' : 'assistant', html, index++);
           });
         }
@@ -1406,46 +1303,31 @@ const createZeroEkaIconButton = () => {
           }, 5000);
         };
 
-        // Wait for iframe load then trigger print; keep a single fallback
+        // Wait for iframe load then trigger print after images have loaded (with timeout)
         iframe.onload = () => {
-          // Give extra time for images to load in the iframe
-          setTimeout(() => {
-            // Check if there are images and wait for them to load
-            const images = iframe.contentDocument.querySelectorAll('img');
-            if (images.length > 0) {
-              console.log('PDF Export: Waiting for', images.length, 'images to load...');
-              let loadedImages = 0;
-              images.forEach(img => {
-                if (img.complete) {
-                  loadedImages++;
-                } else {
-                  img.onload = () => {
-                    loadedImages++;
-                    if (loadedImages === images.length) {
-                      console.log('PDF Export: All images loaded, proceeding to print');
-                      finalizeOnce();
-                    }
-                  };
-                  img.onerror = () => {
-                    loadedImages++;
-                    if (loadedImages === images.length) {
-                      console.log('PDF Export: All images processed, proceeding to print');
-                      finalizeOnce();
-                    }
-                  };
-                }
-              });
-              // If all images are already loaded
-              if (loadedImages === images.length) {
-                finalizeOnce();
+          try {
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            const imgs = Array.from(doc ? doc.querySelectorAll('img') : []);
+            if (!imgs.length) { finalizeOnce(); return; }
+            let remaining = imgs.length;
+            const markDone = () => { remaining--; if (remaining <= 0) finalizeOnce(); };
+            imgs.forEach(img => {
+              try { img.removeAttribute('loading'); } catch(_) {}
+              if (img.complete && img.naturalWidth > 0) {
+                markDone();
+              } else {
+                img.addEventListener('load', markDone, { once: true });
+                img.addEventListener('error', markDone, { once: true });
               }
-            } else {
-              // No images, proceed immediately
-              finalizeOnce();
-            }
-          }, 100);
+            });
+            // Max wait in case some images never fire
+            setTimeout(() => { finalizeOnce(); }, 3500);
+          } catch(_) {
+            finalizeOnce();
+          }
         };
-        setTimeout(() => { finalizeOnce(); }, 3000); // Increased timeout for image loading
+        // Absolute safety fallback
+        setTimeout(() => { finalizeOnce(); }, 5000);
       } catch (error) {
         console.error('Error during PDF export:', error);
         alert('Error creating PDF export. Please try again.');
