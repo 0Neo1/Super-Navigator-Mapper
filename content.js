@@ -1169,28 +1169,28 @@ const createZeroEkaIconButton = () => {
               .message-block { margin: 0 0 8px; }
               .role-label { font-weight: 900; color: #0B3D91; font-size: 24px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px; }
               .message-content { white-space: normal; overflow-wrap: anywhere; }
-              pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-              pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
-              img, svg, canvas, video { 
-                max-width: 100%; 
-                height: auto; 
-                display: block; 
-                margin: 8px 0; 
-                border-radius: 4px; 
-              }
-              img { 
-                page-break-inside: avoid; 
-                break-inside: avoid; 
-              }
-              svg { 
-                page-break-inside: avoid; 
-                break-inside: avoid; 
-              }
-              canvas { 
-                page-break-inside: avoid; 
-                break-inside: avoid; 
-                border: 1px solid #ddd; 
-              }
+                              pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+                pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
+                img, svg, canvas, video { 
+                  max-width: 100%; 
+                  height: auto; 
+                  display: block; 
+                  margin: 8px 0; 
+                  border-radius: 4px; 
+                }
+                img { 
+                  page-break-inside: avoid; 
+                  break-inside: avoid; 
+                }
+                svg { 
+                  page-break-inside: avoid; 
+                  break-inside: avoid; 
+                }
+                canvas { 
+                  page-break-inside: avoid; 
+                  break-inside: avoid; 
+                  border: 1px solid #ddd; 
+                }
               table { border-collapse: collapse; }
               table, th, td { border: 1px solid #ddd; }
               th, td { padding: 6px 8px; }
