@@ -1291,50 +1291,64 @@ const createZeroEkaIconButton = () => {
             writeBlock(isUser ? 'user' : 'assistant', html, index++);
           });
         } else {
-          // ChatGPT: capture messages broadly and include adjacent media containers
-          const candSet = new Set();
-          document.querySelectorAll('[data-message-id]').forEach(el => candSet.add(el));
-          if (!candSet.size) { document.querySelectorAll('article').forEach(el => candSet.add(el)); }
-          // As a fallback, capture any explicit role containers
-          document.querySelectorAll('[data-message-author-role]').forEach(el => candSet.add(el));
-          const messages = Array.from(candSet);
-
-          messages.forEach((message) => {
-            const role = message.getAttribute && message.getAttribute('data-message-author-role') ||
-              (message.querySelector && message.querySelector('[data-message-author-role="user"]') ? 'user' : (message.querySelector && message.querySelector('.markdown, .prose') ? 'assistant' : 'assistant'));
-            // Clone the entire message to preserve all media (images, figures, etc.)
-            const clone = message.cloneNode(true);
-
-            const includeMediaFromSiblingIfMissing = (baseClone) => {
-              if (baseClone && !baseClone.querySelector('img, picture, canvas, video')) {
-                try {
-                  const prev = message.previousElementSibling;
-                  const next = message.nextElementSibling;
-                  const wrap = (iframeDoc || document).createElement('div');
-                  wrap.appendChild(baseClone);
-                  let appended = false;
-                  if (prev && prev.querySelector && prev.querySelector('img, picture, canvas, video')) {
-                    wrap.appendChild(prev.cloneNode(true));
-                    appended = true;
-                  }
-                  if (next && next.querySelector && next.querySelector('img, picture, canvas, video')) {
-                    wrap.appendChild(next.cloneNode(true));
-                    appended = true;
-                  }
-                  if (appended) {
-                    return wrap.innerHTML;
-                  }
-                } catch(_) {}
-              }
-              return null;
-            };
-
-            let html = (clone && clone.innerHTML) || (message.innerHTML) || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
-            if (!/\<img|\<picture|\<canvas|\<video/i.test(html)) {
-              const withSiblings = includeMediaFromSiblingIfMissing(clone);
-              if (withSiblings) html = withSiblings;
+          // ChatGPT: comprehensive capture of all content including images
+          let allContent = [];
+          
+          // First, try to get structured messages with roles
+          const roleMessages = Array.from(document.querySelectorAll('[data-message-author-role]'));
+          if (roleMessages.length > 0) {
+            roleMessages.forEach((message) => {
+              const role = message.getAttribute('data-message-author-role');
+              // Get the full message container that may include images
+              const messageContainer = message.closest('[data-message-id]') || message.parentElement || message;
+              const clone = messageContainer.cloneNode(true);
+              allContent.push({ role, element: clone, isStructured: true });
+            });
+          }
+          
+          // If no structured messages, fall back to article-based approach
+          if (allContent.length === 0) {
+            const articles = Array.from(document.querySelectorAll('article'));
+            articles.forEach((article, idx) => {
+              // Determine role based on content analysis
+              const hasUserContent = article.querySelector('[data-message-author-role="user"]') || 
+                                   article.textContent.includes('User:') || 
+                                   article.querySelector('.user-message');
+              const hasAssistantContent = article.querySelector('.markdown, .prose') || 
+                                        article.textContent.includes('Assistant:') ||
+                                        article.querySelector('.assistant-message');
+              
+              let role = 'assistant';
+              if (hasUserContent && !hasAssistantContent) role = 'user';
+              else if (hasUserContent && hasAssistantContent) role = 'user'; // Mixed content, treat as user
+              
+              const clone = article.cloneNode(true);
+              allContent.push({ role, element: clone, isStructured: false });
+            });
+          }
+          
+          // Process all captured content
+          allContent.forEach(({ role, element, isStructured }) => {
+            // Remove ZeroEka UI elements from cloned content
+            Array.from(element.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star')).forEach(el => { 
+              try { el.remove(); } catch(_){} 
+            });
+            
+            // If this is a structured message, try to get the main content area
+            let html = '';
+            if (isStructured) {
+              // Look for the main content within the message
+              const contentArea = element.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || 
+                                 element.querySelector('div[tabindex="-1"]') || 
+                                 element;
+              html = contentArea.innerHTML || element.innerHTML;
+            } else {
+              html = element.innerHTML;
             }
-
+            
+            // If still no content, fall back to text
+            if (!html) html = (element.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+            
             writeBlock(role === 'user' ? 'user' : 'assistant', html, index++);
           });
         }
@@ -1387,7 +1401,6 @@ const createZeroEkaIconButton = () => {
         iframe.onload = () => {
           try {
             const doc = iframe.contentDocument || iframe.contentWindow.document;
-            // Consider <img> plus any images we generated from canvas/backgrounds
             const imgs = Array.from(doc ? doc.querySelectorAll('img') : []);
             if (!imgs.length) { finalizeOnce(); return; }
             let remaining = imgs.length;
@@ -1402,13 +1415,13 @@ const createZeroEkaIconButton = () => {
               }
             });
             // Max wait in case some images never fire
-            setTimeout(() => { finalizeOnce(); }, 8000);
+            setTimeout(() => { finalizeOnce(); }, 7000);
           } catch(_) {
             finalizeOnce();
           }
         };
         // Absolute safety fallback
-        setTimeout(() => { finalizeOnce(); }, 12000);
+        setTimeout(() => { finalizeOnce(); }, 9000);
       } catch (error) {
         console.error('Error during PDF export:', error);
         alert('Error creating PDF export. Please try again.');
