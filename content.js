@@ -1091,9 +1091,9 @@ const createZeroEkaIconButton = () => {
   });
 
   // Add click functionality for PDF export button
-  pdfExportButton.addEventListener('click', () => {
-    console.log('[PDF Export] Button clicked, starting export...');
-    const exportToPDF = () => {
+          pdfExportButton.addEventListener('click', async () => {
+          console.log('[PDF Export] Button clicked, starting export...');
+          const exportToPDF = async () => {
       try {
         console.log('[PDF Export] exportToPDF function started');
         const IS_GEMINI = /gemini\.google\.com/.test(location.hostname) || (typeof isGemini !== 'undefined' && isGemini);
@@ -1228,6 +1228,7 @@ const createZeroEkaIconButton = () => {
             const images = wrapper.querySelectorAll('img');
             console.log('[PDF Export] Found images in HTML:', images.length);
             
+            // Process images synchronously to ensure they're ready for PDF
             images.forEach((img, imgIndex) => {
               console.log(`[PDF Export] Processing image ${imgIndex}:`, img.src, img.alt);
               
@@ -1258,37 +1259,11 @@ const createZeroEkaIconButton = () => {
                 }
               }
               
-              // Convert external images to data URLs for better PDF inclusion
+              // For ChatGPT, ensure images are properly embedded
               if (img.src && (img.src.startsWith('http') || img.src.startsWith('//'))) {
-                console.log(`[PDF Export] Converting external image ${imgIndex} to data URL:`, img.src);
-                try {
-                  // Create a canvas to convert image to data URL
-                  const canvas = document.createElement('canvas');
-                  const ctx = canvas.getContext('2d');
-                  const tempImg = new Image();
-                  tempImg.crossOrigin = 'anonymous';
-                  
-                  tempImg.onload = () => {
-                    try {
-                      canvas.width = tempImg.width;
-                      canvas.height = tempImg.height;
-                      ctx.drawImage(tempImg, 0, 0);
-                      const dataURL = canvas.toDataURL('image/png');
-                      img.src = dataURL;
-                      console.log(`[PDF Export] Successfully converted image ${imgIndex} to data URL`);
-                    } catch (e) {
-                      console.log(`[PDF Export] Could not convert image ${imgIndex} to data URL:`, e);
-                    }
-                  };
-                  
-                  tempImg.onerror = () => {
-                    console.log(`[PDF Export] Could not load external image ${imgIndex} for conversion:`, img.src);
-                  };
-                  
-                  tempImg.src = img.src;
-                } catch (e) {
-                  console.log(`[PDF Export] Error processing image ${imgIndex}:`, e);
-                }
+                console.log(`[PDF Export] External image ${imgIndex} found:`, img.src);
+                // Keep the external URL but ensure it's properly formatted for PDF
+                img.setAttribute('crossorigin', 'anonymous');
               }
             });
             
@@ -1310,6 +1285,104 @@ const createZeroEkaIconButton = () => {
               <div class="message-content">${safeHtml}</div>
             </div>
           `);
+        };
+
+        // Enhanced image processing function for ChatGPT
+        const processImagesForPdf = async (html, role) => {
+          try {
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = html;
+            
+            const images = wrapper.querySelectorAll('img');
+            console.log(`[PDF Export] Processing ${images.length} images for ${role} message`);
+            
+            if (images.length === 0) {
+              return html;
+            }
+            
+            // Process each image to ensure it's PDF-ready
+            const imagePromises = Array.from(images).map(async (img, imgIndex) => {
+              return new Promise((resolve) => {
+                try {
+                  console.log(`[PDF Export] Processing image ${imgIndex}:`, img.src, img.alt);
+                  
+                  // If image is already a data URL, it's ready
+                  if (img.src && img.src.startsWith('data:')) {
+                    console.log(`[PDF Export] Image ${imgIndex} is already a data URL`);
+                    resolve();
+                    return;
+                  }
+                  
+                  // If image has no src, try to find alternative
+                  if (!img.src || img.src === '#' || img.src === '') {
+                    const alternativeSrc = img.getAttribute('data-src') || 
+                                        img.getAttribute('data-original') || 
+                                        img.getAttribute('srcset') ||
+                                        img.getAttribute('data-lazy-src');
+                    if (alternativeSrc) {
+                      img.src = alternativeSrc;
+                      console.log(`[PDF Export] Found alternative src for image ${imgIndex}:`, alternativeSrc);
+                    }
+                  }
+                  
+                  // Try to convert external image to data URL
+                  if (img.src && (img.src.startsWith('http') || img.src.startsWith('//'))) {
+                    console.log(`[PDF Export] Converting external image ${imgIndex} to data URL:`, img.src);
+                    
+                    const tempImg = new Image();
+                    tempImg.crossOrigin = 'anonymous';
+                    
+                    tempImg.onload = () => {
+                      try {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        canvas.width = tempImg.width;
+                        canvas.height = tempImg.height;
+                        ctx.drawImage(tempImg, 0, 0);
+                        const dataURL = canvas.toDataURL('image/png');
+                        img.src = dataURL;
+                        console.log(`[PDF Export] Successfully converted image ${imgIndex} to data URL`);
+                        resolve();
+                      } catch (e) {
+                        console.log(`[PDF Export] Could not convert image ${imgIndex} to data URL:`, e);
+                        resolve();
+                      }
+                    };
+                    
+                    tempImg.onerror = () => {
+                      console.log(`[PDF Export] Could not load external image ${imgIndex} for conversion:`, img.src);
+                      resolve();
+                    };
+                    
+                    tempImg.src = img.src;
+                  } else {
+                    resolve();
+                  }
+                } catch (error) {
+                  console.error(`[PDF Export] Error processing image ${imgIndex}:`, error);
+                  resolve();
+                }
+              });
+            });
+            
+            // Wait for all images to be processed
+            await Promise.all(imagePromises);
+            
+            // Apply PDF-friendly styling to all images
+            images.forEach((img) => {
+              img.style.cssText = 'max-width: 100%; height: auto; display: block; margin: 10px 0; border: 1px solid #ddd;';
+              img.removeAttribute('class');
+              img.removeAttribute('data-*');
+            });
+            
+            const processedHtml = wrapper.innerHTML;
+            console.log(`[PDF Export] Processed ${images.length} images for ${role} message`);
+            
+            return processedHtml;
+          } catch (error) {
+            console.error('[PDF Export] Error in processImagesForPdf:', error);
+            return html;
+          }
         };
 
         let index = 0;
@@ -1335,7 +1408,9 @@ const createZeroEkaIconButton = () => {
               // Use data-message-id approach - this ensures no duplicates
               const processedMessages = new Set();
               
-              messages.forEach((message, msgIndex) => {
+              // Use async/await for image processing
+              for (let msgIndex = 0; msgIndex < messages.length; msgIndex++) {
+                const message = messages[msgIndex];
                 try {
                   const messageId = message.getAttribute('data-message-id');
                   const role = message.getAttribute('data-message-author-role');
@@ -1343,7 +1418,7 @@ const createZeroEkaIconButton = () => {
                   // Skip if already processed or no valid ID
                   if (!messageId || processedMessages.has(messageId)) {
                     console.log(`[PDF Export] Skipping duplicate/invalid message ${msgIndex}:`, messageId);
-                    return;
+                    continue;
                   }
                   
                   processedMessages.add(messageId);
@@ -1387,11 +1462,18 @@ const createZeroEkaIconButton = () => {
                   
                   console.log(`[PDF Export] Message ${msgIndex} role: ${role}, content length: ${html.length}, has images: ${images.length > 0}`);
                   
-                  writeBlock(role, html, index++);
+                  // Process images for ChatGPT to ensure they're included in PDF
+                  if (images.length > 0) {
+                    console.log(`[PDF Export] Processing ${images.length} images for message ${msgIndex}`);
+                    const processedHtml = await processImagesForPdf(html, role);
+                    writeBlock(role, processedHtml, index++);
+                  } else {
+                    writeBlock(role, html, index++);
+                  }
                 } catch (error) {
                   console.error(`[PDF Export] Error processing message ${msgIndex}:`, error);
                 }
-              });
+              }
               
               console.log(`[PDF Export] Successfully processed ${processedMessages.size} unique messages`);
               
@@ -1572,7 +1654,7 @@ const createZeroEkaIconButton = () => {
       }
     };
 
-    exportToPDF();
+              await exportToPDF();
   });
 
   // Create Fullscreen button below PDF Export button
