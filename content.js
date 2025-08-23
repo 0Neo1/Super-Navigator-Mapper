@@ -1603,6 +1603,170 @@ const createZeroEkaIconButton = () => {
           });
         };
 
+        // PDF generation function that integrates with the existing sidebar system
+        const generatePdfWithLibrary = async (conversationData) => {
+          try {
+            console.log('[PDF Export] Starting PDF generation with jsPDF library...');
+            
+            // Check if jsPDF and html2canvas are available
+            if (typeof jsPDF === 'undefined' || typeof html2canvas === 'undefined') {
+              console.log('[PDF Export] Loading jsPDF and html2canvas libraries...');
+              await loadPdfLibraries();
+            }
+            
+            // Create a temporary container for PDF generation
+            const pdfContainer = document.createElement('div');
+            pdfContainer.id = 'pdf-export-container';
+            pdfContainer.style.cssText = `
+              position: fixed;
+              top: -9999px;
+              left: -9999px;
+              width: 800px;
+              background: white;
+              padding: 20px;
+              font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+              line-height: 1.6;
+              color: #333;
+              z-index: -1;
+            `;
+            
+            // Add header
+            const header = document.createElement('div');
+            header.innerHTML = `
+              <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #0B3D91; padding-bottom: 20px;">
+                <h1 style="color: #0B3D91; margin: 0; font-size: 28px;">ZeroEka Conversation Export</h1>
+                <p style="margin: 10px 0 0 0; color: #666; font-size: 14px;">Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+              </div>
+            `;
+            pdfContainer.appendChild(header);
+            
+            // Add conversation content
+            const contentDiv = document.createElement('div');
+            contentDiv.id = 'conversation-content';
+            
+            // Process each message
+            for (let i = 0; i < conversationData.length; i++) {
+              const message = conversationData[i];
+              const messageDiv = document.createElement('div');
+              messageDiv.style.cssText = `
+                margin-bottom: 25px;
+                padding: 15px;
+                border-radius: 8px;
+                ${message.role === 'user' ? 'background: #f0f7ff; border-left: 4px solid #0B3D91;' : 'background: #f8f9fa; border-left: 4px solid #28a745;'}
+              `;
+              
+              const roleLabel = document.createElement('div');
+              roleLabel.style.cssText = `
+                font-weight: bold;
+                font-size: 12px;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                margin-bottom: 8px;
+                color: ${message.role === 'user' ? '#0B3D91' : '#28a745'};
+              `;
+              roleLabel.textContent = message.role === 'user' ? 'USER PROMPT' : 'ASSISTANT RESPONSE';
+              
+              const contentDiv = document.createElement('div');
+              contentDiv.innerHTML = message.content;
+              
+              // Ensure images are properly displayed
+              contentDiv.querySelectorAll('img, canvas, svg').forEach(img => {
+                img.style.cssText = 'max-width: 100%; height: auto; display: block; margin: 10px 0; border: 1px solid #ddd;';
+              });
+              
+              messageDiv.appendChild(roleLabel);
+              messageDiv.appendChild(contentDiv);
+              pdfContainer.appendChild(messageDiv);
+            }
+            
+            // Add to DOM temporarily
+            document.body.appendChild(pdfContainer);
+            
+            try {
+              // Generate PDF using html2canvas + jsPDF
+              console.log('[PDF Export] Converting content to canvas...');
+              const canvas = await html2canvas(pdfContainer, {
+                allowTaint: true,
+                useCORS: true,
+                scale: 2, // Higher quality
+                backgroundColor: '#ffffff',
+                logging: false,
+                width: 800,
+                height: pdfContainer.scrollHeight
+              });
+              
+              console.log('[PDF Export] Canvas generated, creating PDF...');
+              
+              // Create PDF
+              const pdf = new jsPDF('p', 'mm', 'a4');
+              const imgWidth = 210; // A4 width in mm
+              const pageHeight = 297; // A4 height in mm
+              const imgHeight = (canvas.height * imgWidth) / canvas.width;
+              let heightLeft = imgHeight;
+              let position = 0;
+              
+              // Add first page
+              pdf.addImage(canvas, 'PNG', 0, position, imgWidth, imgHeight);
+              heightLeft -= pageHeight;
+              
+              // Add additional pages if needed
+              while (heightLeft >= 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(canvas, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+              }
+              
+              console.log('[PDF Export] PDF generated successfully, downloading...');
+              
+              // Download PDF
+              const filename = `ZeroEka_Conversation_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.pdf`;
+              pdf.save(filename);
+              
+              console.log('[PDF Export] PDF download completed');
+              
+            } finally {
+              // Clean up
+              document.body.removeChild(pdfContainer);
+            }
+            
+          } catch (error) {
+            console.error('[PDF Export] Error in generatePdfWithLibrary:', error);
+            throw error;
+          }
+        };
+        
+        // Load PDF generation libraries
+        const loadPdfLibraries = async () => {
+          return new Promise((resolve, reject) => {
+            try {
+              // Load jsPDF
+              const jsPDFScript = document.createElement('script');
+              jsPDFScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+              jsPDFScript.onload = () => {
+                // Load html2canvas
+                const html2canvasScript = document.createElement('script');
+                html2canvasScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                html2canvasScript.onload = () => {
+                  console.log('[PDF Export] Libraries loaded successfully');
+                  resolve();
+                };
+                html2canvasScript.onerror = reject;
+                document.head.appendChild(html2canvasScript);
+              };
+              jsPDFScript.onerror = reject;
+              document.head.appendChild(jsPDFScript);
+            } catch (error) {
+              reject(error);
+            }
+          });
+        };
+
+        // Simple wrapper that doesn't interfere with the sidebar
+        const processImagesForPdf = async (html) => {
+          return html;
+        };
+
         const writeBlock = async (role, html, index) => {
           const processedHtml = await processImagesForPdf(html);
           iframeDoc.write(`
@@ -1822,7 +1986,8 @@ const createZeroEkaIconButton = () => {
       }
     };
 
-    await exportToPDF();
+    // Use the new PDF generation function
+    await generatePdfWithLibrary(conversationData);
     } catch (error) {
       console.error('[PDF Export] Error in main export function:', error);
       alert('Error creating PDF export. Please try again.');
