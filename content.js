@@ -1291,31 +1291,50 @@ const createZeroEkaIconButton = () => {
             writeBlock(isUser ? 'user' : 'assistant', html, index++);
           });
         } else {
-          // ChatGPT: try attribute-based messages first; fallback to markdown/article content
-          let messages = Array.from(document.querySelectorAll('[data-message-id]'));
-          if (!messages.length) {
-            messages = Array.from(document.querySelectorAll('article'));
-          }
+          // ChatGPT: capture messages broadly and include adjacent media containers
+          const candSet = new Set();
+          document.querySelectorAll('[data-message-id]').forEach(el => candSet.add(el));
+          if (!candSet.size) { document.querySelectorAll('article').forEach(el => candSet.add(el)); }
+          // As a fallback, capture any explicit role containers
+          document.querySelectorAll('[data-message-author-role]').forEach(el => candSet.add(el));
+          const messages = Array.from(candSet);
+
           messages.forEach((message) => {
             const role = message.getAttribute && message.getAttribute('data-message-author-role') ||
-              (message.querySelector('[data-message-author-role="user"]') ? 'user' : (message.querySelector('.markdown, .prose') ? 'assistant' : 'assistant'));
+              (message.querySelector && message.querySelector('[data-message-author-role="user"]') ? 'user' : (message.querySelector && message.querySelector('.markdown, .prose') ? 'assistant' : 'assistant'));
             // Clone the entire message to preserve all media (images, figures, etc.)
             const clone = message.cloneNode(true);
-            // If no media inside the clone, include a media sibling (some UIs render attachments adjacent)
-            if (clone && !clone.querySelector('img, picture, canvas, video')) {
-              try {
-                const sib = message.nextElementSibling;
-                if (sib && sib.querySelector && sib.querySelector('img, picture, canvas, video')) {
+
+            const includeMediaFromSiblingIfMissing = (baseClone) => {
+              if (baseClone && !baseClone.querySelector('img, picture, canvas, video')) {
+                try {
+                  const prev = message.previousElementSibling;
+                  const next = message.nextElementSibling;
                   const wrap = (iframeDoc || document).createElement('div');
-                  wrap.appendChild(clone);
-                  wrap.appendChild(sib.cloneNode(true));
-                  const html = wrap.innerHTML || (message.innerHTML) || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
-                  writeBlock(role === 'user' ? 'user' : 'assistant', html, index++);
-                  return;
-                }
-              } catch(_) {}
+                  wrap.appendChild(baseClone);
+                  let appended = false;
+                  if (prev && prev.querySelector && prev.querySelector('img, picture, canvas, video')) {
+                    wrap.appendChild(prev.cloneNode(true));
+                    appended = true;
+                  }
+                  if (next && next.querySelector && next.querySelector('img, picture, canvas, video')) {
+                    wrap.appendChild(next.cloneNode(true));
+                    appended = true;
+                  }
+                  if (appended) {
+                    return wrap.innerHTML;
+                  }
+                } catch(_) {}
+              }
+              return null;
+            };
+
+            let html = (clone && clone.innerHTML) || (message.innerHTML) || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+            if (!/\<img|\<picture|\<canvas|\<video/i.test(html)) {
+              const withSiblings = includeMediaFromSiblingIfMissing(clone);
+              if (withSiblings) html = withSiblings;
             }
-            const html = (clone && clone.innerHTML) || (message.innerHTML) || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+
             writeBlock(role === 'user' ? 'user' : 'assistant', html, index++);
           });
         }
@@ -1368,6 +1387,7 @@ const createZeroEkaIconButton = () => {
         iframe.onload = () => {
           try {
             const doc = iframe.contentDocument || iframe.contentWindow.document;
+            // Consider <img> plus any images we generated from canvas/backgrounds
             const imgs = Array.from(doc ? doc.querySelectorAll('img') : []);
             if (!imgs.length) { finalizeOnce(); return; }
             let remaining = imgs.length;
@@ -1382,13 +1402,13 @@ const createZeroEkaIconButton = () => {
               }
             });
             // Max wait in case some images never fire
-            setTimeout(() => { finalizeOnce(); }, 7000);
+            setTimeout(() => { finalizeOnce(); }, 8000);
           } catch(_) {
             finalizeOnce();
           }
         };
         // Absolute safety fallback
-        setTimeout(() => { finalizeOnce(); }, 9000);
+        setTimeout(() => { finalizeOnce(); }, 12000);
       } catch (error) {
         console.error('Error during PDF export:', error);
         alert('Error creating PDF export. Please try again.');
