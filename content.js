@@ -1324,138 +1324,176 @@ const createZeroEkaIconButton = () => {
             writeBlock(isUser ? 'user' : 'assistant', html, index++);
           });
         } else {
-          // ChatGPT: FIXED APPROACH - Deduplicated content extraction
+          // ChatGPT: DEDUPLICATED CONTENT EXTRACTION - Ensure no duplicates in PDF
           console.log('[PDF Export] Using deduplicated ChatGPT content extraction approach');
           
-          // Use a more precise approach to avoid duplicates
-          const processedIds = new Set();
-          const processedContent = new Set();
-          const uniqueMessages = [];
+          // Strategy 1: Use data-message-id approach (most reliable, no duplicates)
+          let messages = Array.from(document.querySelectorAll('[data-message-id]'));
+          console.log('[PDF Export] Found messages with data-message-id:', messages.length);
           
-          // First, try to find messages with unique IDs
-          const messagesWithIds = Array.from(document.querySelectorAll('[data-message-id]'));
-          console.log('[PDF Export] Found messages with IDs:', messagesWithIds.length);
-          
-          messagesWithIds.forEach((message) => {
-            const messageId = message.getAttribute('data-message-id');
-            if (messageId && !processedIds.has(messageId)) {
-              processedIds.add(messageId);
-              uniqueMessages.push(message);
-            }
-          });
-          
-          // If no unique IDs found, try a different approach
-          if (uniqueMessages.length === 0) {
-            console.log('[PDF Export] No unique message IDs found, trying alternative approach');
+          if (messages.length > 0) {
+            // Use data-message-id approach - this ensures no duplicates
+            const processedMessages = new Set();
             
-            // Look for conversation turns in a more structured way
+            messages.forEach((message, msgIndex) => {
+              try {
+                const messageId = message.getAttribute('data-message-id');
+                const role = message.getAttribute('data-message-author-role');
+                
+                // Skip if already processed or no valid ID
+                if (!messageId || processedMessages.has(messageId)) {
+                  console.log(`[PDF Export] Skipping duplicate/invalid message ${msgIndex}:`, messageId);
+                  return;
+                }
+                
+                processedMessages.add(messageId);
+                console.log(`[PDF Export] Processing unique message ${msgIndex}:`, messageId, role);
+                
+                // Find the specific content element for this message
+                let contentEl = null;
+                
+                if (role === 'user') {
+                  // For user messages, target the specific user content
+                  contentEl = message.querySelector('[data-message-author-role="user"]') ||
+                             message.querySelector('div[tabindex="-1"]') ||
+                             message;
+                } else {
+                  // For assistant messages, target the markdown/prose content
+                  contentEl = message.querySelector('.markdown, .prose') ||
+                             message.querySelector('[data-message-author-role="assistant"]') ||
+                             message;
+                }
+                
+                // If no specific content found, use the entire message
+                if (!contentEl || contentEl === message) {
+                  contentEl = message;
+                }
+                
+                // Remove ZeroEka UI elements
+                Array.from(contentEl.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]'))
+                  .forEach(el => { try { el.remove(); } catch(_){} });
+                
+                // Check for images and log them
+                const images = contentEl.querySelectorAll('img');
+                if (images.length > 0) {
+                  console.log(`[PDF Export] Message ${msgIndex} contains ${images.length} images:`, images);
+                  images.forEach((img, imgIndex) => {
+                    console.log(`[PDF Export] Image ${imgIndex}:`, img.src, img.alt, img.className);
+                  });
+                }
+                
+                // Get HTML content
+                const html = contentEl.innerHTML || message.innerHTML || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+                
+                console.log(`[PDF Export] Message ${msgIndex} role: ${role}, content length: ${html.length}, has images: ${images.length > 0}`);
+                
+                writeBlock(role, html, index++);
+              } catch (error) {
+                console.error(`[PDF Export] Error processing message ${msgIndex}:`, error);
+              }
+            });
+            
+            console.log(`[PDF Export] Successfully processed ${processedMessages.size} unique messages`);
+            
+          } else {
+            // Strategy 2: Fallback to conversation turns (also deduplicated)
+            console.log('[PDF Export] No data-message-id found, trying conversation turns approach');
+            
             const conversationTurns = document.querySelectorAll('[data-testid^="conversation-turn-"]');
             console.log('[PDF Export] Found conversation turns:', conversationTurns.length);
             
-            conversationTurns.forEach((turn) => {
-              const turnId = turn.getAttribute('data-testid');
-              if (turnId && !processedIds.has(turnId)) {
-                processedIds.add(turnId);
-                uniqueMessages.push(turn);
-              }
-            });
-          }
-          
-          // If still no messages, try the most basic approach
-          if (uniqueMessages.length === 0) {
-            console.log('[PDF Export] No conversation turns found, trying basic approach');
-            
-            // Look for any div that contains conversation-like content
-            const allDivs = Array.from(document.querySelectorAll('div'));
-            const conversationDivs = allDivs.filter(div => {
-              const text = div.textContent || '';
-              const hasContent = text.length > 100; // Increased threshold to avoid noise
-              const hasUserContent = div.querySelector('[data-message-author-role="user"]') || 
-                                   div.textContent.includes('User') || 
-                                   div.textContent.includes('user');
-              const hasAssistantContent = div.querySelector('.markdown, .prose') || 
-                                        div.textContent.includes('Assistant') || 
-                                        div.textContent.includes('assistant');
+            if (conversationTurns.length > 0) {
+              const processedContent = new Set();
               
-              // Additional check to avoid duplicates
-              const contentHash = text.slice(0, 200).trim();
-              if (processedContent.has(contentHash)) {
+              conversationTurns.forEach((turn, turnIndex) => {
+                try {
+                  // Find user and assistant content within each turn
+                  const userContent = turn.querySelector('[data-message-author-role="user"]');
+                  const assistantContent = turn.querySelector('.markdown, .prose, [data-message-author-role="assistant"]');
+                  
+                  if (userContent) {
+                    const html = userContent.innerHTML || userContent.textContent || '';
+                    const contentHash = html.substring(0, 100); // Use first 100 chars as hash
+                    
+                    if (!processedContent.has(contentHash)) {
+                      processedContent.add(contentHash);
+                      console.log(`[PDF Export] Turn ${turnIndex} user content length:`, html.length);
+                      writeBlock('user', html, index++);
+                    } else {
+                      console.log(`[PDF Export] Skipping duplicate user content in turn ${turnIndex}`);
+                    }
+                  }
+                  
+                  if (assistantContent) {
+                    const html = assistantContent.innerHTML || assistantContent.textContent || '';
+                    const contentHash = html.substring(0, 100); // Use first 100 chars as hash
+                    
+                    if (!processedContent.has(contentHash)) {
+                      processedContent.add(contentHash);
+                      console.log(`[PDF Export] Turn ${turnIndex} assistant content length:`, html.length);
+                      writeBlock('assistant', html, index++);
+                    } else {
+                      console.log(`[PDF Export] Skipping duplicate assistant content in turn ${turnIndex}`);
+                    }
+                  }
+                } catch (error) {
+                  console.error(`[PDF Export] Error processing turn ${turnIndex}:`, error);
+                }
+              });
+              
+              console.log(`[PDF Export] Successfully processed ${processedContent.size} unique content blocks from turns`);
+              
+            } else {
+              // Strategy 3: Last resort - minimal content extraction
+              console.log('[PDF Export] No conversation turns found, using minimal content approach');
+              
+              const mainContent = document.querySelector('main') || document.querySelector('[role="main"]') || document.body;
+              const allDivs = mainContent.querySelectorAll('div');
+              const seenContent = new Set();
+              const conversationDivs = Array.from(allDivs).filter(div => {
+                const text = div.textContent || '';
+                const hasContent = text.length > 50;
+                const hasUserContent = div.querySelector('[data-message-author-role="user"]') || 
+                                     text.includes('User') || text.includes('user');
+                const hasAssistantContent = div.querySelector('.markdown, .prose') || 
+                                          text.includes('Assistant') || text.includes('assistant');
+                const contentHash = text.substring(0, 100);
+                const isDuplicate = seenContent.has(contentHash);
+                
+                if (hasContent && !isDuplicate && (hasUserContent || hasAssistantContent)) {
+                  seenContent.add(contentHash);
+                  return true;
+                }
                 return false;
-              }
+              });
               
-              return hasContent && (hasUserContent || hasAssistantContent);
-            });
-            
-            console.log('[PDF Export] Found conversation divs:', conversationDivs.length);
-            
-            // Take only the first occurrence of similar content
-            conversationDivs.forEach((div) => {
-              const contentHash = (div.textContent || '').slice(0, 200).trim();
-              if (!processedContent.has(contentHash)) {
-                processedContent.add(contentHash);
-                uniqueMessages.push(div);
-              }
-            });
-          }
-          
-          console.log('[PDF Export] Final unique messages to process:', uniqueMessages.length);
-          
-          // Process unique messages
-          uniqueMessages.forEach((message, msgIndex) => {
-            try {
-              // Determine role
-              let role = 'assistant';
-              if (message.getAttribute('data-message-author-role') === 'user' ||
-                  message.querySelector('[data-message-author-role="user"]') ||
-                  (message.textContent || '').includes('User') ||
-                  (message.textContent || '').includes('user')) {
-                role = 'user';
-              }
-              
-              // Find the actual content element
-              let contentEl = message.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') ||
-                             message.querySelector('div[tabindex="-1"]') ||
-                             message;
-              
-              // If still no specific content, use the entire message
-              if (!contentEl || contentEl === message) {
-                contentEl = message;
-              }
-              
-              // Remove ZeroEka UI elements
-              Array.from(contentEl.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]'))
-                .forEach(el => { try { el.remove(); } catch(_){} });
-              
-              // Check for images and log them
-              const images = contentEl.querySelectorAll('img');
-              if (images.length > 0) {
-                console.log(`[PDF Export] Message ${msgIndex} contains ${images.length} images:`, images);
-                images.forEach((img, imgIndex) => {
-                  console.log(`[PDF Export] Image ${imgIndex}:`, img.src, img.alt, img.className);
-                });
-              }
-              
-              // Get HTML content
-              const html = contentEl.innerHTML || message.innerHTML || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
-              
-              console.log(`[PDF Export] Message ${msgIndex} role: ${role}, content length: ${html.length}, has images: ${images.length > 0}`);
-              
-              writeBlock(role, html, index++);
-            } catch (error) {
-              console.error(`[PDF Export] Error processing message ${msgIndex}:`, error);
-              // Fallback: try to get basic content
-              try {
-                const html = message.innerHTML || message.textContent || '';
-                writeBlock('assistant', html, index++);
-              } catch (fallbackError) {
-                console.error(`[PDF Export] Fallback also failed for message ${msgIndex}:`, fallbackError);
-              }
+              console.log('[PDF Export] Found unique conversation divs:', conversationDivs.length);
+              conversationDivs.forEach((div, divIndex) => {
+                const role = div.querySelector('[data-message-author-role="user"]') ? 'user' : 'assistant';
+                const html = div.innerHTML || div.textContent || '';
+                writeBlock(role, html, index++);
+              });
             }
-          });
+          }
         }
 
         iframeDoc.write('</div></body></html>');
         iframeDoc.close();
+        
+        // Log summary of what was processed
+        console.log(`[PDF Export] PDF generation complete. Total blocks written: ${index}`);
+        console.log(`[PDF Export] Iframe document ready for printing.`);
+        
+        // Additional debugging: show what was actually written
+        if (index === 0) {
+          console.warn('[PDF Export] WARNING: No content blocks were written! This suggests a content extraction issue.');
+          console.log('[PDF Export] Available selectors on page:');
+          console.log('[PDF Export] - [data-message-id]:', document.querySelectorAll('[data-message-id]').length);
+          console.log('[PDF Export] - [data-testid^="conversation-turn-"]:', document.querySelectorAll('[data-testid^="conversation-turn-"]').length);
+          console.log('[PDF Export] - .markdown:', document.querySelectorAll('.markdown').length);
+          console.log('[PDF Export] - .prose:', document.querySelectorAll('.prose').length);
+          console.log('[PDF Export] - [data-message-author-role]:', document.querySelectorAll('[data-message-author-role]').length);
+        }
 
         // Ensure the print dialog opens only once
         let hasPrinted = false;
