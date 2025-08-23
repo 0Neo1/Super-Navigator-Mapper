@@ -1107,9 +1107,6 @@ const createZeroEkaIconButton = () => {
           border: none;
           visibility: hidden;
         `;
-        // Ensure iframe can load images and external resources
-        iframe.setAttribute('allow', 'fullscreen');
-        iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts allow-forms allow-popups allow-modals');
         document.body.appendChild(iframe);
 
         const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
@@ -1236,7 +1233,6 @@ const createZeroEkaIconButton = () => {
               if (img.src) {
                 // For data URLs, ensure they're properly formatted
                 if (img.src.startsWith('data:')) {
-                  // Data URLs should work fine in PDFs
                   console.log('PDF Export: Found data URL image');
                 } else if (img.src.startsWith('blob:')) {
                   // Convert blob URLs to data URLs if possible
