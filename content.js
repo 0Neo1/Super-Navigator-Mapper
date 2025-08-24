@@ -3373,7 +3373,7 @@ const createZeroEkaIconButton = () => {
           transition: all 0.3s ease;
         `;
 
-        const authorLabel = result.author === 'user' ? 'User' : 'Assistant';
+        const authorLabel = result.author === 'user' ? 'Input' : 'Output';
         const messageNumber = result.index + 1;
 
         // Create priority indicator
