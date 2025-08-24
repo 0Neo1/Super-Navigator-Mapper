@@ -3285,18 +3285,25 @@ const createZeroEkaIconButton = () => {
         }];
       };
       
-      // If no messages found, try alternative selectors
-      if (messages.length === 0) {
-        console.log('No messages with data-message-id found, trying alternative selectors');
-        const alternativeMessages = document.querySelectorAll('.markdown, .prose, [role="article"], .message, .conversation-item, [role="presentation"] > div');
-        console.log('Alternative messages found:', alternativeMessages.length);
-        
-        alternativeMessages.forEach((message, index) => {
-          const content = message.textContent || '';
-          const messageMatches = searchInContent(content, query, `alt-${index}`, 'unknown', index, message);
+      // Enhanced message detection for both ChatGPT and Gemini
+      let allMessages = [];
+      
+      // Strategy 1: Look for conversation turns (most reliable for ChatGPT)
+      const conversationTurns = Array.from(document.querySelectorAll('[data-testid*="conversation-turn"]'));
+      if (conversationTurns.length > 0) {
+        console.log('Found conversation turns:', conversationTurns.length);
+        conversationTurns.forEach((turn, index) => {
+          const content = turn.textContent || '';
+          const userIndicator = turn.querySelector('[data-message-author-role="user"]');
+          const author = userIndicator ? 'user' : 'assistant';
+          const messageMatches = searchInContent(content, query, `turn-${index}`, author, index, turn);
           results.push(...messageMatches);
         });
-      } else {
+      }
+      
+      // Strategy 2: Look for message IDs (fallback for ChatGPT)
+      else if (messages.length > 0) {
+        console.log('Using messages with data-message-id:', messages.length);
         messages.forEach((message, index) => {
           const content = message.textContent || '';
           const messageId = message.getAttribute('data-message-id');
@@ -3304,6 +3311,35 @@ const createZeroEkaIconButton = () => {
           const messageMatches = searchInContent(content, query, messageId, author, index, message);
           results.push(...messageMatches);
         });
+      }
+      
+      // Strategy 3: Look for Gemini-specific selectors
+      else {
+        console.log('Trying Gemini selectors');
+        const geminiMessages = Array.from(document.querySelectorAll('user-query-content .query-text, .model-response-text'));
+        if (geminiMessages.length > 0) {
+          console.log('Found Gemini messages:', geminiMessages.length);
+          geminiMessages.forEach((message, index) => {
+            const content = message.textContent || '';
+            const isUser = message.matches('user-query-content .query-text');
+            const author = isUser ? 'user' : 'assistant';
+            const messageMatches = searchInContent(content, query, `gemini-${index}`, author, index, message);
+            results.push(...messageMatches);
+          });
+        }
+        
+        // Strategy 4: Last resort - alternative selectors
+        else {
+          console.log('Using alternative selectors');
+          const alternativeMessages = Array.from(document.querySelectorAll('.markdown, .prose, [role="article"], .message, .conversation-item, [role="presentation"] > div'));
+          console.log('Alternative messages found:', alternativeMessages.length);
+          
+          alternativeMessages.forEach((message, index) => {
+            const content = message.textContent || '';
+            const messageMatches = searchInContent(content, query, `alt-${index}`, 'unknown', index, message);
+            results.push(...messageMatches);
+          });
+        }
       }
 
       console.log('Search results:', results.length);
@@ -3337,22 +3373,38 @@ const createZeroEkaIconButton = () => {
         }
       });
       
-      // Convert grouped results back to array and sort by priority
+      // Convert grouped results back to array and sort by conversation order
       const deduplicatedResults = Array.from(groupedResults.values());
       deduplicatedResults.sort((a, b) => {
-        // Priority 1: longer contiguous phrase tokens
+        // Priority 1: conversation order (earlier messages first)
+        if (a.index !== b.index) return a.index - b.index;
+        // Priority 2: longer contiguous phrase tokens
         const ap = a.phraseMaxTokens || 0; const bp = b.phraseMaxTokens || 0;
         if (ap !== bp) return bp - ap;
-        // Priority 2: number of exact word matches
+        // Priority 3: number of exact word matches
         const aw = a.exactWordMatches ?? a.wordMatchCount ?? 0;
         const bw = b.exactWordMatches ?? b.wordMatchCount ?? 0;
         if (aw !== bw) return bw - aw;
-        // Priority 3: total matches
+        // Priority 4: total matches
         if (a.totalMatches !== b.totalMatches) return b.totalMatches - a.totalMatches;
-        // Priority 4: score for final tie-break
+        // Priority 5: score for final tie-break
         if (a.matchScore !== b.matchScore) return b.matchScore - a.matchScore;
-        // Priority 5: earlier messages first
-        return a.index - b.index;
+        return 0;
+      });
+      
+      // Create proper conversation sequence numbers
+      const conversationSequence = new Map();
+      let currentInputNumber = 0;
+      let currentOutputNumber = 0;
+      
+      deduplicatedResults.forEach(result => {
+        if (result.author === 'user') {
+          currentInputNumber++;
+          conversationSequence.set(result.messageId, { type: 'input', number: currentInputNumber });
+        } else if (result.author === 'assistant') {
+          currentOutputNumber++;
+          conversationSequence.set(result.messageId, { type: 'output', number: currentOutputNumber });
+        }
       });
 
       // Display results
@@ -3374,7 +3426,15 @@ const createZeroEkaIconButton = () => {
         `;
 
         const authorLabel = result.author === 'user' ? 'Input' : 'Output';
-        const messageNumber = result.index + 1;
+        // Use proper conversation sequence numbers
+        const sequenceInfo = conversationSequence.get(result.messageId);
+        let messageNumber;
+        if (sequenceInfo) {
+          messageNumber = sequenceInfo.number;
+        } else {
+          // Fallback to index-based numbering
+          messageNumber = result.index + 1;
+        }
 
         // Create priority indicator
         const priorityColor = (result.phraseMaxTokens || 0) >= 2 ? '#3bb910' :
