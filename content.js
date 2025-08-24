@@ -1294,62 +1294,103 @@ const createZeroEkaIconButton = () => {
           // ChatGPT: comprehensive capture of all content including images
           let allContent = [];
           
-          // First, try to get structured messages with roles
-          const roleMessages = Array.from(document.querySelectorAll('[data-message-author-role]'));
-          if (roleMessages.length > 0) {
-            roleMessages.forEach((message) => {
-              const role = message.getAttribute('data-message-author-role');
-              // Get the full message container that may include images
-              const messageContainer = message.closest('[data-message-id]') || message.parentElement || message;
-              const clone = messageContainer.cloneNode(true);
-              allContent.push({ role, element: clone, isStructured: true });
-            });
+          // First, try to get all conversation turns in proper order
+          const conversationContainer = document.querySelector('[data-testid="conversation-turn-0"]')?.parentElement || 
+                                       document.querySelector('main') || 
+                                       document.body;
+          
+          // Look for all message containers that might contain content
+          const messageSelectors = [
+            '[data-message-id]',
+            '[data-testid*="conversation-turn"]',
+            'article',
+            '.group',
+            '[data-message-author-role]'
+          ];
+          
+          let foundMessages = [];
+          for (const selector of messageSelectors) {
+            const messages = Array.from(conversationContainer.querySelectorAll(selector));
+            if (messages.length > 0) {
+              foundMessages = messages;
+              break;
+            }
           }
           
-          // If no structured messages, fall back to article-based approach
-          if (allContent.length === 0) {
-            const articles = Array.from(document.querySelectorAll('article'));
-            articles.forEach((article, idx) => {
-              // Determine role based on content analysis
-              const hasUserContent = article.querySelector('[data-message-author-role="user"]') || 
-                                   article.textContent.includes('User:') || 
-                                   article.querySelector('.user-message');
-              const hasAssistantContent = article.querySelector('.markdown, .prose') || 
-                                        article.textContent.includes('Assistant:') ||
-                                        article.querySelector('.assistant-message');
-              
-              let role = 'assistant';
-              if (hasUserContent && !hasAssistantContent) role = 'user';
-              else if (hasUserContent && hasAssistantContent) role = 'user'; // Mixed content, treat as user
-              
-              const clone = article.cloneNode(true);
-              allContent.push({ role, element: clone, isStructured: false });
-            });
+          // If still no messages, try broader search
+          if (foundMessages.length === 0) {
+            foundMessages = Array.from(document.querySelectorAll('article, [data-message-id], [role="article"]'));
           }
           
-          // Process all captured content
-          allContent.forEach(({ role, element, isStructured }) => {
+          foundMessages.forEach((message) => {
+            // Determine role more accurately
+            let role = 'assistant';
+            
+            // Check various ways role might be indicated
+            if (message.getAttribute('data-message-author-role') === 'user') {
+              role = 'user';
+            } else if (message.querySelector('[data-message-author-role="user"]')) {
+              role = 'user';
+            } else if (message.textContent && /^(You|User):/i.test(message.textContent.trim())) {
+              role = 'user';
+            } else if (message.classList && message.classList.toString().includes('user')) {
+              role = 'user';
+            }
+            
+            // Clone the entire message and all surrounding content that might contain images
+            let contentToInclude = message.cloneNode(true);
+            
+            // Look for images in parent containers if message itself doesn't have them
+            if (!contentToInclude.querySelector('img, picture, canvas, video, figure')) {
+              const parent = message.parentElement;
+              if (parent && parent.querySelector('img, picture, canvas, video, figure')) {
+                // Check if the parent contains just this message + media, if so include parent
+                const parentChildren = Array.from(parent.children);
+                const hasOnlyMessageAndMedia = parentChildren.every(child => 
+                  child === message || 
+                  child.querySelector('img, picture, canvas, video, figure') ||
+                  child.tagName === 'FIGURE' ||
+                  child.classList.toString().includes('image')
+                );
+                
+                if (hasOnlyMessageAndMedia) {
+                  contentToInclude = parent.cloneNode(true);
+                }
+              }
+              
+              // Also check next/previous siblings for media
+              const nextSib = message.nextElementSibling;
+              const prevSib = message.previousElementSibling;
+              
+              if (nextSib && nextSib.querySelector('img, picture, canvas, video, figure')) {
+                const wrapper = (iframeDoc || document).createElement('div');
+                wrapper.appendChild(contentToInclude);
+                wrapper.appendChild(nextSib.cloneNode(true));
+                contentToInclude = wrapper;
+              } else if (prevSib && prevSib.querySelector('img, picture, canvas, video, figure')) {
+                const wrapper = (iframeDoc || document).createElement('div');
+                wrapper.appendChild(prevSib.cloneNode(true));
+                wrapper.appendChild(contentToInclude);
+                contentToInclude = wrapper;
+              }
+            }
+            
             // Remove ZeroEka UI elements from cloned content
-            Array.from(element.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star')).forEach(el => { 
+            Array.from(contentToInclude.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]')).forEach(el => { 
               try { el.remove(); } catch(_){} 
             });
             
-            // If this is a structured message, try to get the main content area
-            let html = '';
-            if (isStructured) {
-              // Look for the main content within the message
-              const contentArea = element.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || 
-                                 element.querySelector('div[tabindex="-1"]') || 
-                                 element;
-              html = contentArea.innerHTML || element.innerHTML;
-            } else {
-              html = element.innerHTML;
+            let html = contentToInclude.innerHTML || '';
+            
+            // If still no content, fall back to original message
+            if (!html || html.trim() === '') {
+              html = message.innerHTML || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
             }
             
-            // If still no content, fall back to text
-            if (!html) html = (element.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
-            
-            writeBlock(role === 'user' ? 'user' : 'assistant', html, index++);
+            // Ensure we have content to write
+            if (html && html.trim()) {
+              writeBlock(role === 'user' ? 'user' : 'assistant', html, index++);
+            }
           });
         }
 
