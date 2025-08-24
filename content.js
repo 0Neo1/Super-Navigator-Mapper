@@ -1347,17 +1347,17 @@ const createZeroEkaIconButton = () => {
               });
               if (images.length > 0) {
                 console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} filtered to ${images.length} image(s)`);
-              
+                
                 // Create a wrapper for this turn's content
                 const turnWrapper = (iframeDoc || document).createElement('div');
-              
+                
                 // Add text content first
                 if (textContent.trim()) {
                   const textDiv = (iframeDoc || document).createElement('div');
                   textDiv.textContent = textContent.trim();
                   turnWrapper.appendChild(textDiv);
                 }
-              
+                
                 // Helper to choose a canonical source and dedupe
                 const getCanonicalSrc = (img) => {
                   try {
@@ -1387,7 +1387,7 @@ const createZeroEkaIconButton = () => {
                   imgClone.style.margin = '8px 0';
                   turnWrapper.appendChild(imgClone);
                 });
-              
+                
                 turnContent = turnWrapper.innerHTML;
               }
             }
