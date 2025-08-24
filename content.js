@@ -1291,8 +1291,8 @@ const createZeroEkaIconButton = () => {
             writeBlock(isUser ? 'user' : 'assistant', html, index++);
           });
         } else {
-          // ChatGPT: deduplicated ultra-isolated capture
-          console.log('[ZeroEka PDF] Starting ChatGPT deduplicated capture...');
+          // ChatGPT: ultra-isolated capture - NO overlap possible
+          console.log('[ZeroEka PDF] Starting ChatGPT ultra-isolated capture...');
           
           // Only use conversation turns - the most reliable container
           const conversationTurns = Array.from(document.querySelectorAll('[data-testid*="conversation-turn"]'));
