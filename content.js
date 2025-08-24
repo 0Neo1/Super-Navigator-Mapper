@@ -3395,18 +3395,78 @@ const createZeroEkaIconButton = () => {
         return a.index - b.index;
       });
       
-      // Create proper conversation sequence numbers
+      // Create proper conversation sequence numbers based on entire conversation
       const conversationSequence = new Map();
+      
+      // First, scan the entire conversation to get proper sequence numbers
+      let conversationMessages = [];
+      
+      // Strategy 1: Look for conversation turns (most reliable for ChatGPT)
+      const allConversationTurns = Array.from(document.querySelectorAll('[data-testid*="conversation-turn"]'));
+      if (allConversationTurns.length > 0) {
+        console.log('Scanning all conversation turns:', allConversationTurns.length);
+        allConversationTurns.forEach((turn, index) => {
+          const userIndicator = turn.querySelector('[data-message-author-role="user"]');
+          const author = userIndicator ? 'user' : 'assistant';
+          conversationMessages.push({ element: turn, author, index });
+        });
+      }
+      // Strategy 2: Look for message IDs (fallback for ChatGPT)
+      else if (messages.length > 0) {
+        console.log('Scanning all messages with data-message-id:', messages.length);
+        messages.forEach((message, index) => {
+          const author = message.getAttribute('data-message-author-role') || 'unknown';
+          conversationMessages.push({ element: message, author, index });
+        });
+      }
+      // Strategy 3: Look for Gemini-specific selectors
+      else {
+        console.log('Scanning Gemini messages');
+        const allGeminiMessages = Array.from(document.querySelectorAll('user-query-content .query-text, .model-response-text'));
+        if (allGeminiMessages.length > 0) {
+          console.log('Found all Gemini messages:', allGeminiMessages.length);
+          allGeminiMessages.forEach((message, index) => {
+            const isUser = message.matches('user-query-content .query-text');
+            const author = isUser ? 'user' : 'assistant';
+            conversationMessages.push({ element: message, author, index });
+          });
+        }
+      }
+      
+      // Now assign proper sequence numbers based on conversation order
       let currentInputNumber = 0;
       let currentOutputNumber = 0;
       
-      deduplicatedResults.forEach(result => {
-        if (result.author === 'user') {
+      conversationMessages.forEach((msg, index) => {
+        if (msg.author === 'user') {
           currentInputNumber++;
-          conversationSequence.set(result.messageId, { type: 'input', number: currentInputNumber });
-        } else if (result.author === 'assistant') {
+          // Create a unique key for this message
+          const messageKey = `conv-${index}-${msg.author}`;
+          conversationSequence.set(messageKey, { type: 'input', number: currentInputNumber });
+        } else if (msg.author === 'assistant') {
           currentOutputNumber++;
-          conversationSequence.set(result.messageId, { type: 'output', number: currentOutputNumber });
+          const messageKey = `conv-${index}-${msg.author}`;
+          conversationSequence.set(messageKey, { type: 'output', number: currentOutputNumber });
+        }
+      });
+      
+      // Now map search results to conversation sequence
+      const searchResultSequence = new Map();
+      deduplicatedResults.forEach((result, resultIndex) => {
+        // Find the corresponding conversation message
+        const matchingConvMsg = conversationMessages.find((msg, index) => {
+          // Try to match by content similarity or other criteria
+          const resultContent = result.beforeMatch + result.match + result.afterMatch;
+          const msgContent = msg.element.textContent || '';
+          return msgContent.includes(result.match) || resultContent.includes(msgContent.substring(0, 50));
+        });
+        
+        if (matchingConvMsg) {
+          const messageKey = `conv-${matchingConvMsg.index}-${matchingConvMsg.author}`;
+          const sequenceInfo = conversationSequence.get(messageKey);
+          if (sequenceInfo) {
+            searchResultSequence.set(result.messageId, sequenceInfo);
+          }
         }
       });
 
@@ -3439,8 +3499,8 @@ const createZeroEkaIconButton = () => {
         `;
 
         const authorLabel = result.author === 'user' ? 'Input' : 'Output';
-        // Use proper conversation sequence numbers
-        const sequenceInfo = conversationSequence.get(result.messageId);
+        // Use proper conversation sequence numbers from entire conversation
+        const sequenceInfo = searchResultSequence.get(result.messageId);
         let messageNumber;
         if (sequenceInfo) {
           messageNumber = sequenceInfo.number;
