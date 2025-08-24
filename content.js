@@ -1291,100 +1291,124 @@ const createZeroEkaIconButton = () => {
             writeBlock(isUser ? 'user' : 'assistant', html, index++);
           });
         } else {
-          // ChatGPT: ultra-targeted capture to prevent any duplication or overlap
-          console.log('[ZeroEka PDF] Starting ChatGPT ultra-targeted capture...');
+          // ChatGPT: balanced capture - get images without duplication
+          console.log('[ZeroEka PDF] Starting ChatGPT balanced capture...');
           
-          // Only use conversation turns - the most specific container
-          const conversationTurns = Array.from(document.querySelectorAll('[data-testid*="conversation-turn"]'));
-          console.log('[ZeroEka PDF] Found conversation turns:', conversationTurns.length);
+          // Use conversation turns as primary, fallback to other selectors if needed
+          let foundMessages = Array.from(document.querySelectorAll('[data-testid*="conversation-turn"]'));
+          if (!foundMessages.length) {
+            foundMessages = Array.from(document.querySelectorAll('[data-message-id]'));
+          }
+          if (!foundMessages.length) {
+            foundMessages = Array.from(document.querySelectorAll('article'));
+          }
           
-          if (conversationTurns.length === 0) {
-            console.warn('[ZeroEka PDF] No conversation turns found, cannot proceed safely');
+          console.log('[ZeroEka PDF] Found messages:', foundMessages.length);
+          
+          if (foundMessages.length === 0) {
+            console.warn('[ZeroEka PDF] No messages found');
             return;
           }
           
-          // Process each turn individually, capturing only its specific content
-          conversationTurns.forEach((turn, turnIndex) => {
-            console.log(`[ZeroEka PDF] Processing turn ${turnIndex + 1}/${conversationTurns.length}`);
+          // Track processed content to avoid duplicates
+          const processedContent = new Set();
+          
+          foundMessages.forEach((message, msgIndex) => {
+            console.log(`[ZeroEka PDF] Processing message ${msgIndex + 1}/${foundMessages.length}`);
             
-            // Determine role from the turn itself
+            // Determine role
             let role = 'assistant';
-            const userIndicator = turn.querySelector('[data-message-author-role="user"]');
-            if (userIndicator) {
+            if (message.getAttribute && message.getAttribute('data-message-author-role') === 'user') {
+              role = 'user';
+            } else if (message.querySelector && message.querySelector('[data-message-author-role="user"]')) {
               role = 'user';
             }
             
-            // Extract ONLY the content that belongs to this specific turn
-            let turnContent = '';
+            // Clone the message to work with
+            const clone = message.cloneNode(true);
             
-            // Method 1: Look for the main content area within this turn
-            const mainContent = turn.querySelector('.markdown, .prose, [role="presentation"]');
-            if (mainContent) {
-              turnContent = mainContent.innerHTML;
-              console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using main content area`);
+            // Remove ZeroEka UI elements
+            Array.from(clone.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]')).forEach(el => { 
+              try { el.remove(); } catch(_){} 
+            });
+            
+            // Extract content with priority for images
+            let html = '';
+            
+            // First, try to get content from known content areas
+            const contentArea = clone.querySelector('.markdown, .prose, [role="presentation"], [data-message-author-role] + div, [data-message-author-role] ~ div');
+            if (contentArea) {
+              html = contentArea.innerHTML;
+              console.log(`[ZeroEka PDF] Message ${msgIndex + 1} using content area`);
             }
             
-            // Method 2: If no main content area, get the turn's direct text content
-            if (!turnContent || turnContent.trim() === '') {
-              // Get only the text content, not HTML that might include overlapping elements
-              turnContent = turn.textContent || '';
-              console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using text content only`);
-            }
-            
-            // Method 3: Last resort - minimal HTML from the turn
-            if (!turnContent || turnContent.trim() === '') {
-              // Create a minimal representation with only essential elements
-              const essentialElements = [];
-              
-              // Add text content
-              if (turn.textContent && turn.textContent.trim()) {
-                const textDiv = (iframeDoc || document).createElement('div');
-                textDiv.textContent = turn.textContent.trim();
-                essentialElements.push(textDiv);
-              }
-              
-              // Add only the images that are direct children of this turn
-              const directImages = Array.from(turn.querySelectorAll(':scope > img, :scope > picture, :scope > figure'));
-              directImages.forEach(img => {
-                const imgClone = img.cloneNode(true);
-                essentialElements.push(imgClone);
-              });
-              
-              // Combine into HTML
-              if (essentialElements.length > 0) {
-                const wrapper = (iframeDoc || document).createElement('div');
-                essentialElements.forEach(el => wrapper.appendChild(el));
-                turnContent = wrapper.innerHTML;
-                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using minimal essential elements`);
+            // If no content area found, use the full message but be selective
+            if (!html || html.trim() === '') {
+              // Check if the message itself contains images
+              const hasImages = clone.querySelector('img, picture, canvas, video, figure');
+              if (hasImages) {
+                // If it has images, use the full message HTML
+                html = clone.innerHTML;
+                console.log(`[ZeroEka PDF] Message ${msgIndex + 1} using full HTML (has images)`);
+              } else {
+                // If no images, use text content to avoid HTML overlap
+                html = clone.textContent || '';
+                console.log(`[ZeroEka PDF] Message ${msgIndex + 1} using text content (no images)`);
               }
             }
             
-            // Clean up the content
-            if (turnContent && turnContent.trim()) {
-              // Remove any ZeroEka UI elements
+            // If still no content, try to find images in parent container
+            if (!html || html.trim() === '') {
+              const parent = message.parentElement;
+              if (parent && parent.querySelector('img, picture, canvas, video, figure')) {
+                // Only include parent if it's a reasonable size and contains this message
+                const parentChildren = Array.from(parent.children);
+                const messageIndex = parentChildren.indexOf(message);
+                if (messageIndex !== -1 && parentChildren.length <= 3) {
+                  const parentClone = parent.cloneNode(true);
+                  // Remove ZeroEka UI from parent clone
+                  Array.from(parentClone.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]')).forEach(el => { 
+                    try { el.remove(); } catch(_){} 
+                  });
+                  html = parentClone.innerHTML;
+                  console.log(`[ZeroEka PDF] Message ${msgIndex + 1} using parent container (has images)`);
+                }
+              }
+            }
+            
+            // Clean and validate content
+            if (html && html.trim()) {
+              // Remove ZeroEka UI elements again (in case they were added back)
               const tempDiv = (iframeDoc || document).createElement('div');
-              tempDiv.innerHTML = turnContent;
+              tempDiv.innerHTML = html;
               Array.from(tempDiv.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]')).forEach(el => { 
                 try { el.remove(); } catch(_){} 
               });
-              turnContent = tempDiv.innerHTML;
+              html = tempDiv.innerHTML;
+              
+              // Create a content fingerprint to avoid duplicates
+              const contentFingerprint = html.replace(/\s+/g, ' ').trim().slice(0, 200);
+              if (processedContent.has(contentFingerprint)) {
+                console.log(`[ZeroEka PDF] Message ${msgIndex + 1} skipped - duplicate content`);
+                return;
+              }
+              processedContent.add(contentFingerprint);
               
               // Sanitize for PDF
-              const safeHtml = sanitizeForPdf(turnContent);
+              const safeHtml = sanitizeForPdf(html);
               
-              // Only write if we have meaningful content
-              if (safeHtml && safeHtml.trim() && safeHtml.length > 10) {
-                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} writing block - role: ${role}, content length: ${safeHtml.length}`);
-                writeBlock(role === 'user' ? 'user' : 'assistant', safeHtml, index++);
-              } else {
-                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} skipped - insufficient content`);
-              }
+              // Check final content
+              const finalMediaCount = (safeHtml.match(/<img|<picture|<canvas|<video|<figure/gi) || []).length;
+              console.log(`[ZeroEka PDF] Message ${msgIndex + 1} - role: ${role}, content length: ${safeHtml.length}, media elements: ${finalMediaCount}`);
+              
+              // Write the block
+              writeBlock(role === 'user' ? 'user' : 'assistant', safeHtml, index++);
             } else {
-              console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} skipped - no content found`);
+              console.log(`[ZeroEka PDF] Message ${msgIndex + 1} skipped - no content`);
             }
           });
           
-          console.log('[ZeroEka PDF] ChatGPT ultra-targeted capture completed');
+          console.log('[ZeroEka PDF] ChatGPT balanced capture completed');
         }
 
         iframeDoc.write('</div></body></html>');
