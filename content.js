@@ -5379,17 +5379,62 @@ const updateTextSize = (container, size) => {
           popupTimeout = setTimeout(() => {
             if (popup) return;
             
-            // Extract message text (prefer textContent)
+            // Enhanced text extraction: try to find the actual message content
             let messageText = '';
             try {
-              if (refEl && refEl.textContent) {
-                messageText = refEl.textContent.trim();
-              } else if (refEl && refEl.innerText) {
-                messageText = refEl.innerText.trim();
+              // Strategy 1: Try to find the parent message container
+              let messageContainer = refEl;
+              while (messageContainer && messageContainer !== document.body) {
+                // Look for common message container selectors
+                if (messageContainer.matches && (
+                  messageContainer.matches('[data-testid*="conversation-turn"]') ||
+                  messageContainer.matches('user-query-content') ||
+                  messageContainer.matches('[data-message-author]') ||
+                  messageContainer.matches('.model-response-text') ||
+                  messageContainer.closest('[data-testid*="conversation-turn"]') ||
+                  messageContainer.closest('user-query-content') ||
+                  messageContainer.closest('[data-message-author]')
+                )) {
+                  break;
+                }
+                messageContainer = messageContainer.parentElement;
               }
+              
+              // Strategy 2: Extract text from the found container
+              if (messageContainer && messageContainer !== document.body) {
+                // Try to get meaningful content
+                const contentSelectors = [
+                  '.model-response-text',
+                  '.query-text',
+                  '.markdown',
+                  '.prose',
+                  '[role="presentation"]',
+                  'p',
+                  'div'
+                ];
+                
+                for (const selector of contentSelectors) {
+                  const contentEl = messageContainer.querySelector(selector);
+                  if (contentEl && contentEl.textContent && contentEl.textContent.trim().length > 20) {
+                    messageText = contentEl.textContent.trim();
+                    break;
+                  }
+                }
+                
+                // If no specific content found, use the container's text
+                if (!messageText && messageContainer.textContent) {
+                  messageText = messageContainer.textContent.trim();
+                }
+              }
+              
+              // Strategy 3: Fallback to original refEl
+              if (!messageText && refEl && refEl.textContent) {
+                messageText = refEl.textContent.trim();
+              }
+              
             } catch (_) {}
             
-            if (!messageText) return;
+            if (!messageText || messageText.length < 10) return;
             
             // Show at least 50 words; if longer, truncate to first 50 words
             const words = messageText.split(/\s+/);
