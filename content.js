@@ -1291,38 +1291,92 @@ const createZeroEkaIconButton = () => {
             writeBlock(isUser ? 'user' : 'assistant', html, index++);
           });
         } else {
-          // ChatGPT: comprehensive capture of all content including images
-          let allContent = [];
+          // ChatGPT: comprehensive capture of all content including images with debugging
+          console.log('[ZeroEka PDF] Starting ChatGPT content capture...');
           
-          // First, try to get all conversation turns in proper order
-          const conversationContainer = document.querySelector('[data-testid="conversation-turn-0"]')?.parentElement || 
-                                       document.querySelector('main') || 
-                                       document.body;
-          
-          // Look for all message containers that might contain content
-          const messageSelectors = [
-            '[data-message-id]',
-            '[data-testid*="conversation-turn"]',
-            'article',
-            '.group',
-            '[data-message-author-role]'
-          ];
-          
+          // Try multiple strategies to find conversation content
           let foundMessages = [];
-          for (const selector of messageSelectors) {
-            const messages = Array.from(conversationContainer.querySelectorAll(selector));
-            if (messages.length > 0) {
-              foundMessages = messages;
-              break;
+          
+          // Strategy 1: Look for conversation turns (most reliable)
+          const conversationTurns = Array.from(document.querySelectorAll('[data-testid*="conversation-turn"]'));
+          if (conversationTurns.length > 0) {
+            console.log('[ZeroEka PDF] Found', conversationTurns.length, 'conversation turns');
+            foundMessages = conversationTurns;
+          }
+          
+          // Strategy 2: Look for message IDs
+          if (foundMessages.length === 0) {
+            const messageIds = Array.from(document.querySelectorAll('[data-message-id]'));
+            if (messageIds.length > 0) {
+              console.log('[ZeroEka PDF] Found', messageIds.length, 'messages with IDs');
+              foundMessages = messageIds;
             }
           }
           
-          // If still no messages, try broader search
+          // Strategy 3: Look for articles
           if (foundMessages.length === 0) {
-            foundMessages = Array.from(document.querySelectorAll('article, [data-message-id], [role="article"]'));
+            const articles = Array.from(document.querySelectorAll('article'));
+            if (articles.length > 0) {
+              console.log('[ZeroEka PDF] Found', articles.length, 'articles');
+              foundMessages = articles;
+            }
           }
           
-          foundMessages.forEach((message) => {
+          // Strategy 4: Look for groups
+          if (foundMessages.length === 0) {
+            const groups = Array.from(document.querySelectorAll('.group'));
+            if (groups.length > 0) {
+              console.log('[ZeroEka PDF] Found', groups.length, 'groups');
+              foundMessages = groups;
+            }
+          }
+          
+          // Strategy 5: Look for any div with role="article"
+          if (foundMessages.length === 0) {
+            const roleArticles = Array.from(document.querySelectorAll('[role="article"]'));
+            if (roleArticles.length > 0) {
+              console.log('[ZeroEka PDF] Found', roleArticles.length, 'role articles');
+              foundMessages = roleArticles;
+            }
+          }
+          
+          // Strategy 6: Look for any div that contains both text and images
+          if (foundMessages.length === 0) {
+            const allDivs = Array.from(document.querySelectorAll('div'));
+            const contentDivs = allDivs.filter(div => {
+              const hasText = div.textContent && div.textContent.trim().length > 10;
+              const hasImages = div.querySelector('img, picture, canvas, video, figure');
+              return hasText && hasImages;
+            });
+            if (contentDivs.length > 0) {
+              console.log('[ZeroEka PDF] Found', contentDivs.length, 'content divs with images');
+              foundMessages = contentDivs;
+            }
+          }
+          
+          console.log('[ZeroEka PDF] Total messages found:', foundMessages.length);
+          
+          if (foundMessages.length === 0) {
+            console.warn('[ZeroEka PDF] No messages found, using fallback');
+            // Last resort: look for any content that might be a conversation
+            const mainContent = document.querySelector('main') || document.body;
+            const allImages = Array.from(mainContent.querySelectorAll('img, picture, canvas, video, figure'));
+            if (allImages.length > 0) {
+              console.log('[ZeroEka PDF] Found', allImages.length, 'media elements, creating fallback content');
+              // Create a simple structure with all found media
+              allImages.forEach((media, idx) => {
+                const wrapper = (iframeDoc || document).createElement('div');
+                wrapper.appendChild(media.cloneNode(true));
+                const html = wrapper.innerHTML;
+                writeBlock('assistant', html, index++);
+              });
+            }
+            return;
+          }
+          
+          foundMessages.forEach((message, msgIndex) => {
+            console.log(`[ZeroEka PDF] Processing message ${msgIndex + 1}/${foundMessages.length}`);
+            
             // Determine role more accurately
             let role = 'assistant';
             
@@ -1335,16 +1389,24 @@ const createZeroEkaIconButton = () => {
               role = 'user';
             } else if (message.classList && message.classList.toString().includes('user')) {
               role = 'user';
+            } else if (message.querySelector('.user-message, [class*="user"]')) {
+              role = 'user';
             }
+            
+            console.log(`[ZeroEka PDF] Message ${msgIndex + 1} role:`, role);
             
             // Clone the entire message and all surrounding content that might contain images
             let contentToInclude = message.cloneNode(true);
             
-            // Look for images in parent containers if message itself doesn't have them
-            if (!contentToInclude.querySelector('img, picture, canvas, video, figure')) {
+            // Check if this message already contains media
+            const hasMedia = contentToInclude.querySelector('img, picture, canvas, video, figure');
+            console.log(`[ZeroEka PDF] Message ${msgIndex + 1} has media:`, !!hasMedia);
+            
+            if (!hasMedia) {
+              // Strategy 1: Check parent container
               const parent = message.parentElement;
               if (parent && parent.querySelector('img, picture, canvas, video, figure')) {
-                // Check if the parent contains just this message + media, if so include parent
+                console.log(`[ZeroEka PDF] Found media in parent container for message ${msgIndex + 1}`);
                 const parentChildren = Array.from(parent.children);
                 const hasOnlyMessageAndMedia = parentChildren.every(child => 
                   child === message || 
@@ -1355,23 +1417,58 @@ const createZeroEkaIconButton = () => {
                 
                 if (hasOnlyMessageAndMedia) {
                   contentToInclude = parent.cloneNode(true);
+                  console.log(`[ZeroEka PDF] Using parent container for message ${msgIndex + 1}`);
                 }
               }
               
-              // Also check next/previous siblings for media
-              const nextSib = message.nextElementSibling;
-              const prevSib = message.previousElementSibling;
+              // Strategy 2: Check next/previous siblings
+              if (!contentToInclude.querySelector('img, picture, canvas, video, figure')) {
+                const nextSib = message.nextElementSibling;
+                const prevSib = message.previousElementSibling;
+                
+                if (nextSib && nextSib.querySelector('img, picture, canvas, video, figure')) {
+                  console.log(`[ZeroEka PDF] Found media in next sibling for message ${msgIndex + 1}`);
+                  const wrapper = (iframeDoc || document).createElement('div');
+                  wrapper.appendChild(contentToInclude);
+                  wrapper.appendChild(nextSib.cloneNode(true));
+                  contentToInclude = wrapper;
+                } else if (prevSib && prevSib.querySelector('img, picture, canvas, video, figure')) {
+                  console.log(`[ZeroEka PDF] Found media in previous sibling for message ${msgIndex + 1}`);
+                  const wrapper = (iframeDoc || document).createElement('div');
+                  wrapper.appendChild(prevSib.cloneNode(true));
+                  wrapper.appendChild(contentToInclude);
+                  contentToInclude = wrapper;
+                }
+              }
               
-              if (nextSib && nextSib.querySelector('img, picture, canvas, video, figure')) {
-                const wrapper = (iframeDoc || document).createElement('div');
-                wrapper.appendChild(contentToInclude);
-                wrapper.appendChild(nextSib.cloneNode(true));
-                contentToInclude = wrapper;
-              } else if (prevSib && prevSib.querySelector('img, picture, canvas, video, figure')) {
-                const wrapper = (iframeDoc || document).createElement('div');
-                wrapper.appendChild(prevSib.cloneNode(true));
-                wrapper.appendChild(contentToInclude);
-                contentToInclude = wrapper;
+              // Strategy 3: Check for any nearby media within a reasonable distance
+              if (!contentToInclude.querySelector('img, picture, canvas, video, figure')) {
+                let current = message;
+                let searchDepth = 0;
+                const maxDepth = 3;
+                
+                while (searchDepth < maxDepth && current) {
+                  // Look for media in siblings at this level
+                  let sibling = current.nextElementSibling;
+                  while (sibling && searchDepth < maxDepth) {
+                    if (sibling.querySelector('img, picture, canvas, video, figure')) {
+                      console.log(`[ZeroEka PDF] Found media in distant sibling for message ${msgIndex + 1}`);
+                      const wrapper = (iframeDoc || document).createElement('div');
+                      wrapper.appendChild(contentToInclude);
+                      wrapper.appendChild(sibling.cloneNode(true));
+                      contentToInclude = wrapper;
+                      break;
+                    }
+                    sibling = sibling.nextElementSibling;
+                    searchDepth++;
+                  }
+                  
+                  if (contentToInclude.querySelector('img, picture, canvas, video, figure')) break;
+                  
+                  // Move up to parent and search there
+                  current = current.parentElement;
+                  searchDepth++;
+                }
               }
             }
             
@@ -1387,11 +1484,17 @@ const createZeroEkaIconButton = () => {
               html = message.innerHTML || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
             }
             
+            // Final check for media
+            const finalMediaCount = (html.match(/<img|<picture|<canvas|<video|<figure/gi) || []).length;
+            console.log(`[ZeroEka PDF] Message ${msgIndex + 1} final HTML length:`, html.length, 'media elements:', finalMediaCount);
+            
             // Ensure we have content to write
             if (html && html.trim()) {
               writeBlock(role === 'user' ? 'user' : 'assistant', html, index++);
             }
           });
+          
+          console.log('[ZeroEka PDF] ChatGPT content capture completed');
         }
 
         iframeDoc.write('</div></body></html>');
