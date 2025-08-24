@@ -1191,18 +1191,6 @@ const createZeroEkaIconButton = () => {
             <div class="ze-content">
         `);
 
-        // Helper function to create content fingerprints for deduplication
-        const createContentFingerprint = (html) => {
-          try {
-            // Remove whitespace and normalize
-            const normalized = html.replace(/\s+/g, ' ').trim();
-            // Create a simple hash-like fingerprint
-            return normalized.length + '_' + (normalized.match(/<img|<picture|<canvas|<video|<figure/gi) || []).length;
-          } catch (_) {
-            return html.length.toString();
-          }
-        };
-        
         const sanitizeForPdf = (unsafeHtml) => {
           try {
             const wrapper = (iframeDoc || document).createElement('div');
@@ -1303,122 +1291,60 @@ const createZeroEkaIconButton = () => {
             writeBlock(isUser ? 'user' : 'assistant', html, index++);
           });
         } else {
-          // ChatGPT: precise, structured capture matching conversation layout exactly
-          console.log('[ZeroEka PDF] Starting ChatGPT structured content capture...');
+          // ChatGPT: strict per-turn capture to avoid duplicates; deduplicate identical blocks
+          console.log('[ZeroEka PDF] Starting ChatGPT content capture (per-turn)...');
           
-          // Find the main conversation container
-          const mainContainer = document.querySelector('main') || document.querySelector('[data-testid="conversation-turn-0"]')?.parentElement || document.body;
-          
-          // Look for the most specific conversation structure
-          let conversationStructure = [];
-          
-          // Method 1: Look for conversation turns (most structured)
-          const conversationTurns = Array.from(mainContainer.querySelectorAll('[data-testid*="conversation-turn"]'));
-          if (conversationTurns.length > 0) {
-            console.log('[ZeroEka PDF] Using conversation turns structure:', conversationTurns.length);
-            conversationStructure = conversationTurns.map(turn => ({ element: turn, type: 'turn' }));
+          const conversationTurns = Array.from(document.querySelectorAll('[data-testid*="conversation-turn"]'));
+          let foundMessages = conversationTurns;
+          if (!foundMessages.length) {
+            foundMessages = Array.from(document.querySelectorAll('[data-message-id]'));
           }
-          
-          // Method 2: Look for message groups
-          if (conversationStructure.length === 0) {
-            const messageGroups = Array.from(mainContainer.querySelectorAll('.group'));
-            if (messageGroups.length > 0) {
-              console.log('[ZeroEka PDF] Using message groups structure:', messageGroups.length);
-              conversationStructure = messageGroups.map(group => ({ element: group, type: 'group' }));
-            }
+          if (!foundMessages.length) {
+            foundMessages = Array.from(document.querySelectorAll('article'));
           }
+          console.log('[ZeroEka PDF] Total messages found:', foundMessages.length);
           
-          // Method 3: Look for articles
-          if (conversationStructure.length === 0) {
-            const articles = Array.from(mainContainer.querySelectorAll('article'));
-            if (articles.length > 0) {
-              console.log('[ZeroEka PDF] Using articles structure:', articles.length);
-              conversationStructure = articles.map(article => ({ element: article, type: 'article' }));
-            }
-          }
+          const seenPrints = new Set();
+          const fingerprint = (html) => {
+            try {
+              const normalized = String(html || '')
+                .replace(/\s+/g, ' ')
+                .replace(/data:[^"')\s]+/g, 'data:')
+                .replace(/blob:[^"')\s]+/g, 'blob:')
+                .replace(/\b(src|srcset)=("|')(.*?)("|')/gi, (m, a, q1, val, q2) => `${a}=${q1}${val.split('?')[0]}${q2}`)
+                .trim();
+              const mediaCount = (normalized.match(/<img|<picture|<canvas|<video|<figure/gi) || []).length;
+              return `${normalized.length}_${mediaCount}`;
+            } catch(_) { return String(html || '').length + '_e'; }
+          };
           
-          // Method 4: Look for message IDs
-          if (conversationStructure.length === 0) {
-            const messageIds = Array.from(mainContainer.querySelectorAll('[data-message-id]'));
-            if (messageIds.length > 0) {
-              console.log('[ZeroEka PDF] Using message IDs structure:', messageIds.length);
-              conversationStructure = messageIds.map(msg => ({ element: msg, type: 'message' }));
-            }
-          }
-          
-          console.log('[ZeroEka PDF] Conversation structure found:', conversationStructure.length, 'elements');
-          
-          if (conversationStructure.length === 0) {
-            console.warn('[ZeroEka PDF] No conversation structure found');
-            return;
-          }
-          
-          // Process each conversation element in order
-          conversationStructure.forEach((item, idx) => {
-            const { element, type } = item;
-            console.log(`[ZeroEka PDF] Processing ${type} ${idx + 1}/${conversationStructure.length}`);
-            
-            // Determine role based on content analysis
+          foundMessages.forEach((message, idx) => {
             let role = 'assistant';
+            if (message.getAttribute && message.getAttribute('data-message-author-role') === 'user') role = 'user';
+            else if (message.querySelector && message.querySelector('[data-message-author-role="user"]')) role = 'user';
             
-            // Check for user indicators
-            if (element.getAttribute('data-message-author-role') === 'user') {
-              role = 'user';
-            } else if (element.querySelector('[data-message-author-role="user"]')) {
-              role = 'user';
-            } else if (element.textContent && /^(You|User):/i.test(element.textContent.trim())) {
-              role = 'user';
-            } else if (element.classList && element.classList.toString().includes('user')) {
-              role = 'user';
-            } else if (element.querySelector('.user-message, [class*="user"]')) {
-              role = 'user';
+            // Clone only the turn/message itself to prevent sibling/parent duplication
+            const clone = message.cloneNode(true);
+            // Strip ZeroEka UI artifacts
+            Array.from(clone.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]')).forEach(el => { try { el.remove(); } catch(_) {} });
+            
+            // Prefer known content areas inside turns; fallback to full clone
+            let contentEl = clone.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div, [role="presentation"], figure') || clone;
+            let html = contentEl.innerHTML || clone.innerHTML || '';
+            if (!html || html.trim() === '') html = (message.innerHTML) || (message.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+            if (!html || html.trim() === '') return;
+            
+            const safeHtml = sanitizeForPdf(html);
+            const fp = fingerprint(safeHtml);
+            if (seenPrints.has(fp)) {
+              console.log('[ZeroEka PDF] Skipping duplicate block at idx', idx);
+              return;
             }
-            
-            console.log(`[ZeroEka PDF] ${type} ${idx + 1} role:`, role);
-            
-            // Extract content exactly as it appears in the conversation
-            let contentHTML = '';
-            
-            if (type === 'turn' || type === 'group') {
-              // For conversation turns and groups, get the complete content
-              contentHTML = element.innerHTML || '';
-            } else if (type === 'article') {
-              // For articles, get the main content area
-              const contentArea = element.querySelector('.markdown, .prose, [data-message-author-role] + div, [data-message-author-role] ~ div') || element;
-              contentHTML = contentArea.innerHTML || element.innerHTML || '';
-            } else {
-              // For individual messages, get the message content
-              contentHTML = element.innerHTML || '';
-            }
-            
-            // Clean the content
-            if (contentHTML) {
-              // Remove ZeroEka UI elements
-              const tempDiv = (iframeDoc || document).createElement('div');
-              tempDiv.innerHTML = contentHTML;
-              Array.from(tempDiv.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]')).forEach(el => { 
-                try { el.remove(); } catch(_){} 
-              });
-              contentHTML = tempDiv.innerHTML;
-            }
-            
-            // Check if content has meaningful text or media
-            const hasText = contentHTML.replace(/<[^>]*>/g, '').trim().length > 5;
-            const hasMedia = /<img|<picture|<canvas|<video|<figure/i.test(contentHTML);
-            
-            if (hasText || hasMedia) {
-              // Final content verification
-              const finalMediaCount = (contentHTML.match(/<img|<picture|<canvas|<video|<figure/gi) || []).length;
-              console.log(`[ZeroEka PDF] ${type} ${idx + 1} - Text: ${hasText}, Media: ${hasMedia}, Media count: ${finalMediaCount}`);
-              
-              // Write the content block
-              writeBlock(role === 'user' ? 'user' : 'assistant', contentHTML, index++);
-            } else {
-              console.log(`[ZeroEka PDF] Skipping ${type} ${idx + 1} - no meaningful content`);
-            }
+            seenPrints.add(fp);
+            writeBlock(role === 'user' ? 'user' : 'assistant', safeHtml, index++);
           });
           
-          console.log('[ZeroEka PDF] ChatGPT structured content capture completed');
+          console.log('[ZeroEka PDF] ChatGPT content capture completed');
         }
 
         iframeDoc.write('</div></body></html>');
