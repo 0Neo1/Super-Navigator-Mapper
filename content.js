@@ -3373,23 +3373,26 @@ const createZeroEkaIconButton = () => {
         }
       });
       
-      // Convert grouped results back to array and sort by conversation order
+      // Convert grouped results back to array and sort by relevance (max words matched first)
       const deduplicatedResults = Array.from(groupedResults.values());
       deduplicatedResults.sort((a, b) => {
-        // Priority 1: conversation order (earlier messages first)
-        if (a.index !== b.index) return a.index - b.index;
-        // Priority 2: longer contiguous phrase tokens
-        const ap = a.phraseMaxTokens || 0; const bp = b.phraseMaxTokens || 0;
-        if (ap !== bp) return bp - ap;
-        // Priority 3: number of exact word matches
+        // Priority 1: Maximum number of words matched (most relevant first)
         const aw = a.exactWordMatches ?? a.wordMatchCount ?? 0;
         const bw = b.exactWordMatches ?? b.wordMatchCount ?? 0;
         if (aw !== bw) return bw - aw;
-        // Priority 4: total matches
+        
+        // Priority 2: Longer contiguous phrase tokens
+        const ap = a.phraseMaxTokens || 0; const bp = b.phraseMaxTokens || 0;
+        if (ap !== bp) return bp - ap;
+        
+        // Priority 3: Total matches
         if (a.totalMatches !== b.totalMatches) return b.totalMatches - a.totalMatches;
-        // Priority 5: score for final tie-break
+        
+        // Priority 4: Score for tie-break
         if (a.matchScore !== b.matchScore) return b.matchScore - a.matchScore;
-        return 0;
+        
+        // Priority 5: Conversation order (earlier messages first) - only as final tie-breaker
+        return a.index - b.index;
       });
       
       // Create proper conversation sequence numbers
@@ -3415,6 +3418,15 @@ const createZeroEkaIconButton = () => {
 
       deduplicatedResults.forEach((result, resultIndex) => {
         const resultItem = document.createElement('div');
+        
+        // Highlight the top result with most words matched
+        const isTopResult = resultIndex === 0;
+        const topResultStyle = isTopResult ? `
+          border: 2px solid #3bb910;
+          background: #1a2a1a;
+          box-shadow: 0 0 10px rgba(59, 185, 16, 0.3);
+        ` : '';
+        
         resultItem.style.cssText = `
           padding: 12px 14px;
           border: 1px solid #444444;
@@ -3423,6 +3435,7 @@ const createZeroEkaIconButton = () => {
           background: #2a2a2a;
           cursor: pointer;
           transition: all 0.3s ease;
+          ${topResultStyle}
         `;
 
         const authorLabel = result.author === 'user' ? 'Input' : 'Output';
@@ -3443,13 +3456,14 @@ const createZeroEkaIconButton = () => {
                              (result.exactWordMatches || result.wordMatchCount || 0) === (result.totalQueryWords || 0) ? 'Perfect Match' :
                              (result.exactWordMatches || result.wordMatchCount || 0) >= (result.totalQueryWords || 0) * 0.7 ? 'Good Match' : 'Partial Match';
         
-        // Show concise header: "(N words matched)"
+        // Show concise header: "(N words matched)" and "Top Match" for best result
         const wordsCount = result.exactWordMatches ?? result.wordMatchCount ?? 0;
         const matchInfo = wordsCount > 0 ? ` (${wordsCount} words matched)` : '';
+        const topMatchLabel = isTopResult ? ' 🏆 Top Match' : '';
         
         resultItem.innerHTML = `
           <div style="font-weight: 600; color: #3bb910; margin-bottom: 4px; font-size: 13px;">
-            ${authorLabel} ${messageNumber}${matchInfo}
+            ${authorLabel} ${messageNumber}${matchInfo}${topMatchLabel}
           </div>
           <div style="color: #cccccc; font-size: 13px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; max-height: 80px; overflow: hidden;">
             ${result.beforeMatch ? '...' + result.beforeMatch : ''}${highlightAllWordsInText(result.match, query)}${result.afterMatch ? result.afterMatch + '...' : ''}
