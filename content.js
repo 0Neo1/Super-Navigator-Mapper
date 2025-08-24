@@ -5422,7 +5422,7 @@ const updateTextSize = (container, size) => {
             `;
             popup.textContent = messageText;
             document.body.appendChild(popup);
-          }, 250); // slight delay to avoid flicker
+          }, 2000); // 2 second delay before showing popup
         });
         
         li.addEventListener('mouseleave', removePopup);
