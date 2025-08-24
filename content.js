@@ -5355,6 +5355,83 @@ const updateTextSize = (container, size) => {
       div.innerHTML = labelHtml;
       li.appendChild(iEl);
       li.appendChild(div);
+      
+      // Add hover popup functionality for Gemini message tree
+      if (refEl) {
+        let popup = null;
+        let popupTimeout = null;
+        
+        li.addEventListener('mouseenter', () => {
+          // Clear any existing timeout
+          if (popupTimeout) {
+            clearTimeout(popupTimeout);
+            popupTimeout = null;
+          }
+          
+          // Create popup after a short delay
+          popupTimeout = setTimeout(() => {
+            if (popup) return; // Already showing
+            
+            // Get message content (at least 50 words)
+            let messageText = '';
+            try {
+              if (refEl.textContent) {
+                messageText = refEl.textContent.trim();
+              } else if (refEl.innerText) {
+                messageText = refEl.innerText.trim();
+              }
+            } catch (_) {}
+            
+            // Ensure at least 50 words or show full content if shorter
+            const words = messageText.split(/\s+/);
+            if (words.length > 50) {
+              messageText = words.slice(0, 50).join(' ') + '...';
+            }
+            
+            if (messageText) {
+              // Create popup element
+              popup = document.createElement('div');
+              popup.style.cssText = `
+                position: fixed;
+                top: ${li.getBoundingClientRect().top - 10}px;
+                left: ${li.getBoundingClientRect().right + 10}px;
+                max-width: 400px;
+                max-height: 300px;
+                background: #1a1a1a;
+                border: 1px solid #444;
+                border-radius: 8px;
+                padding: 12px;
+                color: #ccc;
+                font-size: 13px;
+                line-height: 1.4;
+                z-index: 2147483647;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                overflow: hidden;
+                pointer-events: none;
+              `;
+              popup.textContent = messageText;
+              document.body.appendChild(popup);
+            }
+          }, 300); // 300ms delay before showing popup
+        });
+        
+        li.addEventListener('mouseleave', () => {
+          // Clear timeout
+          if (popupTimeout) {
+            clearTimeout(popupTimeout);
+            popupTimeout = null;
+          }
+          
+          // Remove popup
+          if (popup) {
+            popup.remove();
+            popup = null;
+          }
+        });
+      }
+      
       return li;
     };
     const appendChildLi = (parentLi, childLi) => {
