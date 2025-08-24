@@ -1327,65 +1327,69 @@ const createZeroEkaIconButton = () => {
             }
             
             // Method 2: Add images as separate elements (no HTML overlap)
-            // Collect only <img> tags; ignore picture/figure to avoid duplication
-            const rawImgs = Array.from(turn.querySelectorAll('img'));
-            // Filter out UI/thumbnail/hidden images
-            const images = rawImgs.filter((img) => {
-              try {
-                const classStr = (img.className || '').toString();
-                if (/avatar|icon|logo|badge|toolbar|button|control|copy|vote|thumb/i.test(classStr)) return false;
-                const closestHidden = img.closest('[aria-hidden="true"], [hidden], button, [role="button"], a');
-                if (closestHidden) return false;
-                const w = Number(img.getAttribute('width') || 0);
-                const h = Number(img.getAttribute('height') || 0);
-                if ((w && w < 48) && (h && h < 48)) return false;
-                return true;
-              } catch(_) { return true; }
-            });
-            if (images.length > 0) {
-              console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} filtered to ${images.length} image(s)`);
-              
-              // Create a wrapper for this turn's content
-              const turnWrapper = (iframeDoc || document).createElement('div');
-              
-              // Add text content first
-              if (textContent.trim()) {
-                const textDiv = (iframeDoc || document).createElement('div');
-                textDiv.textContent = textContent.trim();
-                turnWrapper.appendChild(textDiv);
-              }
-              
-              // Helper to choose a canonical source and dedupe
-              const getCanonicalSrc = (img) => {
+            // For ChatGPT: exclude images from user prompts; include only assistant images
+            const includeImages = role !== 'user';
+            if (includeImages) {
+              // Collect only <img> tags; ignore picture/figure to avoid duplication
+              const rawImgs = Array.from(turn.querySelectorAll('img'));
+              // Filter out UI/thumbnail/hidden images
+              const images = rawImgs.filter((img) => {
                 try {
-                  const cs = img.currentSrc || img.getAttribute('src') || img.getAttribute('data-src') || '';
-                  if (cs) return cs.split('?')[0];
-                  const ss = img.getAttribute('srcset');
-                  if (ss) {
-                    const first = ss.split(',')[0] || '';
-                    return first.trim().split(' ')[0].split('?')[0];
-                  }
-                } catch(_) {}
-                return '';
-              };
-              const addedSrcs = new Set();
-
-              // Add each unique image as a separate element
-              images.forEach((img) => {
-                const canonical = (getCanonicalSrc(img) || '').toLowerCase();
-                if (!canonical || addedSrcs.has(canonical)) return;
-                addedSrcs.add(canonical);
-                const imgClone = img.cloneNode(true);
-                // Remove any attributes that might cause issues
-                imgClone.removeAttribute('style');
-                imgClone.removeAttribute('class');
-                imgClone.style.maxWidth = '100%';
-                imgClone.style.height = 'auto';
-                imgClone.style.margin = '8px 0';
-                turnWrapper.appendChild(imgClone);
+                  const classStr = (img.className || '').toString();
+                  if (/avatar|icon|logo|badge|toolbar|button|control|copy|vote|thumb/i.test(classStr)) return false;
+                  const closestHidden = img.closest('[aria-hidden="true"], [hidden], button, [role="button"], a');
+                  if (closestHidden) return false;
+                  const w = Number(img.getAttribute('width') || 0);
+                  const h = Number(img.getAttribute('height') || 0);
+                  if ((w && w < 48) && (h && h < 48)) return false;
+                  return true;
+                } catch(_) { return true; }
               });
+              if (images.length > 0) {
+                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} filtered to ${images.length} image(s)`);
               
-              turnContent = turnWrapper.innerHTML;
+                // Create a wrapper for this turn's content
+                const turnWrapper = (iframeDoc || document).createElement('div');
+              
+                // Add text content first
+                if (textContent.trim()) {
+                  const textDiv = (iframeDoc || document).createElement('div');
+                  textDiv.textContent = textContent.trim();
+                  turnWrapper.appendChild(textDiv);
+                }
+              
+                // Helper to choose a canonical source and dedupe
+                const getCanonicalSrc = (img) => {
+                  try {
+                    const cs = img.currentSrc || img.getAttribute('src') || img.getAttribute('data-src') || '';
+                    if (cs) return cs.split('?')[0];
+                    const ss = img.getAttribute('srcset');
+                    if (ss) {
+                      const first = ss.split(',')[0] || '';
+                      return first.trim().split(' ')[0].split('?')[0];
+                    }
+                  } catch(_) {}
+                  return '';
+                };
+                const addedSrcs = new Set();
+
+                // Add each unique image as a separate element
+                images.forEach((img) => {
+                  const canonical = (getCanonicalSrc(img) || '').toLowerCase();
+                  if (!canonical || addedSrcs.has(canonical)) return;
+                  addedSrcs.add(canonical);
+                  const imgClone = img.cloneNode(true);
+                  // Remove any attributes that might cause issues
+                  imgClone.removeAttribute('style');
+                  imgClone.removeAttribute('class');
+                  imgClone.style.maxWidth = '100%';
+                  imgClone.style.height = 'auto';
+                  imgClone.style.margin = '8px 0';
+                  turnWrapper.appendChild(imgClone);
+                });
+              
+                turnContent = turnWrapper.innerHTML;
+              }
             }
             
             // Clean and validate content
