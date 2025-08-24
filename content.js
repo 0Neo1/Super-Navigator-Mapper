@@ -1291,8 +1291,8 @@ const createZeroEkaIconButton = () => {
             writeBlock(isUser ? 'user' : 'assistant', html, index++);
           });
         } else {
-          // ChatGPT: precise per-turn capture with strict boundaries
-          console.log('[ZeroEka PDF] Starting ChatGPT precise capture...');
+          // ChatGPT: ultra-isolated capture - NO overlap possible
+          console.log('[ZeroEka PDF] Starting ChatGPT ultra-isolated capture...');
           
           // Only use conversation turns - the most reliable container
           const conversationTurns = Array.from(document.querySelectorAll('[data-testid*="conversation-turn"]'));
@@ -1303,7 +1303,7 @@ const createZeroEkaIconButton = () => {
             return;
           }
           
-          // Process each turn with strict boundaries
+          // Process each turn with complete isolation
           conversationTurns.forEach((turn, turnIndex) => {
             console.log(`[ZeroEka PDF] Processing turn ${turnIndex + 1}/${conversationTurns.length}`);
             
@@ -1314,73 +1314,50 @@ const createZeroEkaIconButton = () => {
               role = 'user';
             }
             
-            // Extract content with strict boundaries - NO parent/sibling merging
+            // Create completely isolated content - NO HTML from the turn
             let turnContent = '';
             
-            // Method 1: Look for the main content area within this turn only
-            const mainContent = turn.querySelector('.markdown, .prose, [role="presentation"]');
-            if (mainContent) {
-              turnContent = mainContent.innerHTML;
-              console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using main content area`);
+            // Method 1: Extract only text content (guaranteed no overlap)
+            const textContent = turn.textContent || '';
+            if (textContent.trim()) {
+              const textDiv = (iframeDoc || document).createElement('div');
+              textDiv.textContent = textContent.trim();
+              turnContent = textDiv.outerHTML;
+              console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using text content only`);
             }
             
-            // Method 2: If no main content area, get the turn's direct content
-            if (!turnContent || turnContent.trim() === '') {
-              // Check if this turn has images
-              const hasImages = turn.querySelector('img, picture, canvas, video, figure');
-              if (hasImages) {
-                // If it has images, use the turn's HTML but be selective
-                const turnClone = turn.cloneNode(true);
-                // Remove ZeroEka UI elements
-                Array.from(turnClone.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]')).forEach(el => { 
-                  try { el.remove(); } catch(_){} 
-                });
-                turnContent = turnClone.innerHTML;
-                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using turn HTML (has images)`);
-              } else {
-                // If no images, use text content only
-                turnContent = turn.textContent || '';
-                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using text content only (no images)`);
-              }
-            }
-            
-            // Method 3: Last resort - create minimal content from turn elements
-            if (!turnContent || turnContent.trim() === '') {
-              const essentialElements = [];
+            // Method 2: Add images as separate elements (no HTML overlap)
+            const images = Array.from(turn.querySelectorAll('img, picture, canvas, video, figure'));
+            if (images.length > 0) {
+              console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} found ${images.length} media elements`);
               
-              // Add text content
-              if (turn.textContent && turn.textContent.trim()) {
+              // Create a wrapper for this turn's content
+              const turnWrapper = (iframeDoc || document).createElement('div');
+              
+              // Add text content first
+              if (textContent.trim()) {
                 const textDiv = (iframeDoc || document).createElement('div');
-                textDiv.textContent = turn.textContent.trim();
-                essentialElements.push(textDiv);
+                textDiv.textContent = textContent.trim();
+                turnWrapper.appendChild(textDiv);
               }
               
-              // Add only images that are direct children of this turn
-              const directImages = Array.from(turn.querySelectorAll(':scope > img, :scope > picture, :scope > figure'));
-              directImages.forEach(img => {
+              // Add each image as a separate element
+              images.forEach((img, imgIndex) => {
                 const imgClone = img.cloneNode(true);
-                essentialElements.push(imgClone);
+                // Remove any attributes that might cause issues
+                imgClone.removeAttribute('style');
+                imgClone.removeAttribute('class');
+                imgClone.style.maxWidth = '100%';
+                imgClone.style.height = 'auto';
+                imgClone.style.margin = '8px 0';
+                turnWrapper.appendChild(imgClone);
               });
               
-              // Combine into HTML
-              if (essentialElements.length > 0) {
-                const wrapper = (iframeDoc || document).createElement('div');
-                essentialElements.forEach(el => wrapper.appendChild(el));
-                turnContent = wrapper.innerHTML;
-                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using minimal essential elements`);
-              }
+              turnContent = turnWrapper.innerHTML;
             }
             
             // Clean and validate content
             if (turnContent && turnContent.trim()) {
-              // Remove ZeroEka UI elements
-              const tempDiv = (iframeDoc || document).createElement('div');
-              tempDiv.innerHTML = turnContent;
-              Array.from(tempDiv.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]')).forEach(el => { 
-                try { el.remove(); } catch(_){} 
-              });
-              turnContent = tempDiv.innerHTML;
-              
               // Sanitize for PDF
               const safeHtml = sanitizeForPdf(turnContent);
               
@@ -1399,7 +1376,7 @@ const createZeroEkaIconButton = () => {
             }
           });
           
-          console.log('[ZeroEka PDF] ChatGPT precise capture completed');
+          console.log('[ZeroEka PDF] ChatGPT ultra-isolated capture completed');
         }
 
         iframeDoc.write('</div></body></html>');
