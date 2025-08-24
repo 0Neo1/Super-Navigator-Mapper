@@ -5422,7 +5422,7 @@ const updateTextSize = (container, size) => {
             `;
             popup.textContent = messageText;
             document.body.appendChild(popup);
-          }, 2000); // 2 second delay before showing popup
+          }, 2000); // 2 second delay before showing popup (match ChatGPT tree behavior)
         });
         
         li.addEventListener('mouseleave', removePopup);
