@@ -5356,82 +5356,78 @@ const updateTextSize = (container, size) => {
       li.appendChild(iEl);
       li.appendChild(div);
       
-      // Add hover popup functionality for Gemini message tree
+      // Hover popup for Gemini message tree: show at least 50 words, hide on leave
       if (refEl) {
         let popup = null;
         let popupTimeout = null;
         
-        li.addEventListener('mouseenter', () => {
-          // Clear any existing timeout
+        const removePopup = () => {
           if (popupTimeout) {
             clearTimeout(popupTimeout);
             popupTimeout = null;
           }
+          if (popup) {
+            popup.remove();
+            popup = null;
+          }
+        };
+        
+        li.addEventListener('mouseenter', () => {
+          // Ensure any existing timers/popups are cleared
+          removePopup();
           
-          // Create popup after a short delay
           popupTimeout = setTimeout(() => {
-            if (popup) return; // Already showing
+            if (popup) return;
             
-            // Get message content (at least 50 words)
+            // Extract message text (prefer textContent)
             let messageText = '';
             try {
-              if (refEl.textContent) {
+              if (refEl && refEl.textContent) {
                 messageText = refEl.textContent.trim();
-              } else if (refEl.innerText) {
+              } else if (refEl && refEl.innerText) {
                 messageText = refEl.innerText.trim();
               }
             } catch (_) {}
             
-            // Ensure at least 50 words or show full content if shorter
+            if (!messageText) return;
+            
+            // Show at least 50 words; if longer, truncate to first 50 words
             const words = messageText.split(/\s+/);
             if (words.length > 50) {
               messageText = words.slice(0, 50).join(' ') + '...';
             }
             
-            if (messageText) {
-              // Create popup element
-              popup = document.createElement('div');
-              popup.style.cssText = `
-                position: fixed;
-                top: ${li.getBoundingClientRect().top - 10}px;
-                left: ${li.getBoundingClientRect().right + 10}px;
-                max-width: 400px;
-                max-height: 300px;
-                background: #1a1a1a;
-                border: 1px solid #444;
-                border-radius: 8px;
-                padding: 12px;
-                color: #ccc;
-                font-size: 13px;
-                line-height: 1.4;
-                z-index: 2147483647;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-                white-space: pre-wrap;
-                word-wrap: break-word;
-                overflow: hidden;
-                pointer-events: none;
-              `;
-              popup.textContent = messageText;
-              document.body.appendChild(popup);
-            }
-          }, 300); // 300ms delay before showing popup
+            // Create and position popup
+            popup = document.createElement('div');
+            const rect = li.getBoundingClientRect();
+            popup.style.cssText = `
+              position: fixed;
+              top: ${Math.max(10, rect.top - 10)}px;
+              left: ${Math.min(window.innerWidth - 420, rect.right + 10)}px;
+              max-width: 400px;
+              max-height: 300px;
+              background: #1a1a1a;
+              border: 1px solid #444;
+              border-radius: 8px;
+              padding: 12px;
+              color: #ccc;
+              font-size: 13px;
+              line-height: 1.4;
+              z-index: 2147483647;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+              white-space: pre-wrap;
+              word-wrap: break-word;
+              overflow: auto;
+              pointer-events: none;
+            `;
+            popup.textContent = messageText;
+            document.body.appendChild(popup);
+          }, 250); // slight delay to avoid flicker
         });
         
-        li.addEventListener('mouseleave', () => {
-          // Clear timeout
-          if (popupTimeout) {
-            clearTimeout(popupTimeout);
-            popupTimeout = null;
-          }
-          
-          // Remove popup
-          if (popup) {
-            popup.remove();
-            popup = null;
-          }
-        });
+        li.addEventListener('mouseleave', removePopup);
+        window.addEventListener('scroll', removePopup, { passive: true });
       }
-      
       return li;
     };
     const appendChildLi = (parentLi, childLi) => {
