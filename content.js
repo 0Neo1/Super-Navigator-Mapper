@@ -1303,11 +1303,7 @@ const createZeroEkaIconButton = () => {
             return;
           }
           
-          // Track processed content to prevent duplicates
-          const processedContent = new Set();
-          const processedImages = new Set();
-          
-          // Process each turn with complete isolation and deduplication
+          // Process each turn with complete isolation
           conversationTurns.forEach((turn, turnIndex) => {
             console.log(`[ZeroEka PDF] Processing turn ${turnIndex + 1}/${conversationTurns.length}`);
             
@@ -1331,9 +1327,23 @@ const createZeroEkaIconButton = () => {
             }
             
             // Method 2: Add images as separate elements (no HTML overlap)
-            const images = Array.from(turn.querySelectorAll('img, picture, canvas, video, figure'));
+            // Collect only <img> tags; ignore picture/figure to avoid duplication
+            const rawImgs = Array.from(turn.querySelectorAll('img'));
+            // Filter out UI/thumbnail/hidden images
+            const images = rawImgs.filter((img) => {
+              try {
+                const classStr = (img.className || '').toString();
+                if (/avatar|icon|logo|badge|toolbar|button|control|copy|vote|thumb/i.test(classStr)) return false;
+                const closestHidden = img.closest('[aria-hidden="true"], [hidden], button, [role="button"], a');
+                if (closestHidden) return false;
+                const w = Number(img.getAttribute('width') || 0);
+                const h = Number(img.getAttribute('height') || 0);
+                if ((w && w < 48) && (h && h < 48)) return false;
+                return true;
+              } catch(_) { return true; }
+            });
             if (images.length > 0) {
-              console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} found ${images.length} media elements`);
+              console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} filtered to ${images.length} image(s)`);
               
               // Create a wrapper for this turn's content
               const turnWrapper = (iframeDoc || document).createElement('div');
@@ -1345,20 +1355,26 @@ const createZeroEkaIconButton = () => {
                 turnWrapper.appendChild(textDiv);
               }
               
-              // Add each image as a separate element, checking for duplicates
-              let addedImages = 0;
-              images.forEach((img, imgIndex) => {
-                // Create a unique identifier for this image
-                const imgSrc = img.src || img.getAttribute('data-src') || img.currentSrc || '';
-                const imgAlt = img.alt || '';
-                const imgFingerprint = `${imgSrc}_${imgAlt}_${imgIndex}`;
-                
-                // Check if we've already processed this image
-                if (processedImages.has(imgFingerprint)) {
-                  console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} skipping duplicate image ${imgIndex + 1}`);
-                  return;
-                }
-                
+              // Helper to choose a canonical source and dedupe
+              const getCanonicalSrc = (img) => {
+                try {
+                  const cs = img.currentSrc || img.getAttribute('src') || img.getAttribute('data-src') || '';
+                  if (cs) return cs.split('?')[0];
+                  const ss = img.getAttribute('srcset');
+                  if (ss) {
+                    const first = ss.split(',')[0] || '';
+                    return first.trim().split(' ')[0].split('?')[0];
+                  }
+                } catch(_) {}
+                return '';
+              };
+              const addedSrcs = new Set();
+
+              // Add each unique image as a separate element
+              images.forEach((img) => {
+                const canonical = (getCanonicalSrc(img) || '').toLowerCase();
+                if (!canonical || addedSrcs.has(canonical)) return;
+                addedSrcs.add(canonical);
                 const imgClone = img.cloneNode(true);
                 // Remove any attributes that might cause issues
                 imgClone.removeAttribute('style');
@@ -1367,23 +1383,10 @@ const createZeroEkaIconButton = () => {
                 imgClone.style.height = 'auto';
                 imgClone.style.margin = '8px 0';
                 turnWrapper.appendChild(imgClone);
-                
-                // Mark this image as processed
-                processedImages.add(imgFingerprint);
-                addedImages++;
               });
               
-              console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} added ${addedImages} unique images`);
               turnContent = turnWrapper.innerHTML;
             }
-            
-            // Create a content fingerprint to prevent duplicate turns
-            const contentFingerprint = `${textContent.trim().slice(0, 100)}_${images.length}`;
-            if (processedContent.has(contentFingerprint)) {
-              console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} skipped - duplicate content fingerprint`);
-              return;
-            }
-            processedContent.add(contentFingerprint);
             
             // Clean and validate content
             if (turnContent && turnContent.trim()) {
@@ -1405,7 +1408,7 @@ const createZeroEkaIconButton = () => {
             }
           });
           
-          console.log('[ZeroEka PDF] ChatGPT deduplicated capture completed');
+          console.log('[ZeroEka PDF] ChatGPT ultra-isolated capture completed');
         }
 
         iframeDoc.write('</div></body></html>');
