@@ -1291,8 +1291,8 @@ const createZeroEkaIconButton = () => {
             writeBlock(isUser ? 'user' : 'assistant', html, index++);
           });
         } else {
-          // ChatGPT: ultra-isolated capture - NO overlap possible
-          console.log('[ZeroEka PDF] Starting ChatGPT ultra-isolated capture...');
+          // ChatGPT: deduplicated ultra-isolated capture
+          console.log('[ZeroEka PDF] Starting ChatGPT deduplicated capture...');
           
           // Only use conversation turns - the most reliable container
           const conversationTurns = Array.from(document.querySelectorAll('[data-testid*="conversation-turn"]'));
@@ -1303,7 +1303,11 @@ const createZeroEkaIconButton = () => {
             return;
           }
           
-          // Process each turn with complete isolation
+          // Track processed content to prevent duplicates
+          const processedContent = new Set();
+          const processedImages = new Set();
+          
+          // Process each turn with complete isolation and deduplication
           conversationTurns.forEach((turn, turnIndex) => {
             console.log(`[ZeroEka PDF] Processing turn ${turnIndex + 1}/${conversationTurns.length}`);
             
@@ -1341,8 +1345,20 @@ const createZeroEkaIconButton = () => {
                 turnWrapper.appendChild(textDiv);
               }
               
-              // Add each image as a separate element
+              // Add each image as a separate element, checking for duplicates
+              let addedImages = 0;
               images.forEach((img, imgIndex) => {
+                // Create a unique identifier for this image
+                const imgSrc = img.src || img.getAttribute('data-src') || img.currentSrc || '';
+                const imgAlt = img.alt || '';
+                const imgFingerprint = `${imgSrc}_${imgAlt}_${imgIndex}`;
+                
+                // Check if we've already processed this image
+                if (processedImages.has(imgFingerprint)) {
+                  console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} skipping duplicate image ${imgIndex + 1}`);
+                  return;
+                }
+                
                 const imgClone = img.cloneNode(true);
                 // Remove any attributes that might cause issues
                 imgClone.removeAttribute('style');
@@ -1351,10 +1367,23 @@ const createZeroEkaIconButton = () => {
                 imgClone.style.height = 'auto';
                 imgClone.style.margin = '8px 0';
                 turnWrapper.appendChild(imgClone);
+                
+                // Mark this image as processed
+                processedImages.add(imgFingerprint);
+                addedImages++;
               });
               
+              console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} added ${addedImages} unique images`);
               turnContent = turnWrapper.innerHTML;
             }
+            
+            // Create a content fingerprint to prevent duplicate turns
+            const contentFingerprint = `${textContent.trim().slice(0, 100)}_${images.length}`;
+            if (processedContent.has(contentFingerprint)) {
+              console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} skipped - duplicate content fingerprint`);
+              return;
+            }
+            processedContent.add(contentFingerprint);
             
             // Clean and validate content
             if (turnContent && turnContent.trim()) {
@@ -1376,7 +1405,7 @@ const createZeroEkaIconButton = () => {
             }
           });
           
-          console.log('[ZeroEka PDF] ChatGPT ultra-isolated capture completed');
+          console.log('[ZeroEka PDF] ChatGPT deduplicated capture completed');
         }
 
         iframeDoc.write('</div></body></html>');
