@@ -5672,8 +5672,6 @@ const updateTextSize = (container, size) => {
             li.style.display = '';
           });
         }
-
-        // Note: tree folding only. Sync folding of main page is handled by the separate Sync button.
       } catch(_) {}
     };
     const findNextModelWithContent = (blocks, fromIdx) => {
@@ -6239,23 +6237,93 @@ const updateTextSize = (container, size) => {
               console.log('[Gemini] Deep button bound successfully');
             }
             
-            // 2. Sync Fold button (left of deep) - fold/unfold main conversation page
+            // 2. Fold button (leftmost in header) - toggles between parent-only and parent+child
             const foldBtn = fb2.querySelector('.header .fold');
             if (foldBtn && !foldBtn.__geminiFoldBound) {
               foldBtn.__geminiFoldBound = true;
+              // Helper: inject main-page fold CSS once
+              const ensureMainFoldStyles = () => {
+                try {
+                  if (document.querySelector('style[data-zeroeka="gemini-main-fold"]')) return;
+                  const style = document.createElement('style');
+                  style.setAttribute('data-zeroeka', 'gemini-main-fold');
+                  style.textContent = `
+                    body.zeroeka-gemini-fold user-query-content .query-text,
+                    body.zeroeka-gemini-fold [data-message-author="user"] .query-text,
+                    body.zeroeka-gemini-fold [data-message-author-role="user"] .query-text,
+                    body.zeroeka-gemini-fold .model-response-text,
+                    body.zeroeka-gemini-fold [data-message-author="model"] .model-response-text,
+                    body.zeroeka-gemini-fold [data-message-author-role="model"] .model-response-text,
+                    body.zeroeka-gemini-fold [data-message-author-role="assistant"] .model-response-text {
+                      display: -webkit-box !important;
+                      -webkit-box-orient: vertical !important;
+                      -webkit-line-clamp: 1 !important;
+                      overflow: hidden !important;
+                      white-space: normal !important;
+                      max-height: 1.6em !important;
+                    }
+                    /* Hide heavy blocks when folded */
+                    body.zeroeka-gemini-fold .model-response-text img,
+                    body.zeroeka-gemini-fold .model-response-text video,
+                    body.zeroeka-gemini-fold .model-response-text canvas,
+                    body.zeroeka-gemini-fold .model-response-text figure,
+                    body.zeroeka-gemini-fold .model-response-text pre,
+                    body.zeroeka-gemini-fold .model-response-text code {
+                      display: none !important;
+                    }
+                  `;
+                  document.head.appendChild(style);
+                } catch(_) {}
+              };
+              const setMainFold = (enable) => {
+                ensureMainFoldStyles();
+                try {
+                  const body = document.body;
+                  if (enable) body.classList.add('zeroeka-gemini-fold');
+                  else body.classList.remove('zeroeka-gemini-fold');
+                } catch(_) {}
+              };
               foldBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('[Gemini] Sync Fold button clicked - toggling main page clamp');
-
-                const body = document.body;
-                const enable = !body.classList.contains('zeroeka-gemini-fold');
-                if (enable) body.classList.add('zeroeka-gemini-fold'); else body.classList.remove('zeroeka-gemini-fold');
-
-                // Persist the sync fold state
-                try { chrome?.storage?.local && chrome.storage.local.set({ geminiSyncFold: enable }); } catch(_) {}
+                console.log('[Gemini] Fold button clicked - toggling between parent-only and parent+child');
+                
+                // Toggle logic: if currently showing parent-only, expand to parent+child
+                // If currently showing anything else (parent+child or full), collapse to parent-only
+                const currentlyParentOnly = !!window.__geminiParentOnly;
+                
+                if (currentlyParentOnly) {
+                  // Currently parent-only -> expand to parent+child (concise mode)
+                  try { window.__geminiParentOnly = false; } catch(_) {}
+                  try { window.__geminiConcise = true; } catch(_) {}
+                  console.log('[Gemini] Unfolding to parent+child level');
+                  // Also unfold main page (remove clamp)
+                  setMainFold(false);
+                } else {
+                  // Currently parent+child or full -> collapse to parent-only
+                  try { window.__geminiParentOnly = true; } catch(_) {}
+                  try { window.__geminiConcise = false; } catch(_) {}
+                  console.log('[Gemini] Folding to parent-only level');
+                  // Also fold main page (apply clamp)
+                  setMainFold(true);
+                }
+                
+                console.log('[Gemini] New modes - Parent-only:', window.__geminiParentOnly, 'Child-level:', window.__geminiConcise);
+                try { 
+                  chrome?.storage?.local && chrome.storage.local.set({ 
+                    geminiConcise: !!window.__geminiConcise,
+                    geminiParentOnly: !!window.__geminiParentOnly
+                  }); 
+                } catch(_) {}
+                
+                const treeUl = getFloatbarUl();
+                if (treeUl) {
+                  applyGeminiFold(treeUl);
+                } else {
+                  console.warn('[Gemini] No tree UL found for folding');
+                }
               }, true);
-              console.log('[Gemini] Sync Fold button bound successfully');
+              console.log('[Gemini] Fold button bound successfully');
             }
             
             if (!deepBtn && !foldBtn) {
