@@ -5401,27 +5401,21 @@ const updateTextSize = (container, size) => {
           // Don't show if already showing for this item
           if (window.__geminiPopupManager.currentLi === li) return;
           
-          console.log('Creating popup for li:', li.textContent ? li.textContent.substring(0, 50) : 'Unknown');
-          console.log('refEl:', refEl);
-          console.log('refEl tagName:', refEl ? refEl.tagName : 'null');
-          console.log('refEl className:', refEl ? refEl.className : 'null');
-          
-          // Enhanced text extraction: prioritize sub-node content over parent content
+          // Extract ONLY the content of the specific hovered message (refEl)
           let messageText = '';
           try {
-            // Strategy 1: First try to get content from the specific refEl (sub-node content)
+            // Strategy 1: Get content directly from the refEl (the specific message being hovered)
             if (refEl && refEl.textContent) {
               const refText = refEl.textContent.trim();
-              console.log('refEl content:', refText.substring(0, 100));
               if (refText.length > 10) {
                 messageText = refText;
               }
             }
             
-            // Strategy 2: If refEl has minimal content, try to find more specific content within it
+            // Strategy 2: If refEl has minimal content, look for specific elements within it
             if (!messageText || messageText.length < 20) {
               if (refEl) {
-                // Look for specific content elements within the refEl
+                // Look for specific content elements within the refEl ONLY
                 const specificSelectors = [
                   'h1', 'h2', 'h3', 'h4', 'h5', 'h6', // Headings
                   'p', 'li', 'blockquote', 'code', 'pre', // Text elements
@@ -5436,7 +5430,7 @@ const updateTextSize = (container, size) => {
                   }
                 }
                 
-                // If still no content, try direct children
+                // If still no content, try direct children of refEl ONLY
                 if (!messageText && refEl.children.length > 0) {
                   for (const child of refEl.children) {
                     if (child.textContent && child.textContent.trim().length > 20) {
@@ -5448,60 +5442,16 @@ const updateTextSize = (container, size) => {
               }
             }
             
-            // Strategy 3: If still no meaningful content, try to find parent message container
-            if (!messageText || messageText.length < 20) {
-              let messageContainer = refEl;
-              while (messageContainer && messageContainer !== document.body) {
-                // Look for common message container selectors
-                if (messageContainer.matches && (
-                  messageContainer.matches('[data-testid*="conversation-turn"]') ||
-                  messageContainer.matches('user-query-content') ||
-                  messageContainer.matches('[data-message-author]') ||
-                  messageContainer.matches('.model-response-text') ||
-                  messageContainer.closest('[data-testid*="conversation-turn"]') ||
-                  messageContainer.closest('user-query-content') ||
-                  messageContainer.closest('[data-message-author]')
-                )) {
-                  break;
-                }
-                messageContainer = messageContainer.parentElement;
-              }
-              
-              // Extract text from the found container
-              if (messageContainer && messageContainer !== document.body) {
-                const contentSelectors = [
-                  '.model-response-text',
-                  '.query-text',
-                  '.markdown',
-                  '.prose',
-                  '[role="presentation"]',
-                  'p',
-                  'div'
-                ];
-                
-                for (const selector of contentSelectors) {
-                  const contentEl = messageContainer.querySelector(selector);
-                  if (contentEl && contentEl.textContent && contentEl.textContent.trim().length > 20) {
-                    messageText = contentEl.textContent.trim();
-                    break;
-                  }
-                }
-                
-                // If no specific content found, use the container's text
-                if (!messageText && messageContainer.textContent) {
-                  messageText = messageContainer.textContent.trim();
-                }
-              }
-            }
-            
-            // Strategy 4: Final fallback to original refEl
+            // Strategy 3: Final fallback - use refEl content even if minimal
             if (!messageText && refEl && refEl.textContent) {
               messageText = refEl.textContent.trim();
             }
             
+            // IMPORTANT: Do NOT climb up to parent containers - only show this specific message's content
+            
           } catch (_) {}
           
-          if (!messageText || messageText.length < 10) return;
+          if (!messageText || messageText.length < 5) return; // Reduced minimum length
           
           // Show at least 50 words; if longer, truncate to first 50 words
           const words = messageText.split(/\s+/);
@@ -5509,36 +5459,28 @@ const updateTextSize = (container, size) => {
             messageText = words.slice(0, 50).join(' ') + '...';
           }
           
-          // Create and position popup with improved positioning logic
+          // Create and position popup directly below the hovered message
           const popup = document.createElement('div');
-          
-          // Get the position of the hovered list item
           const rect = li.getBoundingClientRect();
           
-          // Calculate optimal popup position
-          let popupTop, popupLeft;
+          // Calculate optimal position - directly below the message
+          let popupTop = rect.bottom + 5; // 5px below the message
+          let popupLeft = rect.left; // Align with left edge of message
           
-          // Position popup to the right of the hovered item
-          popupLeft = Math.min(window.innerWidth - 420, rect.right + 15);
-          
-          // If not enough space on the right, position to the left
-          if (popupLeft < 20) {
-            popupLeft = Math.max(20, rect.left - 420);
+          // Ensure popup doesn't go off-screen
+          if (popupTop + 300 > window.innerHeight) {
+            popupTop = rect.top - 305; // Position above if not enough space below
           }
           
-          // Position popup vertically centered with the hovered item
-          popupTop = Math.max(20, rect.top + (rect.height / 2) - 150);
-          
-          // Ensure popup doesn't go below viewport
-          if (popupTop + 300 > window.innerHeight) {
-            popupTop = Math.max(20, window.innerHeight - 320);
+          if (popupLeft + 400 > window.innerWidth) {
+            popupLeft = Math.max(10, window.innerWidth - 410); // Ensure it fits
           }
           
           popup.style.cssText = `
             position: fixed;
             top: ${popupTop}px;
             left: ${popupLeft}px;
-            max-width: 400px;
+            width: 400px;
             max-height: 300px;
             background: #1a1a1a;
             border: 1px solid #444;
@@ -5554,15 +5496,7 @@ const updateTextSize = (container, size) => {
             overflow: auto;
             pointer-events: none;
           `;
-          
-          // Add debug info to popup
-          popup.innerHTML = `
-            <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #444; font-size: 11px; color: #888;">
-              Hovered: ${li.textContent ? li.textContent.substring(0, 50) + '...' : 'Unknown item'}
-            </div>
-            <div>${messageText}</div>
-          `;
-          
+          popup.textContent = messageText;
           document.body.appendChild(popup);
           
           // Register this popup as the current one
