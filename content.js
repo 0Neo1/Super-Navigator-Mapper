@@ -5340,9 +5340,11 @@ const updateTextSize = (container, size) => {
             background: rgba(255,255,255,0.06);
             outline: 1px solid rgba(255,255,255,0.15);
             border-radius: 6px;
+            will-change: background-color, outline-color;
+            transition: background-color 80ms linear, outline-color 80ms linear;
           }
           .catalogeu-navigation-plugin-floatbar .panel li > div {
-            transition: background-color 120ms linear, outline-color 120ms linear;
+            transition: background-color 80ms linear, outline-color 80ms linear;
           }
         `;
         document.head.appendChild(style);
@@ -5623,11 +5625,7 @@ const updateTextSize = (container, size) => {
         li.addEventListener('mouseenter', () => {
           isHovering = true;
           window.__geminiPopupManager.currentHoverLi = li;
-          // Stable highlight only on the label element to avoid full-li highlight
-          try {
-            const label = li.querySelector(':scope > div');
-            if (label) label.classList.add('zk-hover-label');
-          } catch(_) {}
+          console.log('Mouse entered, starting 1-second timer...');
           
           // Clear any existing hide timeout
           if (hideTimeout) {
@@ -5655,15 +5653,9 @@ const updateTextSize = (container, size) => {
           }
           // Instant hide
           window.__geminiPopupManager.removeCurrentPopup();
-          // Remove hover highlight synchronously (from label only)
-          try {
-            const label = li.querySelector(':scope > div');
-            if (label) label.classList.remove('zk-hover-label');
-          } catch(_) {}
         };
-        li.addEventListener('mouseleave', handleLeave);
+        // Use pointer events for stability; avoid dual mouseout/mouseleave causing flicker
         li.addEventListener('pointerleave', handleLeave);
-        li.addEventListener('mouseout', handleLeave);
         
         // Also hide on scroll
         window.addEventListener('scroll', () => {
