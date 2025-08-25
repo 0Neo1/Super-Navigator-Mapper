@@ -5392,10 +5392,8 @@ const updateTextSize = (container, size) => {
             clearTimeout(hideTimeout);
             hideTimeout = null;
           }
-          // Only remove if this is the current popup
-          if (window.__geminiPopupManager.currentLi === li) {
-            window.__geminiPopupManager.removeCurrentPopup();
-          }
+          // Always remove any current popup immediately
+          window.__geminiPopupManager.removeCurrentPopup();
         };
         
         const showPopup = () => {
@@ -5568,21 +5566,21 @@ const updateTextSize = (container, size) => {
           }, 2000); // 2 second delay before showing popup
         });
         
-        li.addEventListener('mouseleave', () => {
+        const handleLeave = () => {
           isHovering = false;
           if (window.__geminiPopupManager.currentHoverLi === li) {
             window.__geminiPopupManager.currentHoverLi = null;
           }
-          
-          // Clear show timeout
           if (popupTimeout) {
             clearTimeout(popupTimeout);
             popupTimeout = null;
           }
-          
-          // Hide immediately on mouse leave
-          removePopup();
-        });
+          // Instant hide
+          window.__geminiPopupManager.removeCurrentPopup();
+        };
+        li.addEventListener('mouseleave', handleLeave);
+        li.addEventListener('pointerleave', handleLeave);
+        li.addEventListener('mouseout', handleLeave);
         
         // Also hide on scroll
         window.addEventListener('scroll', () => {
