@@ -5367,6 +5367,7 @@ const updateTextSize = (container, size) => {
           window.__geminiPopupManager = {
             currentPopup: null,
             currentLi: null,
+            currentHoverLi: null,
             removeCurrentPopup: function() {
               if (this.currentPopup) {
                 this.currentPopup.remove();
@@ -5401,10 +5402,10 @@ const updateTextSize = (container, size) => {
           // Don't show if already showing for this item
           if (window.__geminiPopupManager.currentLi === li) return;
           
-          // Extract ONLY the content of the specific hovered message (refEl)
+          // Enhanced text extraction: prioritize sub-node content over parent content
           let messageText = '';
           try {
-            // Strategy 1: Get content directly from the refEl (the specific message being hovered)
+            // Strategy 1: First try to get content from the specific refEl (sub-node content)
             if (refEl && refEl.textContent) {
               const refText = refEl.textContent.trim();
               if (refText.length > 10) {
@@ -5412,10 +5413,10 @@ const updateTextSize = (container, size) => {
               }
             }
             
-            // Strategy 2: If refEl has minimal content, look for specific elements within it
+            // Strategy 2: If refEl has minimal content, try to find more specific content within it
             if (!messageText || messageText.length < 20) {
               if (refEl) {
-                // Look for specific content elements within the refEl ONLY
+                // Look for specific content elements within the refEl
                 const specificSelectors = [
                   'h1', 'h2', 'h3', 'h4', 'h5', 'h6', // Headings
                   'p', 'li', 'blockquote', 'code', 'pre', // Text elements
@@ -5430,7 +5431,7 @@ const updateTextSize = (container, size) => {
                   }
                 }
                 
-                // If still no content, try direct children of refEl ONLY
+                // If still no content, try direct children
                 if (!messageText && refEl.children.length > 0) {
                   for (const child of refEl.children) {
                     if (child.textContent && child.textContent.trim().length > 20) {
@@ -5442,16 +5443,60 @@ const updateTextSize = (container, size) => {
               }
             }
             
-            // Strategy 3: Final fallback - use refEl content even if minimal
+            // Strategy 3: If still no meaningful content, try to find parent message container
+            if (!messageText || messageText.length < 20) {
+              let messageContainer = refEl;
+              while (messageContainer && messageContainer !== document.body) {
+                // Look for common message container selectors
+                if (messageContainer.matches && (
+                  messageContainer.matches('[data-testid*="conversation-turn"]') ||
+                  messageContainer.matches('user-query-content') ||
+                  messageContainer.matches('[data-message-author]') ||
+                  messageContainer.matches('.model-response-text') ||
+                  messageContainer.closest('[data-testid*="conversation-turn"]') ||
+                  messageContainer.closest('user-query-content') ||
+                  messageContainer.closest('[data-message-author]')
+                )) {
+                  break;
+                }
+                messageContainer = messageContainer.parentElement;
+              }
+              
+              // Extract text from the found container
+              if (messageContainer && messageContainer !== document.body) {
+                const contentSelectors = [
+                  '.model-response-text',
+                  '.query-text',
+                  '.markdown',
+                  '.prose',
+                  '[role="presentation"]',
+                  'p',
+                  'div'
+                ];
+                
+                for (const selector of contentSelectors) {
+                  const contentEl = messageContainer.querySelector(selector);
+                  if (contentEl && contentEl.textContent && contentEl.textContent.trim().length > 20) {
+                    messageText = contentEl.textContent.trim();
+                    break;
+                  }
+                }
+                
+                // If no specific content found, use the container's text
+                if (!messageText && messageContainer.textContent) {
+                  messageText = messageContainer.textContent.trim();
+                }
+              }
+            }
+            
+            // Strategy 4: Final fallback to original refEl
             if (!messageText && refEl && refEl.textContent) {
               messageText = refEl.textContent.trim();
             }
             
-            // IMPORTANT: Do NOT climb up to parent containers - only show this specific message's content
-            
           } catch (_) {}
           
-          if (!messageText || messageText.length < 5) return; // Reduced minimum length
+          if (!messageText || messageText.length < 10) return;
           
           // Show at least 50 words; if longer, truncate to first 50 words
           const words = messageText.split(/\s+/);
@@ -5459,59 +5504,29 @@ const updateTextSize = (container, size) => {
             messageText = words.slice(0, 50).join(' ') + '...';
           }
           
-          // Create and position popup directly below the hovered message
+          // Create and position popup within the expanded sidebar, just below LI
           const popup = document.createElement('div');
           const rect = li.getBoundingClientRect();
-          
-          // Validate coordinates to prevent popup appearing in wrong locations
-          if (!rect || rect.width === 0 || rect.height === 0 || 
-              rect.top < 0 || rect.left < 0 || 
-              rect.top > window.innerHeight || rect.left > window.innerWidth) {
-            console.warn('Invalid coordinates for popup positioning, aborting');
-            return;
-          }
-          
-          // Find the sidebar container to ensure popup stays within sidebar context
-          const sidebarContainer = li.closest('.catalogeu-navigation-plugin-floatbar') || 
-                                  li.closest('.panel') || 
-                                  li.closest('[data-testid*="conversation-turn"]')?.closest('.catalogeu-navigation-plugin-floatbar');
-          
-          // Calculate optimal position - directly below the message
-          let popupTop = rect.bottom + 5; // 5px below the message
-          let popupLeft = rect.left; // Align with left edge of message
-          
-          // If we have a sidebar container, ensure popup appears within sidebar area
-          if (sidebarContainer) {
-            const sidebarRect = sidebarContainer.getBoundingClientRect();
-            
-            // Ensure popup appears within or just outside the sidebar
-            if (popupLeft < sidebarRect.left - 20) {
-              popupLeft = sidebarRect.left - 20;
-            }
-            if (popupLeft + 400 > sidebarRect.right + 20) {
-              popupLeft = Math.max(10, sidebarRect.right - 400 + 20);
-            }
-          }
-          
-          // Ensure popup doesn't go off-screen
-          if (popupTop + 300 > window.innerHeight) {
-            popupTop = rect.top - 305; // Position above if not enough space below
-          }
-          
-          if (popupLeft + 400 > window.innerWidth) {
-            popupLeft = Math.max(10, window.innerWidth - 410); // Ensure it fits
-          }
-          
-          // Additional validation to ensure popup is within reasonable bounds
-          if (popupTop < 10) popupTop = 10;
-          if (popupLeft < 10) popupLeft = 10;
-          
+          const sidebarContainer = li.closest('.catalogeu-navigation-plugin-floatbar .panel')
+            || li.closest('.catalogeu-navigation-plugin-floatbar')
+            || li.closest('.panel');
+          if (!sidebarContainer) return;
+          const scRect = sidebarContainer.getBoundingClientRect();
+          if (!rect || rect.width === 0 || rect.height === 0 || scRect.width === 0 || scRect.height === 0) return;
+
+          let popupTop = (rect.bottom - scRect.top) + 6;
+          let popupLeft = Math.max(8, rect.left - scRect.left);
+          const popupWidth = 400;
+          const popupHeight = 300;
+          if (popupLeft + popupWidth > scRect.width - 8) popupLeft = Math.max(8, scRect.width - popupWidth - 8);
+          if (popupTop + popupHeight > scRect.height - 8) popupTop = Math.max(8, (rect.top - scRect.top) - popupHeight - 6);
+
           popup.style.cssText = `
-            position: fixed;
+            position: absolute;
             top: ${popupTop}px;
             left: ${popupLeft}px;
-            width: 400px;
-            max-height: 300px;
+            width: ${popupWidth}px;
+            max-height: ${popupHeight}px;
             background: #1a1a1a;
             border: 1px solid #444;
             border-radius: 8px;
@@ -5527,7 +5542,7 @@ const updateTextSize = (container, size) => {
             pointer-events: none;
           `;
           popup.textContent = messageText;
-          document.body.appendChild(popup);
+          sidebarContainer.appendChild(popup);
           
           // Register this popup as the current one
           window.__geminiPopupManager.setCurrentPopup(popup, li);
@@ -5535,6 +5550,7 @@ const updateTextSize = (container, size) => {
         
         li.addEventListener('mouseenter', () => {
           isHovering = true;
+          window.__geminiPopupManager.currentHoverLi = li;
           console.log('Mouse entered, starting 2-second timer...');
           
           // Clear any existing hide timeout
@@ -5554,6 +5570,9 @@ const updateTextSize = (container, size) => {
         
         li.addEventListener('mouseleave', () => {
           isHovering = false;
+          if (window.__geminiPopupManager.currentHoverLi === li) {
+            window.__geminiPopupManager.currentHoverLi = null;
+          }
           
           // Clear show timeout
           if (popupTimeout) {
@@ -5571,6 +5590,19 @@ const updateTextSize = (container, size) => {
         
         // Also hide on scroll
         window.addEventListener('scroll', () => {
+          isHovering = false;
+          removePopup();
+        }, { passive: true });
+        const sidebarForScroll = li.closest('.catalogeu-navigation-plugin-floatbar .panel')
+          || li.closest('.catalogeu-navigation-plugin-floatbar')
+          || li.closest('.panel');
+        if (sidebarForScroll) {
+          sidebarForScroll.addEventListener('scroll', () => {
+            isHovering = false;
+            removePopup();
+          }, { passive: true });
+        }
+        window.addEventListener('resize', () => {
           isHovering = false;
           removePopup();
         }, { passive: true });
