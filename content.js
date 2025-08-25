@@ -5512,12 +5512,22 @@ const updateTextSize = (container, size) => {
           const scRect = sidebarContainer.getBoundingClientRect();
           if (!rect || rect.width === 0 || rect.height === 0 || scRect.width === 0 || scRect.height === 0) return;
 
-          let popupTop = (rect.bottom - scRect.top) + 6;
+          // Ensure container is positioned so absolute children use it as reference
+          try {
+            const scPos = window.getComputedStyle(sidebarContainer).position;
+            if (!scPos || scPos === 'static') {
+              sidebarContainer.style.position = 'relative';
+            }
+          } catch(_) {}
+
+          // Compute tight placement just below or above the hovered item
+          let popupTop = (rect.bottom - scRect.top) + 4; // tighter gap below
           let popupLeft = Math.max(8, rect.left - scRect.left);
-          const popupWidth = 400;
-          const popupHeight = 300;
+          const maxAvailWidth = Math.max(200, Math.floor(scRect.width - 16));
+          const popupWidth = Math.min(400, maxAvailWidth);
+          const popupHeight = 260; // slightly shorter for compactness
           if (popupLeft + popupWidth > scRect.width - 8) popupLeft = Math.max(8, scRect.width - popupWidth - 8);
-          if (popupTop + popupHeight > scRect.height - 8) popupTop = Math.max(8, (rect.top - scRect.top) - popupHeight - 6);
+          if (popupTop + popupHeight > scRect.height - 8) popupTop = Math.max(8, (rect.top - scRect.top) - popupHeight - 4); // above with tight gap
 
           popup.style.cssText = `
             position: absolute;
@@ -5532,7 +5542,7 @@ const updateTextSize = (container, size) => {
             color: #ccc;
             font-size: 13px;
             line-height: 1.4;
-            z-index: 2147483647;
+            z-index: 2147483000;
             box-shadow: 0 4px 12px rgba(0,0,0,0.5);
             white-space: pre-wrap;
             word-wrap: break-word;
