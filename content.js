@@ -5627,7 +5627,7 @@ const updateTextSize = (container, size) => {
           window.__geminiPopupManager.setCurrentPopup(popup, li);
         };
         
-        li.addEventListener('mouseenter', () => {
+        const handleEnter = () => {
           isHovering = true;
           window.__geminiPopupManager.currentHoverLi = li;
           console.log('Mouse entered, starting 1-second timer...');
@@ -5654,7 +5654,9 @@ const updateTextSize = (container, size) => {
               showPopup();
             }
           }, 1000); // 1 second delay before showing popup
-        });
+        };
+        // Use pointer events to avoid duplicate mouseenter/mouseout churn
+        li.addEventListener('pointerenter', handleEnter);
         
         const handleLeave = () => {
           isHovering = false;
@@ -5673,9 +5675,8 @@ const updateTextSize = (container, size) => {
           try { li.classList.remove('zeroeka-hover'); } catch(_) {}
           window.__geminiPopupManager.removeCurrentPopup();
         };
-        li.addEventListener('mouseleave', handleLeave);
+        // Only pointerleave for leave handling; remove other legacy handlers to prevent flicker
         li.addEventListener('pointerleave', handleLeave);
-        li.addEventListener('mouseout', handleLeave);
         
         // Also hide on scroll
         window.addEventListener('scroll', () => {
