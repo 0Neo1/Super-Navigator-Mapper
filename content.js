@@ -5724,19 +5724,22 @@ const updateTextSize = (container, size) => {
     };
     // Two-level folding system for Gemini:
     // Level 1 (Parent-only): Hide all child and subnodes (depth >= 2: ul ul li)  
-    // Level 2 (Child-level): Hide only subnodes (depth >= 3: ul ul ul li)
+    // Level 1 (Root-only): Hide child nodes and subnodes (depth >= 2: ul ul li)
+    // Level 2 (Parent-level): Hide only subnodes (depth >= 3: ul ul ul li)
+    // Level 3 (Child-level): Show everything
     const applyGeminiFold = (ul) => {
       try {
-        const parentOnlyMode = !!window.__geminiParentOnly; // Fold button - shows only parents
-        const childLevelMode = !!window.__geminiConcise;     // Deep button - shows parent + child
+        const rootOnlyMode = !!window.__geminiRootOnly;     // Fold button - shows only root nodes
+        const parentOnlyMode = !!window.__geminiParentOnly; // Deep button - shows root + parent nodes
+        const childLevelMode = !!window.__geminiConcise;    // Deep button - shows root + parent + child nodes
         
-        if (parentOnlyMode) {
+        if (rootOnlyMode) {
           // Hide all child nodes and subnodes (depth >= 2)
           const allChildAndSubNodes = ul.querySelectorAll('ul ul li');
           allChildAndSubNodes.forEach((li) => {
             li.style.display = 'none';
           });
-        } else if (childLevelMode) {
+        } else if (parentOnlyMode) {
           // Hide only subnodes (depth >= 3), keep child nodes visible
           const subNodes = ul.querySelectorAll('ul ul ul li');
           subNodes.forEach((li) => {
@@ -5748,6 +5751,20 @@ const updateTextSize = (container, size) => {
             // Only show if it's not a deeper subnode
             const depth = li.closest('ul ul ul ul') ? 4 : li.closest('ul ul ul') ? 3 : 2;
             if (depth === 2) {
+              li.style.display = '';
+            }
+          });
+        } else if (childLevelMode) {
+          // Show root + parent + child nodes, hide only subnodes (depth >= 4)
+          const deepSubNodes = ul.querySelectorAll('ul ul ul ul li');
+          deepSubNodes.forEach((li) => {
+            li.style.display = 'none';
+          });
+          // Ensure all other nodes are visible
+          const allOtherNodes = ul.querySelectorAll('ul li, ul ul li, ul ul ul li');
+          allOtherNodes.forEach((li) => {
+            const depth = li.closest('ul ul ul ul') ? 4 : li.closest('ul ul ul') ? 3 : li.closest('ul ul') ? 2 : 1;
+            if (depth < 4) {
               li.style.display = '';
             }
           });
@@ -6272,15 +6289,16 @@ const updateTextSize = (container, size) => {
           });
           moFb.observe(fb, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true });
         }
-        // Two-level folding system for Gemini (Deep button + Fold button)
+        // Three-level folding system for Gemini (Deep button + Fold button)
         const bindGeminiFoldingButtons = () => {
           try {
             // Initialize from storage only once
             if (typeof window.__geminiConcise === 'undefined' && chrome?.storage?.local) {
-              chrome.storage.local.get(['geminiConcise', 'geminiParentOnly'], (d) => {
+              chrome.storage.local.get(['geminiConcise', 'geminiParentOnly', 'geminiRootOnly'], (d) => {
                 try { 
                   window.__geminiConcise = !!d?.geminiConcise; 
                   window.__geminiParentOnly = !!d?.geminiParentOnly;
+                  window.__geminiRootOnly = !!d?.geminiRootOnly;
                 } catch(_) {}
                 const treeUl = getFloatbarUl();
                 if (treeUl) applyGeminiFold(treeUl);
@@ -6299,17 +6317,19 @@ const updateTextSize = (container, size) => {
                 e.stopPropagation();
                 console.log('[Gemini] Deep button clicked - toggling subnodes visibility');
                 
-                // Deep button toggles between parent+child (concise) and full depth (all subnodes)
-                // Reset parent-only mode when deep button is used
+                // Deep button toggles between root+parent and full depth (all subnodes)
+                // Reset root-only and parent-only modes when deep button is used
+                try { window.__geminiRootOnly = false; } catch(_) {}
                 try { window.__geminiParentOnly = false; } catch(_) {}
-                // Toggle child level mode (shows parent + child, hides/shows subnodes)
+                // Toggle child level mode (shows root + parent + child, hides/shows subnodes)
                 try { window.__geminiConcise = !window.__geminiConcise; } catch(_) {}
                 
-                console.log('[Gemini] New modes - Parent-only:', window.__geminiParentOnly, 'Child-level (concise):', window.__geminiConcise);
+                console.log('[Gemini] New modes - Root-only:', window.__geminiRootOnly, 'Parent-level:', window.__geminiParentOnly, 'Child-level (concise):', window.__geminiConcise);
                 try { 
                   chrome?.storage?.local && chrome.storage.local.set({ 
-                    geminiConcise: !!window.__geminiConcise,
-                    geminiParentOnly: !!window.__geminiParentOnly
+                    geminiRootOnly: !!window.__geminiRootOnly,
+                    geminiParentOnly: !!window.__geminiParentOnly,
+                    geminiConcise: !!window.__geminiConcise
                   }); 
                 } catch(_) {}
                 
@@ -6323,36 +6343,39 @@ const updateTextSize = (container, size) => {
               console.log('[Gemini] Deep button bound successfully');
             }
             
-            // 2. Fold button (leftmost in header) - toggles between parent-only and parent+child (SIDEBAR ONLY)
+            // 2. Fold button (leftmost in header) - toggles between root-only and root+parent (SIDEBAR TREE ONLY)
             const foldBtn = fb2.querySelector('.header .fold');
             if (foldBtn && !foldBtn.__geminiFoldBound) {
               foldBtn.__geminiFoldBound = true;
               foldBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('[Gemini] Fold button clicked - toggling between parent-only and parent+child (sidebar only)');
+                console.log('[Gemini] Fold button clicked - toggling between root-only and root+parent (sidebar tree only)');
                 
-                // Toggle logic: if currently showing parent-only, expand to parent+child
-                // If currently showing anything else (parent+child or full), collapse to parent-only
-                const currentlyParentOnly = !!window.__geminiParentOnly;
+                // Toggle logic: if currently showing root-only, expand to root+parent
+                // If currently showing anything else (root+parent or full), collapse to root-only
+                const currentlyRootOnly = !!window.__geminiRootOnly;
                 
-                if (currentlyParentOnly) {
-                  // Currently parent-only -> expand to parent+child (concise mode)
-                  try { window.__geminiParentOnly = false; } catch(_) {}
-                  try { window.__geminiConcise = true; } catch(_) {}
-                  console.log('[Gemini] Unfolding to parent+child level');
-                } else {
-                  // Currently parent+child or full -> collapse to parent-only
+                if (currentlyRootOnly) {
+                  // Currently root-only -> expand to root+parent level
+                  try { window.__geminiRootOnly = false; } catch(_) {}
                   try { window.__geminiParentOnly = true; } catch(_) {}
                   try { window.__geminiConcise = false; } catch(_) {}
-                  console.log('[Gemini] Folding to parent-only level');
+                  console.log('[Gemini] Unfolding to root+parent level');
+                } else {
+                  // Currently root+parent or full -> collapse to root-only
+                  try { window.__geminiRootOnly = true; } catch(_) {}
+                  try { window.__geminiParentOnly = false; } catch(_) {}
+                  try { window.__geminiConcise = false; } catch(_) {}
+                  console.log('[Gemini] Folding to root-only level');
                 }
                 
-                console.log('[Gemini] New modes - Parent-only:', window.__geminiParentOnly, 'Child-level:', window.__geminiConcise);
+                console.log('[Gemini] New modes - Root-only:', window.__geminiRootOnly, 'Parent-level:', window.__geminiParentOnly, 'Child-level:', window.__geminiConcise);
                 try { 
                   chrome?.storage?.local && chrome.storage.local.set({ 
-                    geminiConcise: !!window.__geminiConcise,
-                    geminiParentOnly: !!window.__geminiParentOnly
+                    geminiRootOnly: !!window.__geminiRootOnly,
+                    geminiParentOnly: !!window.__geminiParentOnly,
+                    geminiConcise: !!window.__geminiConcise
                   }); 
                 } catch(_) {}
                 
