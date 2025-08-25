@@ -500,8 +500,8 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
 }
 
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.new.mindmap img {
-  width: 18px;
-  height: 18px;
+  width: 27px;
+  height: 27px;
   filter: brightness(1.5) contrast(1.2);
   object-fit: contain;
 }
@@ -511,18 +511,56 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   border-radius: 4px !important;
 }
 
+/* Increase all header button icon sizes by 50% */
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.fold svg,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.sync svg,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.deep svg,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.refresh svg,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.new svg {
+  width: 24px !important;
+  height: 24px !important;
+  filter: brightness(1.5) contrast(1.2);
+  color: white !important;
+}
+
+/* Ensure all header button SVGs have consistent styling */
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.fold svg path,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.fold svg rect,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.fold svg circle,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.fold svg line,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.deep svg path,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.deep svg rect,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.deep svg circle,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.deep svg line,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.refresh svg path,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.refresh svg rect,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.refresh svg circle,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.refresh svg line,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.new svg path,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.new svg rect,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.new svg circle,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.new svg line {
+  fill: white !important;
+  stroke: white !important;
+}
+
+/* Close button text size increase */
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.close {
+  font-size: 18px !important;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.sync.inactive,
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.deep.inactive {
   opacity: .3;
 }
 
-/* .catalogeu-navigation-plugin-floatbar>.panel>.header>.sync>svg {
-        height: 80%;
-} */
-
-.catalogeu-navigation-plugin-floatbar>.panel>.header>.new>svg {
-  height: 85%;
-}
+/* All header button icon sizes are now controlled by the comprehensive rules above */
 
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.close {
   pointer-events: auto; /* Enable close button for side panel */
