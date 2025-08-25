@@ -5544,7 +5544,7 @@ const updateTextSize = (container, size) => {
 
           const maxAvailWidth = Math.max(200, containerClientWidth - 16);
           const popupWidth = Math.min(400, maxAvailWidth);
-          let popupHeight = 260; // compact height
+          const popupHeight = 260; // compact height
 
           // Preferred: below the item
           let popupTop = offTop + li.offsetHeight + gap;
@@ -5554,19 +5554,17 @@ const updateTextSize = (container, size) => {
           const visibleRight = containerScrollLeft + containerClientWidth - 8;
           if (popupLeft + popupWidth > visibleRight) popupLeft = Math.max(8, visibleRight - popupWidth);
 
-          // Ensure popup stays below the item; if space is tight, shrink height to fit
+          // Always keep popup below the item; if space is tight, shrink height to fit
           const visibleBottom = containerScrollTop + containerClientHeight - 8;
-          if (popupTop + popupHeight > visibleBottom) {
-            const availableBelow = Math.max(60, visibleBottom - popupTop);
-            popupHeight = Math.max(100, Math.min(popupHeight, availableBelow));
-          }
+          const availableBelow = Math.max(0, visibleBottom - popupTop);
+          const computedHeight = Math.max(80, Math.min(popupHeight, availableBelow));
 
           popup.style.cssText = `
             position: absolute;
             top: ${popupTop}px;
             left: ${popupLeft}px;
             width: ${popupWidth}px;
-            max-height: ${popupHeight}px;
+            max-height: ${computedHeight}px;
             background: #1a1a1a;
             border: 1px solid #444;
             border-radius: 8px;
