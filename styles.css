@@ -576,11 +576,20 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   color: rgba(255, 255, 255, 0.7);
   font-size: 13.5px;
   font-weight: 400;
-  pointer-events: none;
+  pointer-events: auto;
   position: absolute;
   left: 5px;
   top: 50%;
   transform: translateY(-50%);
+  cursor: pointer;
+  text-decoration: underline;
+  z-index: 5;
+}
+
+/* Add left side text - Support */
+.catalogeu-navigation-plugin-floatbar>.panel>.tools::before:hover {
+  color: rgba(255, 255, 255, 1);
+  text-decoration: underline;
 }
 
 /* Add right side text - Feedback */

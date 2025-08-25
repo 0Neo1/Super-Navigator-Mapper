@@ -6618,6 +6618,59 @@ const updateTextSize = (container, size) => {
       }
     }, 500);
 
+    // Add support click functionality for footer
+    const addSupportClickFunctionality = () => {
+      try {
+        const footer = document.querySelector('.catalogeu-navigation-plugin-floatbar .panel .tools');
+        if (footer && !footer.__supportClickBound) {
+          footer.__supportClickBound = true;
+          
+          // Create clickable support element
+          const supportElement = document.createElement('div');
+          supportElement.textContent = 'Support';
+          supportElement.style.cssText = `
+            position: absolute;
+            left: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 13.5px;
+            font-weight: 400;
+            cursor: pointer;
+            text-decoration: underline;
+            pointer-events: auto;
+            z-index: 10;
+          `;
+          
+          // Add hover effect
+          supportElement.addEventListener('mouseenter', () => {
+            supportElement.style.color = 'rgba(255, 255, 255, 1)';
+          });
+          
+          supportElement.addEventListener('mouseleave', () => {
+            supportElement.style.color = 'rgba(255, 255, 255, 0.7)';
+          });
+          
+          // Add click functionality
+          supportElement.addEventListener('click', () => {
+            const mailtoLink = 'mailto:support@zeroeka.com';
+            window.open(mailtoLink, '_blank');
+          });
+          
+          footer.appendChild(supportElement);
+          
+          // Hide the original ::before pseudo-element
+          footer.style.setProperty('--support-text', 'none');
+        }
+      } catch(err) {
+        console.error('[Support] Error adding support click functionality:', err);
+      }
+    };
+    
+    // Call support functionality setup
+    setTimeout(addSupportClickFunctionality, 1000);
+    setTimeout(addSupportClickFunctionality, 2000);
+
     // Detect SPA route changes via History API
     try {
       const _ps = history.pushState; const _rs = history.replaceState;
