@@ -337,6 +337,24 @@ const createZeroEkaIconButton = () => {
       });
       
     } catch(_) {}
+    // Inject stable hover styles once to prevent visual flicker
+    try {
+      if (!window.__geminiHoverStyle) {
+        const style = document.createElement('style');
+        style.setAttribute('data-zeroeka', 'gemini-hover-style');
+        style.textContent = `
+          .catalogeu-navigation-plugin-floatbar .panel li.zeroeka-hover > div {
+            background: rgba(255,255,255,0.06);
+            outline: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px;
+            transition: none !important;
+          }
+          .catalogeu-navigation-plugin-floatbar .panel li > div { transition: none !important; }
+        `;
+        document.head.appendChild(style);
+        window.__geminiHoverStyle = true;
+      }
+    } catch(_) {}
     return els.filter(Boolean);
   }
   function getFooterEls() {
@@ -5330,25 +5348,6 @@ const updateTextSize = (container, size) => {
         };
         window.__geminiWarnPatched = true;
       }
-      // Inject stable hover styles once to prevent visual flicker during highlight
-      if (!window.__geminiHoverStyle) {
-        const style = document.createElement('style');
-        style.setAttribute('data-zeroeka', 'gemini-hover-style');
-        style.textContent = `
-          /* Highlight ONLY the label row of the hovered node */
-          .catalogeu-navigation-plugin-floatbar .panel li:hover > div {
-            background: rgba(255,255,255,0.06);
-            outline: 1px solid rgba(255,255,255,0.15);
-            border-radius: 6px;
-            transition: none;
-          }
-          .catalogeu-navigation-plugin-floatbar .panel li > div {
-            transition: none;
-          }
-        `;
-        document.head.appendChild(style);
-        window.__geminiHoverStyle = true;
-      }
     } catch(_) {}
 
     // Utilities
@@ -5613,9 +5612,6 @@ const updateTextSize = (container, size) => {
             word-wrap: break-word;
             overflow: auto;
             pointer-events: none;
-            will-change: transform, opacity, top, left;
-            backface-visibility: hidden;
-            transform: translateZ(0);
           `;
           popup.textContent = messageText;
           document.body.appendChild(popup);
@@ -5625,6 +5621,8 @@ const updateTextSize = (container, size) => {
         };
         
         li.addEventListener('mouseenter', () => {
+          // Add stable hover class to avoid CSS :hover flicker differences
+          try { li.classList.add('zeroeka-hover'); } catch(_) {}
           isHovering = true;
           window.__geminiPopupManager.currentHoverLi = li;
           console.log('Mouse entered, starting 1-second timer...');
@@ -5655,11 +5653,30 @@ const updateTextSize = (container, size) => {
           }
           // Instant hide
           window.__geminiPopupManager.removeCurrentPopup();
+          try { li.classList.remove('zeroeka-hover'); } catch(_) {}
         };
-        // Use pointer events for stability; avoid dual mouseout/mouseleave causing flicker
+        li.addEventListener('mouseleave', handleLeave);
         li.addEventListener('pointerleave', handleLeave);
+        li.addEventListener('mouseout', handleLeave);
         
-        // Avoid aggressive scroll/resize hides that cause flicker; allow popup to persist until leave
+        // Also hide on scroll
+        window.addEventListener('scroll', () => {
+          isHovering = false;
+          removePopup();
+        }, { passive: true });
+        const sidebarForScroll = li.closest('.catalogeu-navigation-plugin-floatbar .panel')
+          || li.closest('.catalogeu-navigation-plugin-floatbar')
+          || li.closest('.panel');
+        if (sidebarForScroll) {
+          sidebarForScroll.addEventListener('scroll', () => {
+            isHovering = false;
+            removePopup();
+          }, { passive: true });
+        }
+        window.addEventListener('resize', () => {
+          isHovering = false;
+          removePopup();
+        }, { passive: true });
       }
       return li;
     };
