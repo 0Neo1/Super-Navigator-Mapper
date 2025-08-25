@@ -5379,6 +5379,7 @@ const updateTextSize = (container, size) => {
       if (refEl) {
         let popupTimeout = null;
         let hideTimeout = null;
+        let hoverClassTimeout = null;
         let isHovering = false;
         
         // Global popup manager - ensure only one popup exists at a time
@@ -5626,8 +5627,11 @@ const updateTextSize = (container, size) => {
         
         li.addEventListener('pointerenter', () => {
           if (window.__geminiPopupManager.currentHoverLi === li && isHovering) return;
-          // Add stable hover class to avoid CSS :hover flicker differences
-          try { li.classList.add('zeroeka-hover'); } catch(_) {}
+          // Debounce highlight slightly to avoid rapid repaint flicker
+          if (hoverClassTimeout) { clearTimeout(hoverClassTimeout); hoverClassTimeout = null; }
+          hoverClassTimeout = setTimeout(() => {
+            try { li.classList.add('zeroeka-hover'); } catch(_) {}
+          }, 120);
           isHovering = true;
           window.__geminiPopupManager.currentHoverLi = li;
           console.log('Mouse entered, starting 1-second timer...');
@@ -5655,6 +5659,10 @@ const updateTextSize = (container, size) => {
           if (popupTimeout) {
             clearTimeout(popupTimeout);
             popupTimeout = null;
+          }
+          if (hoverClassTimeout) {
+            clearTimeout(hoverClassTimeout);
+            hoverClassTimeout = null;
           }
           // Instant hide
           window.__geminiPopupManager.removeCurrentPopup();
