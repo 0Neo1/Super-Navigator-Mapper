@@ -5797,35 +5797,35 @@ const updateTextSize = (container, size) => {
         ul.appendChild(childLi);
       } catch(_) {}
     };
-          // Two-level folding system for Gemini:
-      // Level 1 (Root-only): Show only root nodes (depth = 1: ul > li)
-      // Level 2 (Parent-level): Show root and parent nodes (depth <= 2: ul > li, ul ul > li)
-      const applyGeminiFold = (ul) => {
-        try {
-          const rootOnlyMode = !!window.__geminiRootOnly; // Fold button - shows only root nodes
-          
-          if (rootOnlyMode) {
-            // Hide all child nodes and subnodes (depth >= 2)
-            const allChildAndSubNodes = ul.querySelectorAll('ul ul li');
-            allChildAndSubNodes.forEach((li) => {
-              li.style.display = 'none';
-            });
-            console.log('[Gemini] Tree folded to root level only');
-          } else {
-            // Show root and parent nodes (depth <= 2), hide deeper subnodes (depth >= 3)
-            const rootAndParentNodes = ul.querySelectorAll('ul > li, ul ul > li');
-            rootAndParentNodes.forEach((li) => {
-              li.style.display = '';
-            });
-            // Hide deeper subnodes (depth >= 3)
-            const deepSubNodes = ul.querySelectorAll('ul ul ul li');
-            deepSubNodes.forEach((li) => {
-              li.style.display = 'none';
-            });
-            console.log('[Gemini] Tree expanded to root+parent level');
-          }
-        } catch(_) {}
-      };
+    // Two-level folding system for Gemini:
+    // Level 1 (Root-only): Show only root nodes (depth = 1: ul > li)
+    // Level 2 (Parent-level): Show root and parent nodes (depth <= 2: ul > li, ul ul > li)
+    const applyGeminiFold = (ul) => {
+      try {
+        const rootOnlyMode = !!window.__geminiRootOnly; // Fold button - shows only root nodes
+        
+        if (rootOnlyMode) {
+          // Hide all child nodes and subnodes (depth >= 2)
+          const allChildAndSubNodes = ul.querySelectorAll('ul ul li');
+          allChildAndSubNodes.forEach((li) => {
+            li.style.display = 'none';
+          });
+          console.log('[Gemini] Tree folded to root level only');
+        } else {
+          // Show root and parent nodes (depth <= 2), hide deeper subnodes (depth >= 3)
+          const rootAndParentNodes = ul.querySelectorAll('ul > li, ul ul > li');
+          rootAndParentNodes.forEach((li) => {
+            li.style.display = '';
+          });
+          // Hide deeper subnodes (depth >= 3)
+          const deepSubNodes = ul.querySelectorAll('ul ul ul li');
+          deepSubNodes.forEach((li) => {
+            li.style.display = 'none';
+          });
+          console.log('[Gemini] Tree expanded to root+parent level');
+        }
+      } catch(_) {}
+    };
     const findNextModelWithContent = (blocks, fromIdx) => {
       for (let j = fromIdx + 1; j < blocks.length; j += 1) {
         const el = blocks[j];
