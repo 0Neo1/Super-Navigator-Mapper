@@ -5580,11 +5580,7 @@ const updateTextSize = (container, size) => {
             popupTimeout = null;
           }
           
-          // Immediately hide on mouse leave
-          if (hideTimeout) {
-            clearTimeout(hideTimeout);
-            hideTimeout = null;
-          }
+          // Hide immediately on mouse leave
           removePopup();
         });
         
