@@ -555,8 +555,19 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   height: 20px;
 }
 
-/* Hide all footer buttons - remove entire tools section */
+/* Create blank rectangular footer bar */
 .catalogeu-navigation-plugin-floatbar>.panel>.tools {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: auto;
+}
+
+/* Hide all footer buttons but keep the container */
+.catalogeu-navigation-plugin-floatbar>.panel>.tools > * {
   display: none !important;
 }
 
