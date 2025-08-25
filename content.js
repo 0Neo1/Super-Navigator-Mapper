@@ -5461,11 +5461,39 @@ const updateTextSize = (container, size) => {
           
           // Create and position popup directly below the hovered message
           const popup = document.createElement('div');
+          
+          // Get the position of the hovered list item with validation
           const rect = li.getBoundingClientRect();
+          
+          // Also get the sidebar container position for better positioning reference
+          const sidebarContainer = li.closest('.catalogeu-navigation-plugin-floatbar') || 
+                                  li.closest('.panel') || 
+                                  li.closest('[data-testid*="conversation-turn"]')?.closest('.catalogeu-navigation-plugin-floatbar');
+          
+          // Validate that we got reasonable coordinates
+          if (!rect || rect.width === 0 || rect.height === 0 || 
+              rect.top < 0 || rect.left < 0 || 
+              rect.top > window.innerHeight || rect.left > window.innerWidth) {
+            console.warn('Invalid coordinates for popup positioning, using fallback');
+            // Use a fallback position near the mouse or center of screen
+            return;
+          }
           
           // Calculate optimal position - directly below the message
           let popupTop = rect.bottom + 5; // 5px below the message
           let popupLeft = rect.left; // Align with left edge of message
+          
+          // If we have a sidebar container, use it to ensure proper positioning
+          if (sidebarContainer) {
+            const sidebarRect = sidebarContainer.getBoundingClientRect();
+            // Ensure popup appears within the sidebar area or just outside it
+            if (popupLeft < sidebarRect.left) {
+              popupLeft = sidebarRect.left;
+            }
+            if (popupLeft + 400 > sidebarRect.right + 20) {
+              popupLeft = Math.max(10, sidebarRect.right - 400 + 20);
+            }
+          }
           
           // Ensure popup doesn't go off-screen
           if (popupTop + 300 > window.innerHeight) {
@@ -5475,6 +5503,10 @@ const updateTextSize = (container, size) => {
           if (popupLeft + 400 > window.innerWidth) {
             popupLeft = Math.max(10, window.innerWidth - 410); // Ensure it fits
           }
+          
+          // Additional validation to ensure popup is within viewport
+          if (popupTop < 10) popupTop = 10;
+          if (popupLeft < 10) popupLeft = 10;
           
           popup.style.cssText = `
             position: fixed;
