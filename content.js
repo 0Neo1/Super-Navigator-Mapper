@@ -5401,55 +5401,94 @@ const updateTextSize = (container, size) => {
           // Don't show if already showing for this item
           if (window.__geminiPopupManager.currentLi === li) return;
           
-          // Enhanced text extraction: try to find the actual message content
+          // Enhanced text extraction: prioritize sub-node content over parent content
           let messageText = '';
           try {
-            // Strategy 1: Try to find the parent message container
-            let messageContainer = refEl;
-            while (messageContainer && messageContainer !== document.body) {
-              // Look for common message container selectors
-              if (messageContainer.matches && (
-                messageContainer.matches('[data-testid*="conversation-turn"]') ||
-                messageContainer.matches('user-query-content') ||
-                messageContainer.matches('[data-message-author]') ||
-                messageContainer.matches('.model-response-text') ||
-                messageContainer.closest('[data-testid*="conversation-turn"]') ||
-                messageContainer.closest('user-query-content') ||
-                messageContainer.closest('[data-message-author]')
-              )) {
-                break;
+            // Strategy 1: First try to get content from the specific refEl (sub-node content)
+            if (refEl && refEl.textContent) {
+              const refText = refEl.textContent.trim();
+              if (refText.length > 10) {
+                messageText = refText;
               }
-              messageContainer = messageContainer.parentElement;
             }
             
-            // Strategy 2: Extract text from the found container
-            if (messageContainer && messageContainer !== document.body) {
-              // Try to get meaningful content
-              const contentSelectors = [
-                '.model-response-text',
-                '.query-text',
-                '.markdown',
-                '.prose',
-                '[role="presentation"]',
-                'p',
-                'div'
-              ];
-              
-              for (const selector of contentSelectors) {
-                const contentEl = messageContainer.querySelector(selector);
-                if (contentEl && contentEl.textContent && contentEl.textContent.trim().length > 20) {
-                  messageText = contentEl.textContent.trim();
-                  break;
+            // Strategy 2: If refEl has minimal content, try to find more specific content within it
+            if (!messageText || messageText.length < 20) {
+              if (refEl) {
+                // Look for specific content elements within the refEl
+                const specificSelectors = [
+                  'h1', 'h2', 'h3', 'h4', 'h5', 'h6', // Headings
+                  'p', 'li', 'blockquote', 'code', 'pre', // Text elements
+                  '.markdown', '.prose', '[role="presentation"]' // Content containers
+                ];
+                
+                for (const selector of specificSelectors) {
+                  const contentEl = refEl.querySelector(selector);
+                  if (contentEl && contentEl.textContent && contentEl.textContent.trim().length > 20) {
+                    messageText = contentEl.textContent.trim();
+                    break;
+                  }
+                }
+                
+                // If still no content, try direct children
+                if (!messageText && refEl.children.length > 0) {
+                  for (const child of refEl.children) {
+                    if (child.textContent && child.textContent.trim().length > 20) {
+                      messageText = child.textContent.trim();
+                      break;
+                    }
+                  }
                 }
               }
+            }
+            
+            // Strategy 3: If still no meaningful content, try to find parent message container
+            if (!messageText || messageText.length < 20) {
+              let messageContainer = refEl;
+              while (messageContainer && messageContainer !== document.body) {
+                // Look for common message container selectors
+                if (messageContainer.matches && (
+                  messageContainer.matches('[data-testid*="conversation-turn"]') ||
+                  messageContainer.matches('user-query-content') ||
+                  messageContainer.matches('[data-message-author]') ||
+                  messageContainer.matches('.model-response-text') ||
+                  messageContainer.closest('[data-testid*="conversation-turn"]') ||
+                  messageContainer.closest('user-query-content') ||
+                  messageContainer.closest('[data-message-author]')
+                )) {
+                  break;
+                }
+                messageContainer = messageContainer.parentElement;
+              }
               
-              // If no specific content found, use the container's text
-              if (!messageText && messageContainer.textContent) {
-                messageText = messageContainer.textContent.trim();
+              // Extract text from the found container
+              if (messageContainer && messageContainer !== document.body) {
+                const contentSelectors = [
+                  '.model-response-text',
+                  '.query-text',
+                  '.markdown',
+                  '.prose',
+                  '[role="presentation"]',
+                  'p',
+                  'div'
+                ];
+                
+                for (const selector of contentSelectors) {
+                  const contentEl = messageContainer.querySelector(selector);
+                  if (contentEl && contentEl.textContent && contentEl.textContent.trim().length > 20) {
+                    messageText = contentEl.textContent.trim();
+                    break;
+                  }
+                }
+                
+                // If no specific content found, use the container's text
+                if (!messageText && messageContainer.textContent) {
+                  messageText = messageContainer.textContent.trim();
+                }
               }
             }
             
-            // Strategy 3: Fallback to original refEl
+            // Strategy 4: Final fallback to original refEl
             if (!messageText && refEl && refEl.textContent) {
               messageText = refEl.textContent.trim();
             }
