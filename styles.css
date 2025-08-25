@@ -555,6 +555,11 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   height: 20px;
 }
 
+/* Hide all footer buttons - remove entire tools section */
+.catalogeu-navigation-plugin-floatbar>.panel>.tools {
+  display: none !important;
+}
+
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.sync.inactive,
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.deep.inactive {
   opacity: .3;
