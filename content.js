@@ -5369,9 +5369,9 @@ const updateTextSize = (container, size) => {
             const ensureChatGPTMainFoldStyles = () => {
               try {
                 if (document.querySelector('style[data-zeroeka="chatgpt-main-fold"]')) return;
-                const style = document.createElement('style');
+  const style = document.createElement('style');
                 style.setAttribute('data-zeroeka', 'chatgpt-main-fold');
-                style.textContent = `
+  style.textContent = `
                   body.zeroeka-chatgpt-fold [data-message-author-role="user"] .markdown,
                   body.zeroeka-chatgpt-fold [data-message-author-role="user"] .prose,
                   body.zeroeka-chatgpt-fold [data-message-author-role="assistant"] .markdown,
@@ -5797,37 +5797,35 @@ const updateTextSize = (container, size) => {
         ul.appendChild(childLi);
       } catch(_) {}
     };
-    // Two-level folding system for Gemini:
-    // Level 1 (Root-only): Hide all child and subnodes (depth >= 2: ul ul li)  
-    // Level 2 (Root+Parent): Show root and parent nodes, hide child nodes (depth >= 2)
-    const applyGeminiFold = (ul) => {
-      try {
-        const rootOnlyMode = !!window.__geminiRootOnly; // Fold button - shows only root nodes
-        
-        if (rootOnlyMode) {
-          // Hide all child nodes and subnodes (depth >= 2)
-          const allChildAndSubNodes = ul.querySelectorAll('ul ul li');
-          allChildAndSubNodes.forEach((li) => {
-            li.style.display = 'none';
-          });
-          console.log('[Gemini] Tree folded to root level only');
-        } else {
-          // Show root and parent nodes, hide child nodes (depth >= 2)
-          const childNodes = ul.querySelectorAll('ul ul li');
-          childNodes.forEach((li) => {
-            li.style.display = 'none';
-          });
-          // Ensure root and parent nodes are visible
-          const rootAndParentNodes = ul.querySelectorAll('ul > li');
-          rootAndParentNodes.forEach((li) => {
-            li.style.display = '';
-          });
-          console.log('[Gemini] Tree expanded to root+parent level');
-        }
-      } catch(err) {
-        console.error('[Gemini] Error applying fold:', err);
-      }
-    };
+          // Two-level folding system for Gemini:
+      // Level 1 (Root-only): Show only root nodes (depth = 1: ul > li)
+      // Level 2 (Parent-level): Show root and parent nodes (depth <= 2: ul > li, ul ul > li)
+      const applyGeminiFold = (ul) => {
+        try {
+          const rootOnlyMode = !!window.__geminiRootOnly; // Fold button - shows only root nodes
+          
+          if (rootOnlyMode) {
+            // Hide all child nodes and subnodes (depth >= 2)
+            const allChildAndSubNodes = ul.querySelectorAll('ul ul li');
+            allChildAndSubNodes.forEach((li) => {
+              li.style.display = 'none';
+            });
+            console.log('[Gemini] Tree folded to root level only');
+          } else {
+            // Show root and parent nodes (depth <= 2), hide deeper subnodes (depth >= 3)
+            const rootAndParentNodes = ul.querySelectorAll('ul > li, ul ul > li');
+            rootAndParentNodes.forEach((li) => {
+              li.style.display = '';
+            });
+            // Hide deeper subnodes (depth >= 3)
+            const deepSubNodes = ul.querySelectorAll('ul ul ul li');
+            deepSubNodes.forEach((li) => {
+              li.style.display = 'none';
+            });
+            console.log('[Gemini] Tree expanded to root+parent level');
+          }
+        } catch(_) {}
+      };
     const findNextModelWithContent = (blocks, fromIdx) => {
       for (let j = fromIdx + 1; j < blocks.length; j += 1) {
         const el = blocks[j];
@@ -6340,7 +6338,7 @@ const updateTextSize = (container, size) => {
           });
           moFb.observe(fb, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true });
         }
-        // Two-level folding system for Gemini (Deep button + Fold button)
+                // Two-level folding system for Gemini (Fold button only)
         const bindGeminiFoldingButtons = () => {
           try {
             // Initialize from storage only once
@@ -6357,53 +6355,14 @@ const updateTextSize = (container, size) => {
             const fb2 = document.querySelector('.catalogeu-navigation-plugin-floatbar');
             if (!fb2) return;
             
-            // 1. Deep/In-depth button (tree icon) - toggles between child level and full depth
-            const deepBtn = fb2.querySelector('.header .deep') || fb2.querySelector('.tools .deep') || fb2.querySelector('.deep');
-            if (deepBtn && !deepBtn.__geminiBound) {
-              deepBtn.__geminiBound = true;
-              deepBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-                e.stopPropagation();
-                console.log('[Gemini] Deep button clicked - toggling subnodes visibility');
-                
-                // Deep button toggles between parent+child (concise) and full depth (all subnodes)
-                // Reset parent-only mode when deep button is used
-                try { window.__geminiParentOnly = false; } catch(_) {}
-                // Toggle child level mode (shows parent + child, hides/shows subnodes)
-                try { window.__geminiConcise = !window.__geminiConcise; } catch(_) {}
-                
-                console.log('[Gemini] New modes - Parent-only:', window.__geminiParentOnly, 'Child-level (concise):', window.__geminiConcise);
-                try { 
-                  chrome?.storage?.local && chrome.storage.local.set({ 
-                    geminiConcise: !!window.__geminiConcise,
-                    geminiParentOnly: !!window.__geminiParentOnly
-                  }); 
-                } catch(_) {}
-                
-                const treeUl = getFloatbarUl();
-                if (treeUl) {
-                  applyGeminiFold(treeUl);
-                } else {
-                  console.warn('[Gemini] No tree UL found for folding');
-                }
-              }, true);
-              console.log('[Gemini] Deep button bound successfully');
-            }
-            
-            // 2. Fold button (leftmost in header) - toggles between root-only and root+parent (SIDEBAR TREE ONLY)
+            // Fold button (leftmost in header) - toggles between root-only and root+parent (SIDEBAR ONLY)
             const foldBtn = fb2.querySelector('.header .fold');
             if (foldBtn && !foldBtn.__geminiFoldBound) {
               foldBtn.__geminiFoldBound = true;
-              
-              // Initialize Gemini tree folding state
-              if (typeof window.__geminiRootOnly === 'undefined') {
-                window.__geminiRootOnly = false; // false = root+parent, true = root-only
-              }
-              
               foldBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('[Gemini] Fold button clicked - toggling between root-only and root+parent (sidebar tree only)');
+                console.log('[Gemini] Fold button clicked - toggling between root-only and root+parent (sidebar only)');
                 
                 // Toggle logic: if currently showing root-only, expand to root+parent
                 // If currently showing root+parent, collapse to root-only
@@ -6419,7 +6378,7 @@ const updateTextSize = (container, size) => {
                   console.log('[Gemini] Folding to root-only level');
                 }
                 
-                console.log('[Gemini] New modes - Root-only:', window.__geminiRootOnly);
+                console.log('[Gemini] New mode - Root-only:', window.__geminiRootOnly);
                 try { 
                   chrome?.storage?.local && chrome.storage.local.set({ 
                     geminiRootOnly: !!window.__geminiRootOnly
@@ -6524,8 +6483,8 @@ const updateTextSize = (container, size) => {
               console.log('[Gemini] ChatGPT-style sync button created and bound successfully');
             }
             
-            if (!deepBtn && !foldBtn && !syncBtn) {
-              console.warn('[Gemini] No deep, fold, or sync buttons found');
+            if (!foldBtn && !syncBtn) {
+              console.warn('[Gemini] No fold or sync buttons found');
             }
           } catch(err) {
             console.error('[Gemini] Error binding folding buttons:', err);
