@@ -557,9 +557,7 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
 
 /* Create blank rectangular footer bar */
 .catalogeu-navigation-plugin-floatbar>.panel>.tools {
-  display: flex !important;
-  align-items: center;
-  justify-content: space-between;
+  display: block !important;
   height: 45px;
   background-color: rgba(255, 255, 255, 0.05);
   background-image: url('chrome-extension://__MSG_@@extension_id__/images/zeroeka_main.png');
@@ -579,6 +577,10 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   font-size: 13.5px;
   font-weight: 400;
   pointer-events: none;
+  position: absolute;
+  left: 5px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 /* Add right side text - Feedback */
@@ -588,6 +590,10 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   font-size: 13.5px;
   font-weight: 400;
   pointer-events: none;
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 
