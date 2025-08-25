@@ -5535,6 +5535,8 @@ const updateTextSize = (container, size) => {
         
         li.addEventListener('mouseenter', () => {
           isHovering = true;
+          console.log('Mouse entered, starting 2-second timer...');
+          
           // Clear any existing hide timeout
           if (hideTimeout) {
             clearTimeout(hideTimeout);
@@ -5543,6 +5545,7 @@ const updateTextSize = (container, size) => {
           
           // Start timer to show popup
           popupTimeout = setTimeout(() => {
+            console.log('2-second timer completed, showing popup...');
             if (isHovering) {
               showPopup();
             }
