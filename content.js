@@ -5496,18 +5496,6 @@ const updateTextSize = (container, size) => {
           
           if (!messageText || messageText.length < 10) return;
           
-          // If still empty, fallback to the LI label text for root/parent nodes
-          if (!messageText) {
-            try {
-              const labelEl = li.querySelector(':scope > div');
-              const labelText = (labelEl && labelEl.textContent) ? labelEl.textContent.trim() : '';
-              if (labelText) messageText = labelText;
-            } catch(_) {}
-          }
-
-          // Guard minimal content length (allow small labels too)
-          if (!messageText || (messageText.trim().length < 3)) return;
-
           // Show at least 50 words; if longer, truncate to first 50 words
           const words = messageText.split(/\s+/);
           if (words.length > 50) {
@@ -5544,29 +5532,18 @@ const updateTextSize = (container, size) => {
             return { top, left };
           };
 
-          const { top: offTop, left: offLeft } = getOffsetWithin(li, sidebarContainer);
-          // If LI has zero height (e.g., root container), try to use first visible child for placement
-          let anchorHeight = li.offsetHeight;
-          if (!anchorHeight || anchorHeight < 4) {
-            const firstChild = li.querySelector(':scope > ul > li, :scope > li, :scope > div');
-            if (firstChild) {
-              const alt = getOffsetWithin(firstChild, sidebarContainer);
-              if (alt && typeof alt.top === 'number') {
-                anchorHeight = firstChild.offsetHeight || 20;
-                // Override offsets to position relative to this child
-                offTop = alt.top;
-                offLeft = alt.left || offLeft;
-              }
-            }
-          }
+          // Compute anchor at the node label (not including its children)
+          const labelEl = li.querySelector(':scope > div') || li;
+          const offLabel = getOffsetWithin(labelEl, sidebarContainer);
+          const anchorHeight = labelEl.offsetHeight || 20;
           const gap = 4;
           const maxAvailWidth = Math.max(200, Math.floor(sidebarContainer.clientWidth - 16));
           const popupWidth = Math.min(400, maxAvailWidth);
           const popupHeight = 260; // compact height
 
-          // Strictly below the hovered node
-          let popupTop = offTop + anchorHeight + gap;
-          let popupLeft = Math.max(8, offLeft);
+          // Strictly below the node label only
+          let popupTop = offLabel.top + anchorHeight + gap;
+          let popupLeft = Math.max(8, offLabel.left);
 
           // Clamp horizontally within container
           const visibleRight = (sidebarContainer.scrollLeft || 0) + sidebarContainer.clientWidth - 8;
