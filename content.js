@@ -5580,12 +5580,12 @@ const updateTextSize = (container, size) => {
             popupTimeout = null;
           }
           
-          // Hide popup quickly when cursor leaves
+          // Hide quickly on mouse leave
           hideTimeout = setTimeout(() => {
             if (!isHovering) {
               removePopup();
             }
-          }, 50); // 50ms delay before hiding (quick disappearance)
+          }, 50); // 50ms delay before hiding
         });
         
         // Also hide on scroll
