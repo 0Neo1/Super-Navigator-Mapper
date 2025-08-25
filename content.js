@@ -5360,11 +5360,17 @@ const updateTextSize = (container, size) => {
       if (refEl) {
         let popup = null;
         let popupTimeout = null;
+        let hideTimeout = null;
+        let isHovering = false;
         
         const removePopup = () => {
           if (popupTimeout) {
             clearTimeout(popupTimeout);
             popupTimeout = null;
+          }
+          if (hideTimeout) {
+            clearTimeout(hideTimeout);
+            hideTimeout = null;
           }
           if (popup) {
             popup.remove();
@@ -5372,106 +5378,137 @@ const updateTextSize = (container, size) => {
           }
         };
         
-        li.addEventListener('mouseenter', () => {
-          // Ensure any existing timers/popups are cleared
-          removePopup();
+        const showPopup = () => {
+          if (popup) return;
           
-          popupTimeout = setTimeout(() => {
-            if (popup) return;
-            
-            // Enhanced text extraction: try to find the actual message content
-            let messageText = '';
-            try {
-              // Strategy 1: Try to find the parent message container
-              let messageContainer = refEl;
-              while (messageContainer && messageContainer !== document.body) {
-                // Look for common message container selectors
-                if (messageContainer.matches && (
-                  messageContainer.matches('[data-testid*="conversation-turn"]') ||
-                  messageContainer.matches('user-query-content') ||
-                  messageContainer.matches('[data-message-author]') ||
-                  messageContainer.matches('.model-response-text') ||
-                  messageContainer.closest('[data-testid*="conversation-turn"]') ||
-                  messageContainer.closest('user-query-content') ||
-                  messageContainer.closest('[data-message-author]')
-                )) {
-                  break;
-                }
-                messageContainer = messageContainer.parentElement;
+          // Enhanced text extraction: try to find the actual message content
+          let messageText = '';
+          try {
+            // Strategy 1: Try to find the parent message container
+            let messageContainer = refEl;
+            while (messageContainer && messageContainer !== document.body) {
+              // Look for common message container selectors
+              if (messageContainer.matches && (
+                messageContainer.matches('[data-testid*="conversation-turn"]') ||
+                messageContainer.matches('user-query-content') ||
+                messageContainer.matches('[data-message-author]') ||
+                messageContainer.matches('.model-response-text') ||
+                messageContainer.closest('[data-testid*="conversation-turn"]') ||
+                messageContainer.closest('user-query-content') ||
+                messageContainer.closest('[data-message-author]')
+              )) {
+                break;
               }
-              
-              // Strategy 2: Extract text from the found container
-              if (messageContainer && messageContainer !== document.body) {
-                // Try to get meaningful content
-                const contentSelectors = [
-                  '.model-response-text',
-                  '.query-text',
-                  '.markdown',
-                  '.prose',
-                  '[role="presentation"]',
-                  'p',
-                  'div'
-                ];
-                
-                for (const selector of contentSelectors) {
-                  const contentEl = messageContainer.querySelector(selector);
-                  if (contentEl && contentEl.textContent && contentEl.textContent.trim().length > 20) {
-                    messageText = contentEl.textContent.trim();
-                    break;
-                  }
-                }
-                
-                // If no specific content found, use the container's text
-                if (!messageText && messageContainer.textContent) {
-                  messageText = messageContainer.textContent.trim();
-                }
-              }
-              
-              // Strategy 3: Fallback to original refEl
-              if (!messageText && refEl && refEl.textContent) {
-                messageText = refEl.textContent.trim();
-              }
-              
-            } catch (_) {}
-            
-            if (!messageText || messageText.length < 10) return;
-            
-            // Show at least 50 words; if longer, truncate to first 50 words
-            const words = messageText.split(/\s+/);
-            if (words.length > 50) {
-              messageText = words.slice(0, 50).join(' ') + '...';
+              messageContainer = messageContainer.parentElement;
             }
             
-            // Create and position popup
-            popup = document.createElement('div');
-            const rect = li.getBoundingClientRect();
-            popup.style.cssText = `
-              position: fixed;
-              top: ${Math.max(10, rect.top - 10)}px;
-              left: ${Math.min(window.innerWidth - 420, rect.right + 10)}px;
-              max-width: 400px;
-              max-height: 300px;
-              background: #1a1a1a;
-              border: 1px solid #444;
-              border-radius: 8px;
-              padding: 12px;
-              color: #ccc;
-              font-size: 13px;
-              line-height: 1.4;
-              z-index: 2147483647;
-              box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-              white-space: pre-wrap;
-              word-wrap: break-word;
-              overflow: auto;
-              pointer-events: none;
-            `;
-            popup.textContent = messageText;
-            document.body.appendChild(popup);
-          }, 2000); // 2 second delay before showing popup (match ChatGPT tree behavior)
+            // Strategy 2: Extract text from the found container
+            if (messageContainer && messageContainer !== document.body) {
+              // Try to get meaningful content
+              const contentSelectors = [
+                '.model-response-text',
+                '.query-text',
+                '.markdown',
+                '.prose',
+                '[role="presentation"]',
+                'p',
+                'div'
+              ];
+              
+              for (const selector of contentSelectors) {
+                const contentEl = messageContainer.querySelector(selector);
+                if (contentEl && contentEl.textContent && contentEl.textContent.trim().length > 20) {
+                  messageText = contentEl.textContent.trim();
+                  break;
+                }
+              }
+              
+              // If no specific content found, use the container's text
+              if (!messageText && messageContainer.textContent) {
+                messageText = messageContainer.textContent.trim();
+              }
+            }
+            
+            // Strategy 3: Fallback to original refEl
+            if (!messageText && refEl && refEl.textContent) {
+              messageText = refEl.textContent.trim();
+            }
+            
+          } catch (_) {}
+          
+          if (!messageText || messageText.length < 10) return;
+          
+          // Show at least 50 words; if longer, truncate to first 50 words
+          const words = messageText.split(/\s+/);
+          if (words.length > 50) {
+            messageText = words.slice(0, 50).join(' ') + '...';
+          }
+          
+          // Create and position popup
+          popup = document.createElement('div');
+          const rect = li.getBoundingClientRect();
+          popup.style.cssText = `
+            position: fixed;
+            top: ${Math.max(10, rect.top - 10)}px;
+            left: ${Math.min(window.innerWidth - 420, rect.right + 10)}px;
+            max-width: 400px;
+            max-height: 300px;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 12px;
+            color: #ccc;
+            font-size: 13px;
+            line-height: 1.4;
+            z-index: 2147483647;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow: auto;
+            pointer-events: none;
+          `;
+          popup.textContent = messageText;
+          document.body.appendChild(popup);
+        };
+        
+        li.addEventListener('mouseenter', () => {
+          isHovering = true;
+          // Clear any existing hide timeout
+          if (hideTimeout) {
+            clearTimeout(hideTimeout);
+            hideTimeout = null;
+          }
+          
+          // Start timer to show popup
+          popupTimeout = setTimeout(() => {
+            if (isHovering) {
+              showPopup();
+            }
+          }, 2000); // 2 second delay before showing popup
         });
         
-        li.addEventListener('mouseleave', removePopup);
-        window.addEventListener('scroll', removePopup, { passive: true });
+        li.addEventListener('mouseleave', () => {
+          isHovering = false;
+          
+          // Clear show timeout
+          if (popupTimeout) {
+            clearTimeout(popupTimeout);
+            popupTimeout = null;
+          }
+          
+          // Add small delay before hiding to prevent flickering
+          hideTimeout = setTimeout(() => {
+            if (!isHovering) {
+              removePopup();
+            }
+          }, 300); // 300ms delay before hiding
+        });
+        
+        // Also hide on scroll
+        window.addEventListener('scroll', () => {
+          isHovering = false;
+          removePopup();
+        }, { passive: true });
       }
       return li;
     };
