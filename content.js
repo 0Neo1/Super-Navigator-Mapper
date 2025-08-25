@@ -350,6 +350,7 @@ const createZeroEkaIconButton = () => {
             transition: none !important;
           }
           .catalogeu-navigation-plugin-floatbar .panel li > div { transition: none !important; }
+          .catalogeu-navigation-plugin-floatbar .panel li:hover > div { background: transparent !important; outline: none !important; }
         `;
         document.head.appendChild(style);
         window.__geminiHoverStyle = true;
@@ -5612,6 +5613,9 @@ const updateTextSize = (container, size) => {
             word-wrap: break-word;
             overflow: auto;
             pointer-events: none;
+            will-change: top, left;
+            backface-visibility: hidden;
+            transform: translateZ(0);
           `;
           popup.textContent = messageText;
           document.body.appendChild(popup);
