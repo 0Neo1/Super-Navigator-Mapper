@@ -5673,53 +5673,7 @@ const updateTextSize = (container, size) => {
           });
         }
 
-        // --- Sync fold/unfold with main Gemini page conversation ---
-        // We clamp the visible text of both the user input and assistant output to a single line
-        // when either fold mode is active, and restore when neither is active.
-        const shouldClamp = parentOnlyMode || childLevelMode;
-
-        // Inject the clamping stylesheet once
-        try {
-          if (!window.__geminiFoldClampStyle) {
-            const style = document.createElement('style');
-            style.setAttribute('data-zeroeka', 'gemini-fold-clamp-style');
-            style.textContent = `
-              /* Clamp to one line with ellipsis when body has the class */
-              body.zeroeka-gemini-fold .model-response-text,
-              body.zeroeka-gemini-fold user-query-content .query-text,
-              body.zeroeka-gemini-fold [data-test-id="model-response"],
-              body.zeroeka-gemini-fold [data-message-author-role="user"] .query-text {
-                display: -webkit-box !important;
-                -webkit-line-clamp: 1 !important;
-                -webkit-box-orient: vertical !important;
-                overflow: hidden !important;
-                text-overflow: ellipsis !important;
-                max-height: 1.4em !important;
-                line-height: 1.4 !important;
-              }
-              /* Reduce spacing to keep condensed view neat */
-              body.zeroeka-gemini-fold [data-testid*="conversation-turn"],
-              body.zeroeka-gemini-fold user-query-content,
-              body.zeroeka-gemini-fold [data-test-id="model-response"] {
-                margin-top: 4px !important;
-                margin-bottom: 4px !important;
-                padding-top: 2px !important;
-                padding-bottom: 2px !important;
-              }
-            `;
-            document.head.appendChild(style);
-            window.__geminiFoldClampStyle = true;
-          }
-        } catch(_) {}
-
-        try {
-          const body = document.body;
-          if (shouldClamp) {
-            body.classList.add('zeroeka-gemini-fold');
-          } else {
-            body.classList.remove('zeroeka-gemini-fold');
-          }
-        } catch(_) {}
+        // Note: tree folding only. Sync folding of main page is handled by header Sync button.
       } catch(_) {}
     };
     const findNextModelWithContent = (blocks, fromIdx) => {
@@ -6239,10 +6193,14 @@ const updateTextSize = (container, size) => {
           try {
             // Initialize from storage only once
             if (typeof window.__geminiConcise === 'undefined' && chrome?.storage?.local) {
-              chrome.storage.local.get(['geminiConcise', 'geminiParentOnly'], (d) => {
+              chrome.storage.local.get(['geminiConcise', 'geminiParentOnly', 'geminiSyncFold'], (d) => {
                 try { 
                   window.__geminiConcise = !!d?.geminiConcise; 
                   window.__geminiParentOnly = !!d?.geminiParentOnly;
+                  if (d && typeof d.geminiSyncFold !== 'undefined') {
+                    if (d.geminiSyncFold) document.body.classList.add('zeroeka-gemini-fold');
+                    else document.body.classList.remove('zeroeka-gemini-fold');
+                  }
                 } catch(_) {}
                 const treeUl = getFloatbarUl();
                 if (treeUl) applyGeminiFold(treeUl);
@@ -6285,51 +6243,27 @@ const updateTextSize = (container, size) => {
               console.log('[Gemini] Deep button bound successfully');
             }
             
-            // 2. Fold button (leftmost in header) - toggles between parent-only and parent+child
+            // 2. Sync Fold button (left of deep) - fold/unfold main conversation page
             const foldBtn = fb2.querySelector('.header .fold');
             if (foldBtn && !foldBtn.__geminiFoldBound) {
               foldBtn.__geminiFoldBound = true;
               foldBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('[Gemini] Fold button clicked - toggling between parent-only and parent+child');
-                
-                // Toggle logic: if currently showing parent-only, expand to parent+child
-                // If currently showing anything else (parent+child or full), collapse to parent-only
-                const currentlyParentOnly = !!window.__geminiParentOnly;
-                
-                if (currentlyParentOnly) {
-                  // Currently parent-only -> expand to parent+child (concise mode)
-                  try { window.__geminiParentOnly = false; } catch(_) {}
-                  try { window.__geminiConcise = true; } catch(_) {}
-                  console.log('[Gemini] Unfolding to parent+child level');
-                } else {
-                  // Currently parent+child or full -> collapse to parent-only
-                  try { window.__geminiParentOnly = true; } catch(_) {}
-                  try { window.__geminiConcise = false; } catch(_) {}
-                  console.log('[Gemini] Folding to parent-only level');
-                }
-                
-                console.log('[Gemini] New modes - Parent-only:', window.__geminiParentOnly, 'Child-level:', window.__geminiConcise);
-                try { 
-                  chrome?.storage?.local && chrome.storage.local.set({ 
-                    geminiConcise: !!window.__geminiConcise,
-                    geminiParentOnly: !!window.__geminiParentOnly
-                  }); 
-                } catch(_) {}
-                
-                const treeUl = getFloatbarUl();
-                if (treeUl) {
-                  applyGeminiFold(treeUl);
-                } else {
-                  console.warn('[Gemini] No tree UL found for folding');
-                }
+                console.log('[Gemini] Sync Fold button clicked - toggling main page clamp');
+
+                const body = document.body;
+                const enable = !body.classList.contains('zeroeka-gemini-fold');
+                if (enable) body.classList.add('zeroeka-gemini-fold'); else body.classList.remove('zeroeka-gemini-fold');
+
+                // Persist the sync fold state
+                try { chrome?.storage?.local && chrome.storage.local.set({ geminiSyncFold: enable }); } catch(_) {}
               }, true);
-              console.log('[Gemini] Fold button bound successfully');
+              console.log('[Gemini] Sync Fold button bound successfully');
             }
             
             if (!deepBtn && !foldBtn) {
-              console.warn('[Gemini] Neither deep nor fold buttons found');
+              console.warn('[Gemini] Neither deep nor sync-fold buttons found');
             }
           } catch(err) {
             console.error('[Gemini] Error binding folding buttons:', err);
