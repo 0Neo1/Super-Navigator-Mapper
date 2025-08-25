@@ -5461,34 +5461,32 @@ const updateTextSize = (container, size) => {
           
           // Create and position popup directly below the hovered message
           const popup = document.createElement('div');
-          
-          // Get the position of the hovered list item with validation
           const rect = li.getBoundingClientRect();
           
-          // Also get the sidebar container position for better positioning reference
-          const sidebarContainer = li.closest('.catalogeu-navigation-plugin-floatbar') || 
-                                  li.closest('.panel') || 
-                                  li.closest('[data-testid*="conversation-turn"]')?.closest('.catalogeu-navigation-plugin-floatbar');
-          
-          // Validate that we got reasonable coordinates
+          // Validate coordinates to prevent popup appearing in wrong locations
           if (!rect || rect.width === 0 || rect.height === 0 || 
               rect.top < 0 || rect.left < 0 || 
               rect.top > window.innerHeight || rect.left > window.innerWidth) {
-            console.warn('Invalid coordinates for popup positioning, using fallback');
-            // Use a fallback position near the mouse or center of screen
+            console.warn('Invalid coordinates for popup positioning, aborting');
             return;
           }
+          
+          // Find the sidebar container to ensure popup stays within sidebar context
+          const sidebarContainer = li.closest('.catalogeu-navigation-plugin-floatbar') || 
+                                  li.closest('.panel') || 
+                                  li.closest('[data-testid*="conversation-turn"]')?.closest('.catalogeu-navigation-plugin-floatbar');
           
           // Calculate optimal position - directly below the message
           let popupTop = rect.bottom + 5; // 5px below the message
           let popupLeft = rect.left; // Align with left edge of message
           
-          // If we have a sidebar container, use it to ensure proper positioning
+          // If we have a sidebar container, ensure popup appears within sidebar area
           if (sidebarContainer) {
             const sidebarRect = sidebarContainer.getBoundingClientRect();
-            // Ensure popup appears within the sidebar area or just outside it
-            if (popupLeft < sidebarRect.left) {
-              popupLeft = sidebarRect.left;
+            
+            // Ensure popup appears within or just outside the sidebar
+            if (popupLeft < sidebarRect.left - 20) {
+              popupLeft = sidebarRect.left - 20;
             }
             if (popupLeft + 400 > sidebarRect.right + 20) {
               popupLeft = Math.max(10, sidebarRect.right - 400 + 20);
@@ -5504,7 +5502,7 @@ const updateTextSize = (container, size) => {
             popupLeft = Math.max(10, window.innerWidth - 410); // Ensure it fits
           }
           
-          // Additional validation to ensure popup is within viewport
+          // Additional validation to ensure popup is within reasonable bounds
           if (popupTop < 10) popupTop = 10;
           if (popupLeft < 10) popupLeft = 10;
           
