@@ -5401,12 +5401,18 @@ const updateTextSize = (container, size) => {
           // Don't show if already showing for this item
           if (window.__geminiPopupManager.currentLi === li) return;
           
+          console.log('Creating popup for li:', li.textContent ? li.textContent.substring(0, 50) : 'Unknown');
+          console.log('refEl:', refEl);
+          console.log('refEl tagName:', refEl ? refEl.tagName : 'null');
+          console.log('refEl className:', refEl ? refEl.className : 'null');
+          
           // Enhanced text extraction: prioritize sub-node content over parent content
           let messageText = '';
           try {
             // Strategy 1: First try to get content from the specific refEl (sub-node content)
             if (refEl && refEl.textContent) {
               const refText = refEl.textContent.trim();
+              console.log('refEl content:', refText.substring(0, 100));
               if (refText.length > 10) {
                 messageText = refText;
               }
@@ -5503,13 +5509,35 @@ const updateTextSize = (container, size) => {
             messageText = words.slice(0, 50).join(' ') + '...';
           }
           
-          // Create and position popup
+          // Create and position popup with improved positioning logic
           const popup = document.createElement('div');
+          
+          // Get the position of the hovered list item
           const rect = li.getBoundingClientRect();
+          
+          // Calculate optimal popup position
+          let popupTop, popupLeft;
+          
+          // Position popup to the right of the hovered item
+          popupLeft = Math.min(window.innerWidth - 420, rect.right + 15);
+          
+          // If not enough space on the right, position to the left
+          if (popupLeft < 20) {
+            popupLeft = Math.max(20, rect.left - 420);
+          }
+          
+          // Position popup vertically centered with the hovered item
+          popupTop = Math.max(20, rect.top + (rect.height / 2) - 150);
+          
+          // Ensure popup doesn't go below viewport
+          if (popupTop + 300 > window.innerHeight) {
+            popupTop = Math.max(20, window.innerHeight - 320);
+          }
+          
           popup.style.cssText = `
             position: fixed;
-            top: ${Math.max(10, rect.top - 10)}px;
-            left: ${Math.min(window.innerWidth - 420, rect.right + 10)}px;
+            top: ${popupTop}px;
+            left: ${popupLeft}px;
             max-width: 400px;
             max-height: 300px;
             background: #1a1a1a;
@@ -5526,7 +5554,15 @@ const updateTextSize = (container, size) => {
             overflow: auto;
             pointer-events: none;
           `;
-          popup.textContent = messageText;
+          
+          // Add debug info to popup
+          popup.innerHTML = `
+            <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #444; font-size: 11px; color: #888;">
+              Hovered: ${li.textContent ? li.textContent.substring(0, 50) + '...' : 'Unknown item'}
+            </div>
+            <div>${messageText}</div>
+          `;
+          
           document.body.appendChild(popup);
           
           // Register this popup as the current one
