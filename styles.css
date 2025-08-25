@@ -500,8 +500,8 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
 }
 
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.new.mindmap img {
-  width: 27px;
-  height: 27px;
+  width: 22.5px;
+  height: 22.5px;
   filter: brightness(1.5) contrast(1.2);
   object-fit: contain;
 }
@@ -511,14 +511,14 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   border-radius: 4px !important;
 }
 
-/* Increase all header button icon sizes by 50% */
+/* Increase all header button icon sizes by 25% */
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.fold svg,
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.sync svg,
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.deep svg,
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.refresh svg,
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.new svg {
-  width: 24px !important;
-  height: 24px !important;
+  width: 20px !important;
+  height: 20px !important;
   filter: brightness(1.5) contrast(1.2);
   color: white !important;
 }
@@ -546,13 +546,13 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
 
 /* Close button text size increase */
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.close {
-  font-size: 18px !important;
+  font-size: 20px !important;
   line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
 }
 
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.sync.inactive,
@@ -560,7 +560,13 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   opacity: .3;
 }
 
-/* All header button icon sizes are now controlled by the comprehensive rules above */
+/* .catalogeu-navigation-plugin-floatbar>.panel>.header>.sync>svg {
+        height: 80%;
+} */
+
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.new>svg {
+  height: 85%;
+}
 
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.close {
   pointer-events: auto; /* Enable close button for side panel */

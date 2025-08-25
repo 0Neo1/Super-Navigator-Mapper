@@ -5492,7 +5492,7 @@ const updateTextSize = (container, size) => {
             mindmapBtn.className = 'new mindmap'; // Keep 'new' class for compatibility
             mindmapBtn.title = lang('mindTitle') || 'Mind map';
             mindmapBtn.innerHTML = `
-              <img src="${chrome.runtime.getURL('images/mind_map.png')}" alt="Mind Map" style="width: 27px; height: 27px; filter: brightness(1.5) contrast(1.2);">
+              <img src="${chrome.runtime.getURL('images/mind_map.png')}" alt="Mind Map" style="width: 22.5px; height: 22.5px; filter: brightness(1.5) contrast(1.2);">
             `;
             
             // Add click functionality for mindmap
@@ -6521,7 +6521,7 @@ const updateTextSize = (container, size) => {
               syncBtn.className = 'sync';
               syncBtn.title = lang('syncTitle') || 'Fold/unfold conversations';
               syncBtn.innerHTML = `
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
