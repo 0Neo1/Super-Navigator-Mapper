@@ -5602,14 +5602,29 @@ const updateTextSize = (container, size) => {
           window.__geminiPopupManager.setCurrentPopup(popup, li);
         };
         
-        li.addEventListener('mouseenter', () => {
-          isHovering = true;
-          if (window.__geminiPopupManager.currentHoverLi && window.__geminiPopupManager.currentHoverLi !== li) {
-            try { window.__geminiPopupManager.currentHoverLi.classList.remove('zeroeka-hover'); } catch(_) {}
-            window.__geminiPopupManager.removeCurrentPopup();
+        // Guard against double-binding
+        if (li.dataset.zeroekaHoverBound === '1') {
+          return li;
+        }
+        li.dataset.zeroekaHoverBound = '1';
+
+        // Minimal CSS injection to remove transition-induced flicker (once)
+        try {
+          if (!window.__zeroekaStableHoverStyle) {
+            const style = document.createElement('style');
+            style.setAttribute('data-zeroeka', 'gemini-stable-hover-style');
+            style.textContent = `
+              .catalogeu-navigation-plugin-floatbar .panel li > div { transition: none !important; }
+              .catalogeu-navigation-plugin-floatbar .panel li:hover > div { transition: none !important; }
+            `;
+            document.head.appendChild(style);
+            window.__zeroekaStableHoverStyle = true;
           }
+        } catch(_) {}
+
+        li.addEventListener('pointerenter', () => {
+          isHovering = true;
           window.__geminiPopupManager.currentHoverLi = li;
-          try { li.classList.add('zeroeka-hover'); } catch(_) {}
           console.log('Mouse entered, starting 1-second timer...');
           
           // Clear any existing hide timeout
@@ -5636,13 +5651,10 @@ const updateTextSize = (container, size) => {
             clearTimeout(popupTimeout);
             popupTimeout = null;
           }
-          // Remove highlight and hide instantly
-          try { li.classList.remove('zeroeka-hover'); } catch(_) {}
+          // Instant hide
           window.__geminiPopupManager.removeCurrentPopup();
         };
-        li.addEventListener('mouseleave', handleLeave);
         li.addEventListener('pointerleave', handleLeave);
-        li.addEventListener('mouseout', handleLeave);
         
         // Also hide on scroll
         window.addEventListener('scroll', () => {
