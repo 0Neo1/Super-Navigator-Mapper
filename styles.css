@@ -560,13 +560,10 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   display: flex !important;
   align-items: center;
   justify-content: center;
-  height: 40px;
-  width: 150% !important;
+  height: 60px;
   background-color: rgba(255, 255, 255, 0.05);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   margin-top: auto;
-  margin-left: -25%;
-  margin-right: -25%;
 }
 
 /* Hide all footer buttons but keep the container */
