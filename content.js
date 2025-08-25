@@ -5534,72 +5534,49 @@ const updateTextSize = (container, size) => {
 
           // Compute anchor at the node label (not including its children)
           const labelEl = li.querySelector(':scope > div') || li;
-          const offLabel = getOffsetWithin(labelEl, sidebarContainer);
-          const anchorHeight = labelEl.offsetHeight || 20;
+          const anchorRect = labelEl.getBoundingClientRect();
+          const panelRect = sidebarContainer.getBoundingClientRect();
           const gap = 4;
-          const maxAvailWidth = Math.max(200, Math.floor(sidebarContainer.clientWidth - 16));
+          const maxAvailWidth = Math.max(200, Math.floor(panelRect.width - 16));
           const popupWidth = Math.min(400, maxAvailWidth);
           const popupHeight = 260; // compact height
 
-          // Determine the actual scrolling container (to avoid clipping)
-          const findScrollContainer = (node) => {
-            let cur = node;
-            while (cur) {
-              try {
-                const cs = window.getComputedStyle(cur);
-                const oy = cs.overflowY;
-                if ((oy === 'auto' || oy === 'scroll') && cur.scrollHeight > cur.clientHeight) return cur;
-              } catch(_) {}
-              cur = cur.parentElement;
-            }
-            return node;
-          };
-          const scrollContainer = findScrollContainer(sidebarContainer);
+          // Visible area within the panel (viewport-based)
+          const visTop = panelRect.top + 8;
+          const visBottom = panelRect.bottom - 8;
+          const visLeft = panelRect.left + 8;
+          const visRight = panelRect.right - 8;
 
-          // Visible area within the container
-          const scrollTop = scrollContainer.scrollTop || 0;
-          const scrollLeft = scrollContainer.scrollLeft || 0;
-          const viewHeight = scrollContainer.clientHeight || sidebarContainer.clientHeight;
-          const viewWidth = scrollContainer.clientWidth || sidebarContainer.clientWidth;
-          const visibleTop = scrollTop + 8;
-          const visibleBottom = scrollTop + viewHeight - 8;
-          const visibleRight = scrollLeft + viewWidth - 8;
-
-          // Preferred below position
-          let popupLeft = Math.max(8, offLabel.left);
-          if (popupLeft + popupWidth > visibleRight) popupLeft = Math.max(8, visibleRight - popupWidth);
-
-          // Compute available space below and above
-          const belowTop = offLabel.top + anchorHeight + gap;
-          const aboveBottom = offLabel.top - gap;
-          const availableBelow = Math.max(0, visibleBottom - belowTop);
-          const availableAbove = Math.max(0, (aboveBottom - visibleTop));
+          // Preferred below
+          let popupLeft = Math.max(visLeft, Math.min(anchorRect.left, visRight - popupWidth));
+          // Available space below/above in viewport coordinates
+          const belowTop = anchorRect.bottom + gap;
+          const aboveBottom = anchorRect.top - gap;
+          const availableBelow = Math.max(0, visBottom - belowTop);
+          const availableAbove = Math.max(0, aboveBottom - visTop);
 
           let placeAbove = false;
           let computedHeight = popupHeight;
           if (availableBelow >= 120) {
-            placeAbove = false;
             computedHeight = Math.max(80, Math.min(popupHeight, availableBelow));
           } else if (availableAbove >= 120) {
             placeAbove = true;
             computedHeight = Math.max(80, Math.min(popupHeight, availableAbove));
           } else {
-            // Choose the side with more space, ensure minimum height
             if (availableAbove > availableBelow) {
               placeAbove = true;
               computedHeight = Math.max(60, Math.min(popupHeight, availableAbove));
             } else {
-              placeAbove = false;
               computedHeight = Math.max(60, Math.min(popupHeight, availableBelow));
             }
           }
 
-          let popupTop = placeAbove
-            ? Math.max(visibleTop, aboveBottom - computedHeight)
-            : Math.min(visibleBottom - computedHeight, belowTop);
+          const popupTop = placeAbove
+            ? Math.max(visTop, aboveBottom - computedHeight)
+            : Math.min(visBottom - computedHeight, belowTop);
 
           popup.style.cssText = `
-            position: absolute;
+            position: fixed;
             top: ${popupTop}px;
             left: ${popupLeft}px;
             width: ${popupWidth}px;
@@ -5619,7 +5596,7 @@ const updateTextSize = (container, size) => {
             pointer-events: none;
           `;
           popup.textContent = messageText;
-          sidebarContainer.appendChild(popup);
+          document.body.appendChild(popup);
           
           // Register this popup as the current one
           window.__geminiPopupManager.setCurrentPopup(popup, li);
