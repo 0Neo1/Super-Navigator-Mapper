@@ -570,39 +570,32 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   padding: 0 1px;
 }
 
-/* Add left side text - Support */
-.catalogeu-navigation-plugin-floatbar>.panel>.tools::before {
-  content: "Support";
+/* Footer text styling - will be created by JavaScript */
+.catalogeu-navigation-plugin-floatbar>.panel>.tools .support-text,
+.catalogeu-navigation-plugin-floatbar>.panel>.tools .feedback-text {
   color: rgba(255, 255, 255, 0.7);
   font-size: 13.5px;
   font-weight: 400;
-  pointer-events: auto;
   position: absolute;
-  left: 5px;
   top: 50%;
   transform: translateY(-50%);
+  pointer-events: auto;
   cursor: pointer;
   text-decoration: underline;
-  z-index: 5;
+  z-index: 10;
 }
 
-/* Add left side text - Support */
-.catalogeu-navigation-plugin-floatbar>.panel>.tools::before:hover {
-  color: rgba(255, 255, 255, 1);
-  text-decoration: underline;
+.catalogeu-navigation-plugin-floatbar>.panel>.tools .support-text {
+  left: 5px;
 }
 
-/* Add right side text - Feedback */
-.catalogeu-navigation-plugin-floatbar>.panel>.tools::after {
-  content: "Feedback";
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 13.5px;
-  font-weight: 400;
-  pointer-events: none;
-  position: absolute;
+.catalogeu-navigation-plugin-floatbar>.panel>.tools .feedback-text {
   right: 5px;
-  top: 50%;
-  transform: translateY(-50%);
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.tools .support-text:hover,
+.catalogeu-navigation-plugin-floatbar>.panel>.tools .feedback-text:hover {
+  color: rgba(255, 255, 255, 1);
 }
 
 

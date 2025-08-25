@@ -6618,58 +6618,49 @@ const updateTextSize = (container, size) => {
       }
     }, 500);
 
-    // Add support click functionality for footer
-    const addSupportClickFunctionality = () => {
+    // Add footer text functionality
+    const addFooterTextFunctionality = () => {
       try {
         const footer = document.querySelector('.catalogeu-navigation-plugin-floatbar .panel .tools');
-        if (footer && !footer.__supportClickBound) {
-          footer.__supportClickBound = true;
+        if (footer && !footer.__footerTextBound) {
+          footer.__footerTextBound = true;
           
           // Create clickable support element
           const supportElement = document.createElement('div');
+          supportElement.className = 'support-text';
           supportElement.textContent = 'Support';
-          supportElement.style.cssText = `
-            position: absolute;
-            left: 5px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 13.5px;
-            font-weight: 400;
-            cursor: pointer;
-            text-decoration: underline;
-            pointer-events: auto;
-            z-index: 10;
-          `;
           
-          // Add hover effect
-          supportElement.addEventListener('mouseenter', () => {
-            supportElement.style.color = 'rgba(255, 255, 255, 1)';
-          });
-          
-          supportElement.addEventListener('mouseleave', () => {
-            supportElement.style.color = 'rgba(255, 255, 255, 0.7)';
-          });
-          
-          // Add click functionality
+          // Add click functionality for support
           supportElement.addEventListener('click', () => {
+            console.log('[Support] Support clicked, opening email client...');
             const mailtoLink = 'mailto:support@zeroeka.com';
             window.open(mailtoLink, '_blank');
           });
           
-          footer.appendChild(supportElement);
+          // Create feedback element
+          const feedbackElement = document.createElement('div');
+          feedbackElement.className = 'feedback-text';
+          feedbackElement.textContent = 'Feedback';
           
-          // Hide the original ::before pseudo-element
-          footer.style.setProperty('--support-text', 'none');
+          // Add click functionality for feedback (placeholder for now)
+          feedbackElement.addEventListener('click', () => {
+            console.log('[Feedback] Feedback clicked');
+            // TODO: Add feedback functionality
+          });
+          
+          footer.appendChild(supportElement);
+          footer.appendChild(feedbackElement);
+          
+          console.log('[Footer] Support and Feedback elements added successfully');
         }
       } catch(err) {
-        console.error('[Support] Error adding support click functionality:', err);
+        console.error('[Footer] Error adding footer text functionality:', err);
       }
     };
     
-    // Call support functionality setup
-    setTimeout(addSupportClickFunctionality, 1000);
-    setTimeout(addSupportClickFunctionality, 2000);
+    // Call footer functionality setup
+    setTimeout(addFooterTextFunctionality, 1000);
+    setTimeout(addFooterTextFunctionality, 2000);
 
     // Detect SPA route changes via History API
     try {
