@@ -443,43 +443,28 @@ body[disselect] {
   gap: 3px;
 }
 
-.catalogeu-navigation-plugin-floatbar>.panel>.header>.sync svg,
-.catalogeu-navigation-plugin-floatbar>.panel>.header>.fold svg {
-  filter: brightness(1.5) contrast(1.2) !important;
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.sync svg {
+  filter: brightness(1.5) contrast(1.2);
   color: white !important;
 }
 
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.sync svg path,
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.sync svg rect,
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.sync svg circle,
-.catalogeu-navigation-plugin-floatbar>.panel>.header>.sync svg line,
-.catalogeu-navigation-plugin-floatbar>.panel>.header>.fold svg path,
-.catalogeu-navigation-plugin-floatbar>.panel>.header>.fold svg rect,
-.catalogeu-navigation-plugin-floatbar>.panel>.header>.fold svg circle,
-.catalogeu-navigation-plugin-floatbar>.panel>.header>.fold svg line {
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.sync svg line {
   fill: white !important;
   stroke: white !important;
 }
 
-/* Force white highlighting for fold button with higher specificity */
-.catalogeu-navigation-plugin-floatbar>.panel>.header>.fold svg * {
-  fill: white !important;
-  stroke: white !important;
-  color: white !important;
+/* ChatGPT-style sync button active state */
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.sync.active {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  border-radius: 4px !important;
 }
 
-/* Override any existing fold button SVG styles */
-.catalogeu-navigation-plugin-floatbar .fold svg,
-.catalogeu-navigation-plugin-floatbar>.buttons>.button.fold svg {
-  filter: brightness(1.5) contrast(1.2) !important;
-  color: white !important;
-}
-
-.catalogeu-navigation-plugin-floatbar .fold svg *,
-.catalogeu-navigation-plugin-floatbar>.buttons>.button.fold svg * {
-  fill: white !important;
-  stroke: white !important;
-  color: white !important;
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.sync:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 4px !important;
 }
 
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.sync.inactive,

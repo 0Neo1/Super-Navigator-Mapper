@@ -6281,26 +6281,34 @@ const updateTextSize = (container, size) => {
             }
             
             // 3. Sync button (right of fold button) - controls main page message folding
-            const syncBtn = fb2.querySelector('.header .sync');
+            let syncBtn = fb2.querySelector('.header .sync');
+            
+            // If sync button doesn't exist, create a ChatGPT-style one
+            if (!syncBtn) {
+              syncBtn = document.createElement('button');
+              syncBtn.className = 'sync';
+              syncBtn.title = lang('syncTitle') || 'Fold/unfold conversations';
+              syncBtn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              `;
+              
+              // Insert after fold button
+              const foldBtn = fb2.querySelector('.header .fold');
+              if (foldBtn && foldBtn.parentNode) {
+                foldBtn.parentNode.insertBefore(syncBtn, foldBtn.nextSibling);
+              } else {
+                // Fallback: append to header
+                const header = fb2.querySelector('.header');
+                if (header) header.appendChild(syncBtn);
+              }
+            }
+            
             if (syncBtn && !syncBtn.__geminiSyncBound) {
               syncBtn.__geminiSyncBound = true;
-              
-              // Replace sync button content with folder-open-w.svg image
-              try {
-                const img = document.createElement('img');
-                img.src = chrome.runtime.getURL('images/folder-open-w.svg');
-                img.style.cssText = 'width: 16px; height: 16px; filter: brightness(2) contrast(1.5) saturate(0); border: 2px solid #ffffff; border-radius: 4px; padding: 2px; background: rgba(255, 255, 255, 0.1); box-shadow: 0 0 8px rgba(255, 255, 255, 0.8), 0 0 12px rgba(255, 255, 255, 0.6), inset 0 0 4px rgba(255, 255, 255, 0.2);';
-                img.alt = 'Fold/unfold conversations';
-                img.title = 'Fold/unfold conversations';
-                
-                // Clear existing content and add the image
-                syncBtn.innerHTML = '';
-                syncBtn.appendChild(img);
-                console.log('[Gemini] Sync button icon replaced with folder-open-w.svg with box styling');
-              } catch(err) {
-                console.warn('[Gemini] Could not replace sync button icon:', err);
-              }
-              
               // Helper: inject main-page fold CSS once
               const ensureMainFoldStyles = () => {
                 try {
@@ -6352,9 +6360,12 @@ const updateTextSize = (container, size) => {
                 const isCurrentlyFolded = document.body.classList.contains('zeroeka-gemini-fold');
                 setMainFold(!isCurrentlyFolded);
                 
+                // Toggle button state for visual feedback
+                syncBtn.classList.toggle('active', !isCurrentlyFolded);
+                
                 console.log('[Gemini] Main page fold toggled:', !isCurrentlyFolded);
               }, true);
-              console.log('[Gemini] Sync button bound successfully');
+              console.log('[Gemini] ChatGPT-style sync button created and bound successfully');
             }
             
             if (!deepBtn && !foldBtn && !syncBtn) {
