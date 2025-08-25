@@ -5541,18 +5541,62 @@ const updateTextSize = (container, size) => {
           const popupWidth = Math.min(400, maxAvailWidth);
           const popupHeight = 260; // compact height
 
-          // Strictly below the node label only
-          let popupTop = offLabel.top + anchorHeight + gap;
-          let popupLeft = Math.max(8, offLabel.left);
+          // Determine the actual scrolling container (to avoid clipping)
+          const findScrollContainer = (node) => {
+            let cur = node;
+            while (cur) {
+              try {
+                const cs = window.getComputedStyle(cur);
+                const oy = cs.overflowY;
+                if ((oy === 'auto' || oy === 'scroll') && cur.scrollHeight > cur.clientHeight) return cur;
+              } catch(_) {}
+              cur = cur.parentElement;
+            }
+            return node;
+          };
+          const scrollContainer = findScrollContainer(sidebarContainer);
 
-          // Clamp horizontally within container
-          const visibleRight = (sidebarContainer.scrollLeft || 0) + sidebarContainer.clientWidth - 8;
+          // Visible area within the container
+          const scrollTop = scrollContainer.scrollTop || 0;
+          const scrollLeft = scrollContainer.scrollLeft || 0;
+          const viewHeight = scrollContainer.clientHeight || sidebarContainer.clientHeight;
+          const viewWidth = scrollContainer.clientWidth || sidebarContainer.clientWidth;
+          const visibleTop = scrollTop + 8;
+          const visibleBottom = scrollTop + viewHeight - 8;
+          const visibleRight = scrollLeft + viewWidth - 8;
+
+          // Preferred below position
+          let popupLeft = Math.max(8, offLabel.left);
           if (popupLeft + popupWidth > visibleRight) popupLeft = Math.max(8, visibleRight - popupWidth);
 
-          // If not enough space below, reduce height to fit instead of moving above
-          const visibleBottom = (sidebarContainer.scrollTop || 0) + sidebarContainer.clientHeight - 8;
-          const availableBelow = Math.max(60, visibleBottom - popupTop);
-          const computedHeight = Math.max(60, Math.min(popupHeight, availableBelow));
+          // Compute available space below and above
+          const belowTop = offLabel.top + anchorHeight + gap;
+          const aboveBottom = offLabel.top - gap;
+          const availableBelow = Math.max(0, visibleBottom - belowTop);
+          const availableAbove = Math.max(0, (aboveBottom - visibleTop));
+
+          let placeAbove = false;
+          let computedHeight = popupHeight;
+          if (availableBelow >= 120) {
+            placeAbove = false;
+            computedHeight = Math.max(80, Math.min(popupHeight, availableBelow));
+          } else if (availableAbove >= 120) {
+            placeAbove = true;
+            computedHeight = Math.max(80, Math.min(popupHeight, availableAbove));
+          } else {
+            // Choose the side with more space, ensure minimum height
+            if (availableAbove > availableBelow) {
+              placeAbove = true;
+              computedHeight = Math.max(60, Math.min(popupHeight, availableAbove));
+            } else {
+              placeAbove = false;
+              computedHeight = Math.max(60, Math.min(popupHeight, availableBelow));
+            }
+          }
+
+          let popupTop = placeAbove
+            ? Math.max(visibleTop, aboveBottom - computedHeight)
+            : Math.min(visibleBottom - computedHeight, belowTop);
 
           popup.style.cssText = `
             position: absolute;
