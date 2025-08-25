@@ -5643,35 +5643,30 @@ const updateTextSize = (container, size) => {
       try {
         const parentOnlyMode = !!window.__geminiParentOnly; // Fold button - shows only parents
         const childLevelMode = !!window.__geminiConcise;     // Deep button - shows parent + child
-        
-        if (parentOnlyMode) {
-          // Hide all child nodes and subnodes (depth >= 2)
-          const allChildAndSubNodes = ul.querySelectorAll('ul ul li');
-          allChildAndSubNodes.forEach((li) => {
-            li.style.display = 'none';
-          });
-        } else if (childLevelMode) {
-          // Hide only subnodes (depth >= 3), keep child nodes visible
-          const subNodes = ul.querySelectorAll('ul ul ul li');
-          subNodes.forEach((li) => {
-            li.style.display = 'none';
-          });
-          // Ensure child nodes are visible (depth = 2)
-          const childNodes = ul.querySelectorAll('ul ul li');
-          childNodes.forEach((li) => {
-            // Only show if it's not a deeper subnode
-            const depth = li.closest('ul ul ul ul') ? 4 : li.closest('ul ul ul') ? 3 : 2;
-            if (depth === 2) {
-              li.style.display = '';
-            }
-          });
-        } else {
-          // Show everything - no folding
-          const allNodes = ul.querySelectorAll('ul ul li');
-          allNodes.forEach((li) => {
+
+        // Compute depth for each li relative to this root ul
+        const allLis = ul.querySelectorAll('li');
+        allLis.forEach((li) => {
+          let depth = 1; // top-level item under root ul
+          let node = li;
+          while (node && node !== ul) {
+            const parentUl = node.parentElement && node.parentElement.closest('ul');
+            if (!parentUl) break;
+            if (parentUl !== ul) depth += 1;
+            node = parentUl.parentElement && parentUl.parentElement.closest('li');
+          }
+
+          if (parentOnlyMode) {
+            // Show only depth 1, hide depth >= 2
+            li.style.display = depth === 1 ? '' : 'none';
+          } else if (childLevelMode) {
+            // Show depth 1 and 2, hide depth >= 3
+            li.style.display = depth <= 2 ? '' : 'none';
+          } else {
+            // Show all
             li.style.display = '';
-          });
-        }
+          }
+        });
       } catch(_) {}
     };
     const findNextModelWithContent = (blocks, fromIdx) => {
