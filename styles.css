@@ -445,7 +445,7 @@ body[disselect] {
 
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.sync svg,
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.fold svg {
-  filter: brightness(1.5) contrast(1.2);
+  filter: brightness(1.5) contrast(1.2) !important;
   color: white !important;
 }
 
@@ -459,6 +459,27 @@ body[disselect] {
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.fold svg line {
   fill: white !important;
   stroke: white !important;
+}
+
+/* Force white highlighting for fold button with higher specificity */
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.fold svg * {
+  fill: white !important;
+  stroke: white !important;
+  color: white !important;
+}
+
+/* Override any existing fold button SVG styles */
+.catalogeu-navigation-plugin-floatbar .fold svg,
+.catalogeu-navigation-plugin-floatbar>.buttons>.button.fold svg {
+  filter: brightness(1.5) contrast(1.2) !important;
+  color: white !important;
+}
+
+.catalogeu-navigation-plugin-floatbar .fold svg *,
+.catalogeu-navigation-plugin-floatbar>.buttons>.button.fold svg * {
+  fill: white !important;
+  stroke: white !important;
+  color: white !important;
 }
 
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.sync.inactive,
