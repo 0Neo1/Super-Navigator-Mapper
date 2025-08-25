@@ -570,33 +570,7 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   padding: 0 1px;
 }
 
-/* Footer text styling - will be created by JavaScript */
-.catalogeu-navigation-plugin-floatbar>.panel>.tools .support-text,
-.catalogeu-navigation-plugin-floatbar>.panel>.tools .feedback-text {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 13.5px;
-  font-weight: 400;
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: auto;
-  cursor: pointer;
-  text-decoration: underline;
-  z-index: 10;
-}
 
-.catalogeu-navigation-plugin-floatbar>.panel>.tools .support-text {
-  left: 5px;
-}
-
-.catalogeu-navigation-plugin-floatbar>.panel>.tools .feedback-text {
-  right: 5px;
-}
-
-.catalogeu-navigation-plugin-floatbar>.panel>.tools .support-text:hover,
-.catalogeu-navigation-plugin-floatbar>.panel>.tools .feedback-text:hover {
-  color: rgba(255, 255, 255, 1);
-}
 
 
 
