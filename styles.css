@@ -443,7 +443,8 @@ body[disselect] {
   gap: 3px;
 }
 
-.catalogeu-navigation-plugin-floatbar>.panel>.header>.sync svg {
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.sync svg,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.fold svg {
   filter: brightness(1.5) contrast(1.2);
   color: white !important;
 }
@@ -451,7 +452,11 @@ body[disselect] {
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.sync svg path,
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.sync svg rect,
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.sync svg circle,
-.catalogeu-navigation-plugin-floatbar>.panel>.header>.sync svg line {
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.sync svg line,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.fold svg path,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.fold svg rect,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.fold svg circle,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.fold svg line {
   fill: white !important;
   stroke: white !important;
 }
