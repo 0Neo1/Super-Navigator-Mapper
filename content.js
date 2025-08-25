@@ -6237,10 +6237,53 @@ const updateTextSize = (container, size) => {
               console.log('[Gemini] Deep button bound successfully');
             }
             
-            // 2. Fold button (leftmost in header) - toggles between parent-only and parent+child
+            // 2. Fold button (leftmost in header) - toggles between parent-only and parent+child (SIDEBAR ONLY)
             const foldBtn = fb2.querySelector('.header .fold');
             if (foldBtn && !foldBtn.__geminiFoldBound) {
               foldBtn.__geminiFoldBound = true;
+              foldBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[Gemini] Fold button clicked - toggling between parent-only and parent+child (sidebar only)');
+                
+                // Toggle logic: if currently showing parent-only, expand to parent+child
+                // If currently showing anything else (parent+child or full), collapse to parent-only
+                const currentlyParentOnly = !!window.__geminiParentOnly;
+                
+                if (currentlyParentOnly) {
+                  // Currently parent-only -> expand to parent+child (concise mode)
+                  try { window.__geminiParentOnly = false; } catch(_) {}
+                  try { window.__geminiConcise = true; } catch(_) {}
+                  console.log('[Gemini] Unfolding to parent+child level');
+                } else {
+                  // Currently parent+child or full -> collapse to parent-only
+                  try { window.__geminiParentOnly = true; } catch(_) {}
+                  try { window.__geminiConcise = false; } catch(_) {}
+                  console.log('[Gemini] Folding to parent-only level');
+                }
+                
+                console.log('[Gemini] New modes - Parent-only:', window.__geminiParentOnly, 'Child-level:', window.__geminiConcise);
+                try { 
+                  chrome?.storage?.local && chrome.storage.local.set({ 
+                    geminiConcise: !!window.__geminiConcise,
+                    geminiParentOnly: !!window.__geminiParentOnly
+                  }); 
+                } catch(_) {}
+                
+                const treeUl = getFloatbarUl();
+                if (treeUl) {
+                  applyGeminiFold(treeUl);
+                } else {
+                  console.warn('[Gemini] No tree UL found for folding');
+                }
+              }, true);
+              console.log('[Gemini] Fold button bound successfully');
+            }
+            
+            // 3. Sync button (right of fold button) - controls main page message folding
+            const syncBtn = fb2.querySelector('.header .sync');
+            if (syncBtn && !syncBtn.__geminiSyncBound) {
+              syncBtn.__geminiSyncBound = true;
               // Helper: inject main-page fold CSS once
               const ensureMainFoldStyles = () => {
                 try {
@@ -6283,51 +6326,22 @@ const updateTextSize = (container, size) => {
                   else body.classList.remove('zeroeka-gemini-fold');
                 } catch(_) {}
               };
-              foldBtn.addEventListener('click', (e) => {
+              syncBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('[Gemini] Fold button clicked - toggling between parent-only and parent+child');
+                console.log('[Gemini] Sync button clicked - toggling main page message folding');
                 
-                // Toggle logic: if currently showing parent-only, expand to parent+child
-                // If currently showing anything else (parent+child or full), collapse to parent-only
-                const currentlyParentOnly = !!window.__geminiParentOnly;
+                // Toggle main page message folding
+                const isCurrentlyFolded = document.body.classList.contains('zeroeka-gemini-fold');
+                setMainFold(!isCurrentlyFolded);
                 
-                if (currentlyParentOnly) {
-                  // Currently parent-only -> expand to parent+child (concise mode)
-                  try { window.__geminiParentOnly = false; } catch(_) {}
-                  try { window.__geminiConcise = true; } catch(_) {}
-                  console.log('[Gemini] Unfolding to parent+child level');
-                  // Also unfold main page (remove clamp)
-                  setMainFold(false);
-                } else {
-                  // Currently parent+child or full -> collapse to parent-only
-                  try { window.__geminiParentOnly = true; } catch(_) {}
-                  try { window.__geminiConcise = false; } catch(_) {}
-                  console.log('[Gemini] Folding to parent-only level');
-                  // Also fold main page (apply clamp)
-                  setMainFold(true);
-                }
-                
-                console.log('[Gemini] New modes - Parent-only:', window.__geminiParentOnly, 'Child-level:', window.__geminiConcise);
-                try { 
-                  chrome?.storage?.local && chrome.storage.local.set({ 
-                    geminiConcise: !!window.__geminiConcise,
-                    geminiParentOnly: !!window.__geminiParentOnly
-                  }); 
-                } catch(_) {}
-                
-                const treeUl = getFloatbarUl();
-                if (treeUl) {
-                  applyGeminiFold(treeUl);
-                } else {
-                  console.warn('[Gemini] No tree UL found for folding');
-                }
+                console.log('[Gemini] Main page fold toggled:', !isCurrentlyFolded);
               }, true);
-              console.log('[Gemini] Fold button bound successfully');
+              console.log('[Gemini] Sync button bound successfully');
             }
             
-            if (!deepBtn && !foldBtn) {
-              console.warn('[Gemini] Neither deep nor fold buttons found');
+            if (!deepBtn && !foldBtn && !syncBtn) {
+              console.warn('[Gemini] No deep, fold, or sync buttons found');
             }
           } catch(err) {
             console.error('[Gemini] Error binding folding buttons:', err);
