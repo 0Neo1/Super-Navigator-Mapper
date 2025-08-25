@@ -5502,55 +5502,38 @@ const updateTextSize = (container, size) => {
             messageText = words.slice(0, 50).join(' ') + '...';
           }
           
-          // Create and position popup within the expanded sidebar, just below LI
+          // Create and position popup with simplified logic
           const popup = document.createElement('div');
-          const rect = li.getBoundingClientRect();
+          console.log('Creating popup for:', li.textContent?.substring(0, 50));
+          
+          // Find sidebar container
           const sidebarContainer = li.closest('.catalogeu-navigation-plugin-floatbar .panel')
             || li.closest('.catalogeu-navigation-plugin-floatbar')
             || li.closest('.panel');
-          if (!sidebarContainer) return;
-          const scRect = sidebarContainer.getBoundingClientRect();
-          if (!rect || rect.width === 0 || rect.height === 0 || scRect.width === 0 || scRect.height === 0) return;
-
-          // Ensure container is positioned so absolute children use it as reference
+          
+          if (!sidebarContainer) {
+            console.log('No sidebar container found');
+            return;
+          }
+          
+          console.log('Sidebar container found:', sidebarContainer);
+          
+          // Ensure container has relative positioning
           try {
             const scPos = window.getComputedStyle(sidebarContainer).position;
             if (!scPos || scPos === 'static') {
               sidebarContainer.style.position = 'relative';
+              console.log('Set sidebar container to relative positioning');
             }
           } catch(_) {}
-
-          // Position popup directly relative to the list item, not the sidebar container
-          const liRect = li.getBoundingClientRect();
-          const containerRect = sidebarContainer.getBoundingClientRect();
           
-          // Calculate position relative to the list item
-          let popupTop, popupLeft;
-          const popupWidth = 350; // Fixed width for consistency
+          // Simple positioning: just below the list item
+          const popupTop = li.offsetTop + li.offsetHeight + 4;
+          const popupLeft = Math.max(8, li.offsetLeft);
+          const popupWidth = 350;
           const popupHeight = 250;
           
-          // Try to position below first, then above if not enough space
-          const spaceBelow = containerRect.bottom - liRect.bottom;
-          const spaceAbove = liRect.top - containerRect.top;
-          
-          if (spaceBelow >= popupHeight + 8) {
-            // Position below the list item
-            popupTop = li.offsetTop + li.offsetHeight + 4;
-            popupLeft = Math.max(8, li.offsetLeft);
-          } else if (spaceAbove >= popupHeight + 8) {
-            // Position above the list item
-            popupTop = li.offsetTop - popupHeight - 4;
-            popupLeft = Math.max(8, li.offsetLeft);
-          } else {
-            // Fallback: position below with scrolling if needed
-            popupTop = li.offsetTop + li.offsetHeight + 4;
-            popupLeft = Math.max(8, li.offsetLeft);
-          }
-          
-          // Ensure popup doesn't go outside sidebar bounds
-          if (popupLeft + popupWidth > sidebarContainer.offsetWidth - 8) {
-            popupLeft = Math.max(8, sidebarContainer.offsetWidth - popupWidth - 8);
-          }
+          console.log('Popup positioning - Top:', popupTop, 'Left:', popupLeft, 'Item offsetTop:', li.offsetTop);
 
           popup.style.cssText = `
             position: absolute;
