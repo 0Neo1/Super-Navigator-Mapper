@@ -5358,10 +5358,29 @@ const updateTextSize = (container, size) => {
       
       // Hover popup for Gemini message tree: show at least 50 words, hide on leave
       if (refEl) {
-        let popup = null;
         let popupTimeout = null;
         let hideTimeout = null;
         let isHovering = false;
+        
+        // Global popup manager - ensure only one popup exists at a time
+        if (!window.__geminiPopupManager) {
+          window.__geminiPopupManager = {
+            currentPopup: null,
+            currentLi: null,
+            removeCurrentPopup: function() {
+              if (this.currentPopup) {
+                this.currentPopup.remove();
+                this.currentPopup = null;
+                this.currentLi = null;
+              }
+            },
+            setCurrentPopup: function(popup, li) {
+              this.removeCurrentPopup();
+              this.currentPopup = popup;
+              this.currentLi = li;
+            }
+          };
+        }
         
         const removePopup = () => {
           if (popupTimeout) {
@@ -5372,14 +5391,15 @@ const updateTextSize = (container, size) => {
             clearTimeout(hideTimeout);
             hideTimeout = null;
           }
-          if (popup) {
-            popup.remove();
-            popup = null;
+          // Only remove if this is the current popup
+          if (window.__geminiPopupManager.currentLi === li) {
+            window.__geminiPopupManager.removeCurrentPopup();
           }
         };
         
         const showPopup = () => {
-          if (popup) return;
+          // Don't show if already showing for this item
+          if (window.__geminiPopupManager.currentLi === li) return;
           
           // Enhanced text extraction: try to find the actual message content
           let messageText = '';
@@ -5445,7 +5465,7 @@ const updateTextSize = (container, size) => {
           }
           
           // Create and position popup
-          popup = document.createElement('div');
+          const popup = document.createElement('div');
           const rect = li.getBoundingClientRect();
           popup.style.cssText = `
             position: fixed;
@@ -5469,6 +5489,9 @@ const updateTextSize = (container, size) => {
           `;
           popup.textContent = messageText;
           document.body.appendChild(popup);
+          
+          // Register this popup as the current one
+          window.__geminiPopupManager.setCurrentPopup(popup, li);
         };
         
         li.addEventListener('mouseenter', () => {
