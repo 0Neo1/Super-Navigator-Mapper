@@ -560,11 +560,10 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   display: block !important;
   height: 45px;
   background-color: rgba(255, 255, 255, 0.05);
-  background-image: url('chrome-extension://__MSG_@@extension_id__/images/zeroeka_main.png');
+  background-image: url('chrome-extension://__MSG_@@extension_id__/images/zeroeka_solo.png');
   background-size: 24px 24px;
   background-repeat: no-repeat;
   background-position: center;
-  background-attachment: local;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   margin-top: auto;
   position: relative;
@@ -595,12 +594,6 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   right: 5px;
   top: 50%;
   transform: translateY(-50%);
-}
-
-/* Ensure background image is visible */
-.catalogeu-navigation-plugin-floatbar>.panel>.tools {
-  min-height: 45px;
-  z-index: 1;
 }
 
 
