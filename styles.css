@@ -560,7 +560,7 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   display: flex !important;
   align-items: center;
   justify-content: center;
-  height: 60px;
+  height: 45px;
   background-color: rgba(255, 255, 255, 0.05);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   margin-top: auto;
