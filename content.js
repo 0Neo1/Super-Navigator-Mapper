@@ -337,25 +337,6 @@ const createZeroEkaIconButton = () => {
       });
       
     } catch(_) {}
-    // Inject stable hover styles once to prevent visual flicker
-    try {
-      if (!window.__geminiHoverStyle) {
-        const style = document.createElement('style');
-        style.setAttribute('data-zeroeka', 'gemini-hover-style');
-        style.textContent = `
-          .catalogeu-navigation-plugin-floatbar .panel li.zeroeka-hover > div {
-            background: rgba(255,255,255,0.06);
-            outline: 1px solid rgba(255,255,255,0.15);
-            border-radius: 6px;
-            transition: none !important;
-          }
-          .catalogeu-navigation-plugin-floatbar .panel li > div { transition: none !important; }
-          .catalogeu-navigation-plugin-floatbar .panel li:hover > div { background: transparent !important; outline: none !important; }
-        `;
-        document.head.appendChild(style);
-        window.__geminiHoverStyle = true;
-      }
-    } catch(_) {}
     return els.filter(Boolean);
   }
   function getFooterEls() {
@@ -476,6 +457,30 @@ const createZeroEkaIconButton = () => {
       }
       
     } catch(_) {}
+    
+    // Inject stable hover styles once to prevent visual flicker
+    try {
+      if (!window.__geminiHoverStyle) {
+        const style = document.createElement('style');
+        style.setAttribute('data-zeroeka', 'gemini-hover-style');
+        style.textContent = `
+          .catalogeu-navigation-plugin-floatbar .panel li.zeroeka-hover > div {
+            background: rgba(255,255,255,0.08) !important;
+            transition: none !important;
+          }
+          .catalogeu-navigation-plugin-floatbar .panel li > div { 
+            transition: none !important; 
+          }
+          .catalogeu-navigation-plugin-floatbar .panel li:hover > div { 
+            background: rgba(255,255,255,0.08) !important;
+            transition: none !important;
+          }
+        `;
+        document.head.appendChild(style);
+        window.__geminiHoverStyle = true;
+      }
+    } catch(_) {}
+    
     return els.filter(Boolean);
   }
   // Strong CSS-based hider so SPA reflows/virtual DOM cannot undo visibility
@@ -5614,9 +5619,6 @@ const updateTextSize = (container, size) => {
             word-wrap: break-word;
             overflow: auto;
             pointer-events: none;
-            will-change: top, left;
-            backface-visibility: hidden;
-            transform: translateZ(0);
           `;
           popup.textContent = messageText;
           document.body.appendChild(popup);
@@ -5625,16 +5627,19 @@ const updateTextSize = (container, size) => {
           window.__geminiPopupManager.setCurrentPopup(popup, li);
         };
         
-        li.addEventListener('pointerenter', () => {
-          if (window.__geminiPopupManager.currentHoverLi === li && isHovering) return;
-          // Debounce highlight slightly to avoid rapid repaint flicker
-          if (hoverClassTimeout) { clearTimeout(hoverClassTimeout); hoverClassTimeout = null; }
-          hoverClassTimeout = setTimeout(() => {
-            try { li.classList.add('zeroeka-hover'); } catch(_) {}
-          }, 120);
+        li.addEventListener('mouseenter', () => {
           isHovering = true;
           window.__geminiPopupManager.currentHoverLi = li;
           console.log('Mouse entered, starting 1-second timer...');
+          
+          // Add hover class with slight debounce to prevent flicker
+          if (hoverClassTimeout) {
+            clearTimeout(hoverClassTimeout);
+            hoverClassTimeout = null;
+          }
+          hoverClassTimeout = setTimeout(() => {
+            try { li.classList.add('zeroeka-hover'); } catch(_) {}
+          }, 50);
           
           // Clear any existing hide timeout
           if (hideTimeout) {
@@ -5664,12 +5669,13 @@ const updateTextSize = (container, size) => {
             clearTimeout(hoverClassTimeout);
             hoverClassTimeout = null;
           }
-          // Instant hide
-          window.__geminiPopupManager.removeCurrentPopup();
+          // Remove hover class and hide popup instantly
           try { li.classList.remove('zeroeka-hover'); } catch(_) {}
+          window.__geminiPopupManager.removeCurrentPopup();
         };
+        li.addEventListener('mouseleave', handleLeave);
         li.addEventListener('pointerleave', handleLeave);
-        // Remove legacy mouse events to avoid duplicate enter/leave churn
+        li.addEventListener('mouseout', handleLeave);
         
         // Also hide on scroll
         window.addEventListener('scroll', () => {
