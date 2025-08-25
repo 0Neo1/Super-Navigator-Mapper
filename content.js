@@ -5368,11 +5368,18 @@ const updateTextSize = (container, size) => {
             currentPopup: null,
             currentLi: null,
             currentHoverLi: null,
+            currentTimer: null,
             removeCurrentPopup: function() {
               if (this.currentPopup) {
                 this.currentPopup.remove();
                 this.currentPopup = null;
                 this.currentLi = null;
+              }
+            },
+            clearTimer: function() {
+              if (this.currentTimer) {
+                try { clearTimeout(this.currentTimer); } catch(_) {}
+                this.currentTimer = null;
               }
             },
             setCurrentPopup: function(popup, li) {
@@ -5569,13 +5576,17 @@ const updateTextSize = (container, size) => {
             hideTimeout = null;
           }
           
-          // Start timer to show popup
+          // Cancel any global pending timer from previous node
+          try { window.__geminiPopupManager.clearTimer(); } catch(_) {}
+
+          // Start timer to show popup (track globally to prevent stale parent popups)
           popupTimeout = setTimeout(() => {
             console.log('1-second timer completed, showing popup...');
-            if (isHovering) {
+            if (isHovering && window.__geminiPopupManager.currentHoverLi === li) {
               showPopup();
             }
           }, 1000); // 1 second delay before showing popup
+          try { window.__geminiPopupManager.currentTimer = popupTimeout; } catch(_) {}
         });
         
         const handleLeave = () => {
@@ -5587,6 +5598,7 @@ const updateTextSize = (container, size) => {
             clearTimeout(popupTimeout);
             popupTimeout = null;
           }
+          try { window.__geminiPopupManager.clearTimer(); } catch(_) {}
           // Instant hide
           window.__geminiPopupManager.removeCurrentPopup();
         };
