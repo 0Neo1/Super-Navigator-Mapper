@@ -565,7 +565,7 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   margin-top: auto;
   position: relative;
-  padding: 0 20px;
+  padding: 0 5px;
 }
 
 /* Add left side text - Support */
