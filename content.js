@@ -6289,14 +6289,14 @@ const updateTextSize = (container, size) => {
               try {
                 const img = document.createElement('img');
                 img.src = chrome.runtime.getURL('images/folder-open-w.svg');
-                img.style.cssText = 'width: 16px; height: 16px; filter: brightness(1.5) contrast(1.2);';
+                img.style.cssText = 'width: 16px; height: 16px; filter: brightness(1.5) contrast(1.2); border: 2px solid white; border-radius: 4px; padding: 2px; background: rgba(255, 255, 255, 0.1);';
                 img.alt = 'Fold/unfold conversations';
                 img.title = 'Fold/unfold conversations';
                 
                 // Clear existing content and add the image
                 syncBtn.innerHTML = '';
                 syncBtn.appendChild(img);
-                console.log('[Gemini] Sync button icon replaced with folder-open-w.svg');
+                console.log('[Gemini] Sync button icon replaced with folder-open-w.svg with box styling');
               } catch(err) {
                 console.warn('[Gemini] Could not replace sync button icon:', err);
               }
