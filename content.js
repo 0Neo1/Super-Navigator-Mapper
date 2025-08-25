@@ -5357,7 +5357,7 @@ const updateTextSize = (container, size) => {
       li.appendChild(div);
       
       // Hover popup for Gemini message tree: show at least 50 words, hide on leave
-      if (refEl) {
+      {
         let popupTimeout = null;
         let hideTimeout = null;
         let isHovering = false;
@@ -5491,10 +5491,19 @@ const updateTextSize = (container, size) => {
             if (!messageText && refEl && refEl.textContent) {
               messageText = refEl.textContent.trim();
             }
+
+            // Strategy 5: Fallback to the LI label text for root/parent nodes
+            if (!messageText) {
+              try {
+                const labelEl = li.querySelector(':scope > div');
+                const labelText = (labelEl && labelEl.textContent) ? labelEl.textContent.trim() : '';
+                if (labelText) messageText = labelText;
+              } catch(_) {}
+            }
             
           } catch (_) {}
           
-          if (!messageText || messageText.length < 10) return;
+          if (!messageText || messageText.length < 3) return;
           
           // Show at least 50 words; if longer, truncate to first 50 words
           const words = messageText.split(/\s+/);
