@@ -6289,7 +6289,7 @@ const updateTextSize = (container, size) => {
               try {
                 const img = document.createElement('img');
                 img.src = chrome.runtime.getURL('images/folder-open-w.svg');
-                img.style.cssText = 'width: 16px; height: 16px; filter: brightness(1.5) contrast(1.2) invert(1) brightness(1.5); border: 2px solid white; border-radius: 4px; padding: 2px; background: rgba(255, 255, 255, 0.1);';
+                img.style.cssText = 'width: 16px; height: 16px; filter: brightness(2) contrast(1.5) saturate(0); border: 2px solid white; border-radius: 4px; padding: 2px; background: rgba(255, 255, 255, 0.1);';
                 img.alt = 'Fold/unfold conversations';
                 img.title = 'Fold/unfold conversations';
                 
