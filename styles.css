@@ -467,15 +467,29 @@ body[disselect] {
   border-radius: 4px !important;
 }
 
-/* ChatGPT fold button active state for main page folding */
-.catalogeu-navigation-plugin-floatbar>.panel>.header>.fold.active {
-  background-color: rgba(255, 255, 255, 0.2) !important;
-  border-radius: 4px !important;
+/* ChatGPT main page fold styles */
+body.zeroeka-chatgpt-fold [data-message-author-role="user"] .markdown,
+body.zeroeka-chatgpt-fold [data-message-author-role="user"] .prose,
+body.zeroeka-chatgpt-fold [data-message-author-role="assistant"] .markdown,
+body.zeroeka-chatgpt-fold [data-message-author-role="assistant"] .prose,
+body.zeroeka-chatgpt-fold [data-message-author="user"] .markdown,
+body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown {
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 1 !important;
+  overflow: hidden !important;
+  white-space: normal !important;
+  max-height: 1.6em !important;
 }
 
-.catalogeu-navigation-plugin-floatbar>.panel>.header>.fold:hover {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  border-radius: 4px !important;
+/* Hide heavy blocks when ChatGPT is folded */
+body.zeroeka-chatgpt-fold [data-message-author-role="assistant"] .markdown img,
+body.zeroeka-chatgpt-fold [data-message-author-role="assistant"] .markdown pre,
+body.zeroeka-chatgpt-fold [data-message-author-role="assistant"] .markdown code,
+body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown img,
+body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown pre,
+body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
+  display: none !important;
 }
 
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.sync.inactive,
