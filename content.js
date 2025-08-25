@@ -5330,7 +5330,7 @@ const updateTextSize = (container, size) => {
         };
         window.__geminiWarnPatched = true;
       }
-      // Inject stable hover styles once to reduce visual flicker
+      // Inject stable hover styles once to prevent visual flicker during highlight
       if (!window.__geminiHoverStyle) {
         const style = document.createElement('style');
         style.setAttribute('data-zeroeka', 'gemini-hover-style');
@@ -5621,13 +5621,8 @@ const updateTextSize = (container, size) => {
         li.addEventListener('mouseenter', () => {
           isHovering = true;
           window.__geminiPopupManager.currentHoverLi = li;
-          // Debounced highlight to avoid flicker
-          try {
-            if (li.__hoverDebounce) clearTimeout(li.__hoverDebounce);
-          } catch(_) {}
-          li.__hoverDebounce = setTimeout(() => {
-            li.classList.add('zk-hover');
-          }, 40);
+          // Stable highlight without debounce to avoid flicker
+          try { li.classList.add('zk-hover'); } catch(_) {}
           
           // Clear any existing hide timeout
           if (hideTimeout) {
@@ -5655,11 +5650,8 @@ const updateTextSize = (container, size) => {
           }
           // Instant hide
           window.__geminiPopupManager.removeCurrentPopup();
-          // Remove hover class immediately
-          try {
-            if (li.__hoverDebounce) clearTimeout(li.__hoverDebounce);
-            li.classList.remove('zk-hover');
-          } catch(_) {}
+          // Remove hover highlight synchronously
+          try { li.classList.remove('zk-hover'); } catch(_) {}
         };
         li.addEventListener('mouseleave', handleLeave);
         li.addEventListener('pointerleave', handleLeave);
