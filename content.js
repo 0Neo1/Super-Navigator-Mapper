@@ -5624,7 +5624,8 @@ const updateTextSize = (container, size) => {
           window.__geminiPopupManager.setCurrentPopup(popup, li);
         };
         
-        li.addEventListener('mouseenter', () => {
+        li.addEventListener('pointerenter', () => {
+          if (window.__geminiPopupManager.currentHoverLi === li && isHovering) return;
           // Add stable hover class to avoid CSS :hover flicker differences
           try { li.classList.add('zeroeka-hover'); } catch(_) {}
           isHovering = true;
@@ -5659,9 +5660,8 @@ const updateTextSize = (container, size) => {
           window.__geminiPopupManager.removeCurrentPopup();
           try { li.classList.remove('zeroeka-hover'); } catch(_) {}
         };
-        li.addEventListener('mouseleave', handleLeave);
         li.addEventListener('pointerleave', handleLeave);
-        li.addEventListener('mouseout', handleLeave);
+        // Remove legacy mouse events to avoid duplicate enter/leave churn
         
         // Also hide on scroll
         window.addEventListener('scroll', () => {
