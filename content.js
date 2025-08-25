@@ -6284,6 +6284,23 @@ const updateTextSize = (container, size) => {
             const syncBtn = fb2.querySelector('.header .sync');
             if (syncBtn && !syncBtn.__geminiSyncBound) {
               syncBtn.__geminiSyncBound = true;
+              
+              // Replace sync button content with folder-open-w.svg image
+              try {
+                const img = document.createElement('img');
+                img.src = chrome.runtime.getURL('images/folder-open-w.svg');
+                img.style.cssText = 'width: 16px; height: 16px; filter: brightness(1.5) contrast(1.2);';
+                img.alt = 'Fold/unfold conversations';
+                img.title = 'Fold/unfold conversations';
+                
+                // Clear existing content and add the image
+                syncBtn.innerHTML = '';
+                syncBtn.appendChild(img);
+                console.log('[Gemini] Sync button icon replaced with folder-open-w.svg');
+              } catch(err) {
+                console.warn('[Gemini] Could not replace sync button icon:', err);
+              }
+              
               // Helper: inject main-page fold CSS once
               const ensureMainFoldStyles = () => {
                 try {
