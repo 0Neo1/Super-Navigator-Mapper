@@ -4838,7 +4838,7 @@ const updateTextSize = (container, size) => {
       } else {
         console.log('Message element not found');
       }
-    } catch (error) {
+  } catch (error) {
       console.error('Error navigating to message:', error);
     }
     return false;
@@ -5113,15 +5113,15 @@ const updateTextSize = (container, size) => {
             console.log(`Main element not found, retry ${retryCount}/${maxRetries}`);
             setTimeout(attemptInitialization, retryDelay);
           }
-          return;
-        }
-        
+    return;
+  }
+
         // Check if contracted sidebar exists
         const existingSidebar = document.getElementById('zeroeka-contracted-sidebar');
         if (!existingSidebar) {
           console.log('Creating contracted sidebar...');
           createZeroEkaIconButton();
-        } else {
+  } else {
           console.log('Contracted sidebar already exists');
         }
         
@@ -5313,16 +5313,54 @@ const updateTextSize = (container, size) => {
   };
       setInterval(checkUrlChange, 1000);
   
-    // --- ChatGPT main page conversation folding ---
-    (function setupChatGPTMainPageFolding() {
+        // --- ChatGPT sidebar tree folding and main page conversation folding ---
+    (function setupChatGPTFolding() {
       if (!window.location.hostname.includes('chatgpt.com')) return;
       
-      // Function to bind ChatGPT sync button to main page conversation folding
-      const bindChatGPTMainPageFolding = () => {
+      // Function to bind ChatGPT buttons for sidebar tree folding and main page conversation folding
+      const bindChatGPTFolding = () => {
         try {
           const floatbar = document.querySelector('.catalogeu-navigation-plugin-floatbar');
           if (!floatbar) return;
           
+          // 1. Fold button (leftmost in header) - controls sidebar tree folding (root and parent nodes only)
+          const foldBtn = floatbar.querySelector('.header .fold');
+          if (foldBtn && !foldBtn.__chatgptTreeFoldBound) {
+            foldBtn.__chatgptTreeFoldBound = true;
+            
+            // Initialize ChatGPT tree folding state
+            if (typeof window.__chatgptTreeFold === 'undefined') {
+              window.__chatgptTreeFold = false; // false = expanded, true = folded to root/parent only
+            }
+            
+            foldBtn.addEventListener('click', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('[ChatGPT] Fold button clicked - toggling sidebar tree folding (root/parent only)');
+              
+              // Toggle sidebar tree folding
+              window.__chatgptTreeFold = !window.__chatgptTreeFold;
+              
+              // Apply tree folding
+              const treeUl = floatbar.querySelector('.panel ul');
+              if (treeUl) {
+                applyChatGPTTreeFold(treeUl);
+              }
+              
+              // Save state
+              try { 
+                chrome?.storage?.local && chrome.storage.local.set({ 
+                  chatgptTreeFold: !!window.__chatgptTreeFold
+                }); 
+              } catch(_) {}
+              
+              console.log('[ChatGPT] Sidebar tree fold toggled:', window.__chatgptTreeFold);
+            }, true);
+            
+            console.log('[ChatGPT] Tree folding bound to fold button successfully');
+          }
+          
+          // 2. Sync button (right of fold button) - controls main page conversation folding
           const syncBtn = floatbar.querySelector('.header .sync');
           if (syncBtn && !syncBtn.__chatgptMainPageFoldBound) {
             syncBtn.__chatgptMainPageFoldBound = true;
@@ -5387,16 +5425,53 @@ const updateTextSize = (container, size) => {
             
             console.log('[ChatGPT] Main page conversation folding bound to sync button successfully');
           }
+          
+          // Load saved state and apply initial folding
+          try {
+            chrome?.storage?.local && chrome.storage.local.get(['chatgptTreeFold'], (d) => {
+              try { 
+                window.__chatgptTreeFold = !!d?.chatgptTreeFold; 
+              } catch(_) {}
+              const treeUl = floatbar.querySelector('.panel ul');
+              if (treeUl) {
+                applyChatGPTTreeFold(treeUl);
+              }
+            });
+          } catch(_) {}
+          
         } catch(err) {
-          console.error('[ChatGPT] Error binding main page folding:', err);
+          console.error('[ChatGPT] Error binding folding buttons:', err);
+        }
+      };
+      
+      // Function to apply ChatGPT tree folding
+      const applyChatGPTTreeFold = (ul) => {
+        try {
+          if (window.__chatgptTreeFold) {
+            // Fold mode: show only root and parent nodes, hide child nodes (depth >= 2)
+            const childNodes = ul.querySelectorAll('ul ul li');
+            childNodes.forEach((li) => {
+              li.style.display = 'none';
+            });
+            console.log('[ChatGPT] Tree folded to root/parent level only');
+          } else {
+            // Expanded mode: show all nodes
+            const allNodes = ul.querySelectorAll('li');
+            allNodes.forEach((li) => {
+              li.style.display = '';
+            });
+            console.log('[ChatGPT] Tree expanded to show all nodes');
+          }
+        } catch(err) {
+          console.error('[ChatGPT] Error applying tree fold:', err);
         }
       };
       
       // Bind immediately and retry after delays
-      bindChatGPTMainPageFolding();
-      setTimeout(bindChatGPTMainPageFolding, 500);
-      setTimeout(bindChatGPTMainPageFolding, 1000);
-      setTimeout(bindChatGPTMainPageFolding, 2000);
+      bindChatGPTFolding();
+      setTimeout(bindChatGPTFolding, 500);
+      setTimeout(bindChatGPTFolding, 1000);
+      setTimeout(bindChatGPTFolding, 2000);
     })();
   
     // --- Gemini conversation → Floatbar Tree mirroring ---
@@ -5645,8 +5720,8 @@ const updateTextSize = (container, size) => {
             style.textContent = `
               .catalogeu-navigation-plugin-floatbar .panel li > div { transition: none !important; }
               .catalogeu-navigation-plugin-floatbar .panel li:hover > div { transition: none !important; }
-            `;
-            document.head.appendChild(style);
+  `;
+  document.head.appendChild(style);
             window.__zeroekaStableHoverStyle = true;
           }
         } catch(_) {}
@@ -5724,22 +5799,19 @@ const updateTextSize = (container, size) => {
     };
     // Two-level folding system for Gemini:
     // Level 1 (Parent-only): Hide all child and subnodes (depth >= 2: ul ul li)  
-    // Level 1 (Root-only): Hide child nodes and subnodes (depth >= 2: ul ul li)
-    // Level 2 (Parent-level): Hide only subnodes (depth >= 3: ul ul ul li)
-    // Level 3 (Child-level): Show everything
+    // Level 2 (Child-level): Hide only subnodes (depth >= 3: ul ul ul li)
     const applyGeminiFold = (ul) => {
       try {
-        const rootOnlyMode = !!window.__geminiRootOnly;     // Fold button - shows only root nodes
-        const parentOnlyMode = !!window.__geminiParentOnly; // Deep button - shows root + parent nodes
-        const childLevelMode = !!window.__geminiConcise;    // Deep button - shows root + parent + child nodes
+        const parentOnlyMode = !!window.__geminiParentOnly; // Fold button - shows only parents
+        const childLevelMode = !!window.__geminiConcise;     // Deep button - shows parent + child
         
-        if (rootOnlyMode) {
+        if (parentOnlyMode) {
           // Hide all child nodes and subnodes (depth >= 2)
           const allChildAndSubNodes = ul.querySelectorAll('ul ul li');
           allChildAndSubNodes.forEach((li) => {
             li.style.display = 'none';
           });
-        } else if (parentOnlyMode) {
+        } else if (childLevelMode) {
           // Hide only subnodes (depth >= 3), keep child nodes visible
           const subNodes = ul.querySelectorAll('ul ul ul li');
           subNodes.forEach((li) => {
@@ -5751,20 +5823,6 @@ const updateTextSize = (container, size) => {
             // Only show if it's not a deeper subnode
             const depth = li.closest('ul ul ul ul') ? 4 : li.closest('ul ul ul') ? 3 : 2;
             if (depth === 2) {
-              li.style.display = '';
-            }
-          });
-        } else if (childLevelMode) {
-          // Show root + parent + child nodes, hide only subnodes (depth >= 4)
-          const deepSubNodes = ul.querySelectorAll('ul ul ul ul li');
-          deepSubNodes.forEach((li) => {
-            li.style.display = 'none';
-          });
-          // Ensure all other nodes are visible
-          const allOtherNodes = ul.querySelectorAll('ul li, ul ul li, ul ul ul li');
-          allOtherNodes.forEach((li) => {
-            const depth = li.closest('ul ul ul ul') ? 4 : li.closest('ul ul ul') ? 3 : li.closest('ul ul') ? 2 : 1;
-            if (depth < 4) {
               li.style.display = '';
             }
           });
@@ -6289,16 +6347,15 @@ const updateTextSize = (container, size) => {
           });
           moFb.observe(fb, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true });
         }
-        // Three-level folding system for Gemini (Deep button + Fold button)
+        // Two-level folding system for Gemini (Deep button + Fold button)
         const bindGeminiFoldingButtons = () => {
           try {
             // Initialize from storage only once
             if (typeof window.__geminiConcise === 'undefined' && chrome?.storage?.local) {
-              chrome.storage.local.get(['geminiConcise', 'geminiParentOnly', 'geminiRootOnly'], (d) => {
+              chrome.storage.local.get(['geminiConcise', 'geminiParentOnly'], (d) => {
                 try { 
                   window.__geminiConcise = !!d?.geminiConcise; 
                   window.__geminiParentOnly = !!d?.geminiParentOnly;
-                  window.__geminiRootOnly = !!d?.geminiRootOnly;
                 } catch(_) {}
                 const treeUl = getFloatbarUl();
                 if (treeUl) applyGeminiFold(treeUl);
@@ -6313,23 +6370,21 @@ const updateTextSize = (container, size) => {
             if (deepBtn && !deepBtn.__geminiBound) {
               deepBtn.__geminiBound = true;
               deepBtn.addEventListener('click', (e) => {
-                e.preventDefault();
+          e.preventDefault();
                 e.stopPropagation();
                 console.log('[Gemini] Deep button clicked - toggling subnodes visibility');
                 
-                // Deep button toggles between root+parent and full depth (all subnodes)
-                // Reset root-only and parent-only modes when deep button is used
-                try { window.__geminiRootOnly = false; } catch(_) {}
+                // Deep button toggles between parent+child (concise) and full depth (all subnodes)
+                // Reset parent-only mode when deep button is used
                 try { window.__geminiParentOnly = false; } catch(_) {}
-                // Toggle child level mode (shows root + parent + child, hides/shows subnodes)
+                // Toggle child level mode (shows parent + child, hides/shows subnodes)
                 try { window.__geminiConcise = !window.__geminiConcise; } catch(_) {}
                 
-                console.log('[Gemini] New modes - Root-only:', window.__geminiRootOnly, 'Parent-level:', window.__geminiParentOnly, 'Child-level (concise):', window.__geminiConcise);
+                console.log('[Gemini] New modes - Parent-only:', window.__geminiParentOnly, 'Child-level (concise):', window.__geminiConcise);
                 try { 
                   chrome?.storage?.local && chrome.storage.local.set({ 
-                    geminiRootOnly: !!window.__geminiRootOnly,
-                    geminiParentOnly: !!window.__geminiParentOnly,
-                    geminiConcise: !!window.__geminiConcise
+                    geminiConcise: !!window.__geminiConcise,
+                    geminiParentOnly: !!window.__geminiParentOnly
                   }); 
                 } catch(_) {}
                 
@@ -6343,39 +6398,36 @@ const updateTextSize = (container, size) => {
               console.log('[Gemini] Deep button bound successfully');
             }
             
-            // 2. Fold button (leftmost in header) - toggles between root-only and root+parent (SIDEBAR TREE ONLY)
+            // 2. Fold button (leftmost in header) - toggles between parent-only and parent+child (SIDEBAR ONLY)
             const foldBtn = fb2.querySelector('.header .fold');
             if (foldBtn && !foldBtn.__geminiFoldBound) {
               foldBtn.__geminiFoldBound = true;
               foldBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('[Gemini] Fold button clicked - toggling between root-only and root+parent (sidebar tree only)');
+                console.log('[Gemini] Fold button clicked - toggling between parent-only and parent+child (sidebar only)');
                 
-                // Toggle logic: if currently showing root-only, expand to root+parent
-                // If currently showing anything else (root+parent or full), collapse to root-only
-                const currentlyRootOnly = !!window.__geminiRootOnly;
+                // Toggle logic: if currently showing parent-only, expand to parent+child
+                // If currently showing anything else (parent+child or full), collapse to parent-only
+                const currentlyParentOnly = !!window.__geminiParentOnly;
                 
-                if (currentlyRootOnly) {
-                  // Currently root-only -> expand to root+parent level
-                  try { window.__geminiRootOnly = false; } catch(_) {}
+                if (currentlyParentOnly) {
+                  // Currently parent-only -> expand to parent+child (concise mode)
+                  try { window.__geminiParentOnly = false; } catch(_) {}
+                  try { window.__geminiConcise = true; } catch(_) {}
+                  console.log('[Gemini] Unfolding to parent+child level');
+                } else {
+                  // Currently parent+child or full -> collapse to parent-only
                   try { window.__geminiParentOnly = true; } catch(_) {}
                   try { window.__geminiConcise = false; } catch(_) {}
-                  console.log('[Gemini] Unfolding to root+parent level');
-                } else {
-                  // Currently root+parent or full -> collapse to root-only
-                  try { window.__geminiRootOnly = true; } catch(_) {}
-                  try { window.__geminiParentOnly = false; } catch(_) {}
-                  try { window.__geminiConcise = false; } catch(_) {}
-                  console.log('[Gemini] Folding to root-only level');
+                  console.log('[Gemini] Folding to parent-only level');
                 }
                 
-                console.log('[Gemini] New modes - Root-only:', window.__geminiRootOnly, 'Parent-level:', window.__geminiParentOnly, 'Child-level:', window.__geminiConcise);
+                console.log('[Gemini] New modes - Parent-only:', window.__geminiParentOnly, 'Child-level:', window.__geminiConcise);
                 try { 
                   chrome?.storage?.local && chrome.storage.local.set({ 
-                    geminiRootOnly: !!window.__geminiRootOnly,
-                    geminiParentOnly: !!window.__geminiParentOnly,
-                    geminiConcise: !!window.__geminiConcise
+                    geminiConcise: !!window.__geminiConcise,
+                    geminiParentOnly: !!window.__geminiParentOnly
                   }); 
                 } catch(_) {}
                 
@@ -6422,9 +6474,9 @@ const updateTextSize = (container, size) => {
               const ensureMainFoldStyles = () => {
                 try {
                   if (document.querySelector('style[data-zeroeka="gemini-main-fold"]')) return;
-                  const style = document.createElement('style');
+  const style = document.createElement('style');
                   style.setAttribute('data-zeroeka', 'gemini-main-fold');
-                  style.textContent = `
+  style.textContent = `
                     body.zeroeka-gemini-fold user-query-content .query-text,
                     body.zeroeka-gemini-fold [data-message-author="user"] .query-text,
                     body.zeroeka-gemini-fold [data-message-author-role="user"] .query-text,
