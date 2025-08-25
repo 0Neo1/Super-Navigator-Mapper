@@ -5335,11 +5335,13 @@ const updateTextSize = (container, size) => {
         const style = document.createElement('style');
         style.setAttribute('data-zeroeka', 'gemini-hover-style');
         style.textContent = `
-          .catalogeu-navigation-plugin-floatbar .panel li.zk-hover {
+          /* Highlight ONLY the label row of the hovered node */
+          .catalogeu-navigation-plugin-floatbar .panel li > div.zk-hover-label {
             background: rgba(255,255,255,0.06);
             outline: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px;
           }
-          .catalogeu-navigation-plugin-floatbar .panel li {
+          .catalogeu-navigation-plugin-floatbar .panel li > div {
             transition: background-color 120ms linear, outline-color 120ms linear;
           }
         `;
@@ -5621,8 +5623,11 @@ const updateTextSize = (container, size) => {
         li.addEventListener('mouseenter', () => {
           isHovering = true;
           window.__geminiPopupManager.currentHoverLi = li;
-          // Stable highlight without debounce to avoid flicker
-          try { li.classList.add('zk-hover'); } catch(_) {}
+          // Stable highlight only on the label element to avoid full-li highlight
+          try {
+            const label = li.querySelector(':scope > div');
+            if (label) label.classList.add('zk-hover-label');
+          } catch(_) {}
           
           // Clear any existing hide timeout
           if (hideTimeout) {
@@ -5650,8 +5655,11 @@ const updateTextSize = (container, size) => {
           }
           // Instant hide
           window.__geminiPopupManager.removeCurrentPopup();
-          // Remove hover highlight synchronously
-          try { li.classList.remove('zk-hover'); } catch(_) {}
+          // Remove hover highlight synchronously (from label only)
+          try {
+            const label = li.querySelector(':scope > div');
+            if (label) label.classList.remove('zk-hover-label');
+          } catch(_) {}
         };
         li.addEventListener('mouseleave', handleLeave);
         li.addEventListener('pointerleave', handleLeave);
