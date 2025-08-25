@@ -5643,30 +5643,83 @@ const updateTextSize = (container, size) => {
       try {
         const parentOnlyMode = !!window.__geminiParentOnly; // Fold button - shows only parents
         const childLevelMode = !!window.__geminiConcise;     // Deep button - shows parent + child
-
-        // Compute depth for each li relative to this root ul
-        const allLis = ul.querySelectorAll('li');
-        allLis.forEach((li) => {
-          let depth = 1; // top-level item under root ul
-          let node = li;
-          while (node && node !== ul) {
-            const parentUl = node.parentElement && node.parentElement.closest('ul');
-            if (!parentUl) break;
-            if (parentUl !== ul) depth += 1;
-            node = parentUl.parentElement && parentUl.parentElement.closest('li');
-          }
-
-          if (parentOnlyMode) {
-            // Show only depth 1, hide depth >= 2
-            li.style.display = depth === 1 ? '' : 'none';
-          } else if (childLevelMode) {
-            // Show depth 1 and 2, hide depth >= 3
-            li.style.display = depth <= 2 ? '' : 'none';
-          } else {
-            // Show all
+        
+        if (parentOnlyMode) {
+          // Hide all child nodes and subnodes (depth >= 2)
+          const allChildAndSubNodes = ul.querySelectorAll('ul ul li');
+          allChildAndSubNodes.forEach((li) => {
+            li.style.display = 'none';
+          });
+        } else if (childLevelMode) {
+          // Hide only subnodes (depth >= 3), keep child nodes visible
+          const subNodes = ul.querySelectorAll('ul ul ul li');
+          subNodes.forEach((li) => {
+            li.style.display = 'none';
+          });
+          // Ensure child nodes are visible (depth = 2)
+          const childNodes = ul.querySelectorAll('ul ul li');
+          childNodes.forEach((li) => {
+            // Only show if it's not a deeper subnode
+            const depth = li.closest('ul ul ul ul') ? 4 : li.closest('ul ul ul') ? 3 : 2;
+            if (depth === 2) {
+              li.style.display = '';
+            }
+          });
+        } else {
+          // Show everything - no folding
+          const allNodes = ul.querySelectorAll('ul ul li');
+          allNodes.forEach((li) => {
             li.style.display = '';
+          });
+        }
+
+        // --- Sync fold/unfold with main Gemini page conversation ---
+        // We clamp the visible text of both the user input and assistant output to a single line
+        // when either fold mode is active, and restore when neither is active.
+        const shouldClamp = parentOnlyMode || childLevelMode;
+
+        // Inject the clamping stylesheet once
+        try {
+          if (!window.__geminiFoldClampStyle) {
+            const style = document.createElement('style');
+            style.setAttribute('data-zeroeka', 'gemini-fold-clamp-style');
+            style.textContent = `
+              /* Clamp to one line with ellipsis when body has the class */
+              body.zeroeka-gemini-fold .model-response-text,
+              body.zeroeka-gemini-fold user-query-content .query-text,
+              body.zeroeka-gemini-fold [data-test-id="model-response"],
+              body.zeroeka-gemini-fold [data-message-author-role="user"] .query-text {
+                display: -webkit-box !important;
+                -webkit-line-clamp: 1 !important;
+                -webkit-box-orient: vertical !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                max-height: 1.4em !important;
+                line-height: 1.4 !important;
+              }
+              /* Reduce spacing to keep condensed view neat */
+              body.zeroeka-gemini-fold [data-testid*="conversation-turn"],
+              body.zeroeka-gemini-fold user-query-content,
+              body.zeroeka-gemini-fold [data-test-id="model-response"] {
+                margin-top: 4px !important;
+                margin-bottom: 4px !important;
+                padding-top: 2px !important;
+                padding-bottom: 2px !important;
+              }
+            `;
+            document.head.appendChild(style);
+            window.__geminiFoldClampStyle = true;
           }
-        });
+        } catch(_) {}
+
+        try {
+          const body = document.body;
+          if (shouldClamp) {
+            body.classList.add('zeroeka-gemini-fold');
+          } else {
+            body.classList.remove('zeroeka-gemini-fold');
+          }
+        } catch(_) {}
       } catch(_) {}
     };
     const findNextModelWithContent = (blocks, fromIdx) => {
