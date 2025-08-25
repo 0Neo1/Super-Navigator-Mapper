@@ -467,6 +467,17 @@ body[disselect] {
   border-radius: 4px !important;
 }
 
+/* ChatGPT fold button active state for main page folding */
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.fold.active {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  border-radius: 4px !important;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.fold:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 4px !important;
+}
+
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.sync.inactive,
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.deep.inactive {
   opacity: .3;

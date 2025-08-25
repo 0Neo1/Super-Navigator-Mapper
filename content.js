@@ -5313,6 +5313,92 @@ const updateTextSize = (container, size) => {
   };
   setInterval(checkUrlChange, 1000);
 
+  // --- ChatGPT main page conversation folding ---
+  (function setupChatGPTMainPageFolding() {
+    if (!window.location.hostname.includes('chatgpt.com')) return;
+    
+    // Function to bind ChatGPT fold button to main page conversation folding
+    const bindChatGPTMainPageFolding = () => {
+      try {
+        const floatbar = document.querySelector('.catalogeu-navigation-plugin-floatbar');
+        if (!floatbar) return;
+        
+        const foldBtn = floatbar.querySelector('.header .fold');
+        if (foldBtn && !foldBtn.__chatgptMainPageFoldBound) {
+          foldBtn.__chatgptMainPageFoldBound = true;
+          
+          // Helper: inject ChatGPT main-page fold CSS once
+          const ensureChatGPTMainFoldStyles = () => {
+            try {
+              if (document.querySelector('style[data-zeroeka="chatgpt-main-fold"]')) return;
+              const style = document.createElement('style');
+              style.setAttribute('data-zeroeka', 'chatgpt-main-fold');
+              style.textContent = `
+                body.zeroeka-chatgpt-fold [data-message-author-role="user"] .markdown,
+                body.zeroeka-chatgpt-fold [data-message-author-role="user"] .prose,
+                body.zeroeka-chatgpt-fold [data-message-author-role="assistant"] .markdown,
+                body.zeroeka-chatgpt-fold [data-message-author-role="assistant"] .prose,
+                body.zeroeka-chatgpt-fold [data-message-author="user"] .markdown,
+                body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown {
+                  display: -webkit-box !important;
+                  -webkit-box-orient: vertical !important;
+                  -webkit-line-clamp: 1 !important;
+                  overflow: hidden !important;
+                  white-space: normal !important;
+                  max-height: 1.6em !important;
+                }
+                /* Hide heavy blocks when folded */
+                body.zeroeka-chatgpt-fold [data-message-author-role="assistant"] .markdown img,
+                body.zeroeka-chatgpt-fold [data-message-author-role="assistant"] .markdown pre,
+                body.zeroeka-chatgpt-fold [data-message-author-role="assistant"] .markdown code,
+                body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown img,
+                body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown pre,
+                body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
+                  display: none !important;
+                }
+              `;
+              document.head.appendChild(style);
+            } catch(_) {}
+          };
+          
+          const setChatGPTMainFold = (enable) => {
+            ensureChatGPTMainFoldStyles();
+            try {
+              const body = document.body;
+              if (enable) body.classList.add('zeroeka-chatgpt-fold');
+              else body.classList.remove('zeroeka-chatgpt-fold');
+            } catch(_) {}
+          };
+          
+          foldBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('[ChatGPT] Fold button clicked - toggling main page conversation folding');
+            
+            // Toggle main page conversation folding
+            const isCurrentlyFolded = document.body.classList.contains('zeroeka-chatgpt-fold');
+            setChatGPTMainFold(!isCurrentlyFolded);
+            
+            // Toggle button state for visual feedback
+            foldBtn.classList.toggle('active', !isCurrentlyFolded);
+            
+            console.log('[ChatGPT] Main page fold toggled:', !isCurrentlyFolded);
+          }, true);
+          
+          console.log('[ChatGPT] Main page conversation folding bound to fold button successfully');
+        }
+      } catch(err) {
+        console.error('[ChatGPT] Error binding main page folding:', err);
+      }
+    };
+    
+    // Bind immediately and retry after delays
+    bindChatGPTMainPageFolding();
+    setTimeout(bindChatGPTMainPageFolding, 500);
+    setTimeout(bindChatGPTMainPageFolding, 1000);
+    setTimeout(bindChatGPTMainPageFolding, 2000);
+  })();
+
   // --- Gemini conversation → Floatbar Tree mirroring ---
   (function setupGeminiTree() {
     if (!window.location.hostname.includes('gemini.google.com')) return;
