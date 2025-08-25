@@ -567,6 +567,17 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   position: relative;
 }
 
+/* Add footer text content */
+.catalogeu-navigation-plugin-floatbar>.panel>.tools::after {
+  content: "Feedbacks/Reviews";
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13.5px;
+  font-weight: 400;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 
 
 /* Hide all footer buttons but keep the container */
