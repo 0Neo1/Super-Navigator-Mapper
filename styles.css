@@ -569,9 +569,9 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
 
 /* Add footer text content */
 .catalogeu-navigation-plugin-floatbar>.panel>.tools::after {
-  content: "Made with ♡ by\A ZeroEka";
+  content: "Made with ♥ by\A ZeroEka";
   color: rgba(255, 255, 255, 0.7);
-  font-size: 12px;
+  font-size: 18px;
   font-weight: 400;
   text-align: center;
   white-space: pre;
