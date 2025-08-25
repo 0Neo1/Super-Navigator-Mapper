@@ -5336,15 +5336,14 @@ const updateTextSize = (container, size) => {
         style.setAttribute('data-zeroeka', 'gemini-hover-style');
         style.textContent = `
           /* Highlight ONLY the label row of the hovered node */
-          .catalogeu-navigation-plugin-floatbar .panel li > div.zk-hover-label {
+          .catalogeu-navigation-plugin-floatbar .panel li:hover > div {
             background: rgba(255,255,255,0.06);
             outline: 1px solid rgba(255,255,255,0.15);
             border-radius: 6px;
-            will-change: background-color, outline-color;
-            transition: background-color 80ms linear, outline-color 80ms linear;
+            transition: none;
           }
           .catalogeu-navigation-plugin-floatbar .panel li > div {
-            transition: background-color 80ms linear, outline-color 80ms linear;
+            transition: none;
           }
         `;
         document.head.appendChild(style);
@@ -5614,6 +5613,9 @@ const updateTextSize = (container, size) => {
             word-wrap: break-word;
             overflow: auto;
             pointer-events: none;
+            will-change: transform, opacity, top, left;
+            backface-visibility: hidden;
+            transform: translateZ(0);
           `;
           popup.textContent = messageText;
           document.body.appendChild(popup);
@@ -5657,24 +5659,7 @@ const updateTextSize = (container, size) => {
         // Use pointer events for stability; avoid dual mouseout/mouseleave causing flicker
         li.addEventListener('pointerleave', handleLeave);
         
-        // Also hide on scroll
-        window.addEventListener('scroll', () => {
-          isHovering = false;
-          removePopup();
-        }, { passive: true });
-        const sidebarForScroll = li.closest('.catalogeu-navigation-plugin-floatbar .panel')
-          || li.closest('.catalogeu-navigation-plugin-floatbar')
-          || li.closest('.panel');
-        if (sidebarForScroll) {
-          sidebarForScroll.addEventListener('scroll', () => {
-            isHovering = false;
-            removePopup();
-          }, { passive: true });
-        }
-        window.addEventListener('resize', () => {
-          isHovering = false;
-          removePopup();
-        }, { passive: true });
+        // Avoid aggressive scroll/resize hides that cause flicker; allow popup to persist until leave
       }
       return li;
     };
