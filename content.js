@@ -5673,7 +5673,7 @@ const updateTextSize = (container, size) => {
           });
         }
 
-        // Note: tree folding only. Sync folding of main page is handled by header Sync button.
+        // Note: tree folding only. Sync folding of main page is handled by the separate Sync button.
       } catch(_) {}
     };
     const findNextModelWithContent = (blocks, fromIdx) => {
@@ -6193,14 +6193,10 @@ const updateTextSize = (container, size) => {
           try {
             // Initialize from storage only once
             if (typeof window.__geminiConcise === 'undefined' && chrome?.storage?.local) {
-              chrome.storage.local.get(['geminiConcise', 'geminiParentOnly', 'geminiSyncFold'], (d) => {
+              chrome.storage.local.get(['geminiConcise', 'geminiParentOnly'], (d) => {
                 try { 
                   window.__geminiConcise = !!d?.geminiConcise; 
                   window.__geminiParentOnly = !!d?.geminiParentOnly;
-                  if (d && typeof d.geminiSyncFold !== 'undefined') {
-                    if (d.geminiSyncFold) document.body.classList.add('zeroeka-gemini-fold');
-                    else document.body.classList.remove('zeroeka-gemini-fold');
-                  }
                 } catch(_) {}
                 const treeUl = getFloatbarUl();
                 if (treeUl) applyGeminiFold(treeUl);
@@ -6263,7 +6259,7 @@ const updateTextSize = (container, size) => {
             }
             
             if (!deepBtn && !foldBtn) {
-              console.warn('[Gemini] Neither deep nor sync-fold buttons found');
+              console.warn('[Gemini] Neither deep nor fold buttons found');
             }
           } catch(err) {
             console.error('[Gemini] Error binding folding buttons:', err);
