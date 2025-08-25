@@ -5492,9 +5492,7 @@ const updateTextSize = (container, size) => {
             mindmapBtn.className = 'new mindmap'; // Keep 'new' class for compatibility
             mindmapBtn.title = lang('mindTitle') || 'Mind map';
             mindmapBtn.innerHTML = `
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; color: #fff;">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-              </svg>
+              <img src="${chrome.runtime.getURL('images/mind_map.png')}" alt="Mind Map" style="width: 16px; height: 16px; filter: brightness(1.5) contrast(1.2);">
             `;
             
             // Add click functionality for mindmap

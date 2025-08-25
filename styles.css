@@ -499,14 +499,11 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   justify-content: center;
 }
 
-.catalogeu-navigation-plugin-floatbar>.panel>.header>.new.mindmap svg {
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.new.mindmap img {
+  width: 16px;
+  height: 16px;
   filter: brightness(1.5) contrast(1.2);
-  color: white !important;
-}
-
-.catalogeu-navigation-plugin-floatbar>.panel>.header>.new.mindmap svg path {
-  stroke: white !important;
-  stroke-width: 2 !important;
+  object-fit: contain;
 }
 
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.new.mindmap:hover {
