@@ -492,6 +492,28 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   display: none !important;
 }
 
+/* Mindmap button styling in header */
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.new.mindmap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.new.mindmap svg {
+  filter: brightness(1.5) contrast(1.2);
+  color: white !important;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.new.mindmap svg path {
+  stroke: white !important;
+  stroke-width: 2 !important;
+}
+
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.new.mindmap:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 4px !important;
+}
+
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.sync.inactive,
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.deep.inactive {
   opacity: .3;
