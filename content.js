@@ -5512,38 +5512,52 @@ const updateTextSize = (container, size) => {
           const scRect = sidebarContainer.getBoundingClientRect();
           if (!rect || rect.width === 0 || rect.height === 0 || scRect.width === 0 || scRect.height === 0) return;
 
-          // Ensure container is positioned so absolute children use it as reference
+          // Choose the closest list container as anchor for absolute positioning
+          const anchorContainer = li.closest('ul') || sidebarContainer;
+
+          // Ensure anchor is positioned so absolute children use it as reference
           try {
-            const scPos = window.getComputedStyle(sidebarContainer).position;
-            if (!scPos || scPos === 'static') {
-              sidebarContainer.style.position = 'relative';
+            const aPos = window.getComputedStyle(anchorContainer).position;
+            if (!aPos || aPos === 'static') {
+              anchorContainer.style.position = 'relative';
             }
           } catch(_) {}
 
-          // Compute tight placement just below or above the hovered item (account for container scroll)
-          const scScrollTop = sidebarContainer.scrollTop || 0;
-          const scScrollLeft = sidebarContainer.scrollLeft || 0;
-          const offsetTopInContainer = rect.top - scRect.top;
-          const offsetBottomInContainer = rect.bottom - scRect.top;
-          const offsetLeftInContainer = rect.left - scRect.left;
+          // Compute offsets within the anchor container using offsetParent chain
+          const getOffsetWithin = (el, ancestor) => {
+            let top = 0, left = 0;
+            let node = el;
+            while (node && node !== ancestor) {
+              top += (node.offsetTop || 0);
+              left += (node.offsetLeft || 0);
+              node = node.offsetParent;
+            }
+            return { top, left };
+          };
 
+          const { top: offTop, left: offLeft } = getOffsetWithin(li, anchorContainer);
           const gap = 4;
-          const maxAvailWidth = Math.max(200, Math.floor(scRect.width - 16));
+          const containerClientWidth = anchorContainer.clientWidth || scRect.width;
+          const containerClientHeight = anchorContainer.clientHeight || scRect.height;
+          const containerScrollTop = anchorContainer.scrollTop || sidebarContainer.scrollTop || 0;
+          const containerScrollLeft = anchorContainer.scrollLeft || sidebarContainer.scrollLeft || 0;
+
+          const maxAvailWidth = Math.max(200, containerClientWidth - 16);
           const popupWidth = Math.min(400, maxAvailWidth);
           const popupHeight = 260; // compact height
 
-          // Initial preferred position: just below
-          let popupTop = scScrollTop + offsetBottomInContainer + gap;
-          let popupLeft = Math.max(8, scScrollLeft + offsetLeftInContainer);
+          // Preferred: below the item
+          let popupTop = offTop + li.offsetHeight + gap;
+          let popupLeft = Math.max(8, offLeft);
 
-          // Keep within horizontal bounds of the visible sidebar area
-          const visibleRight = scScrollLeft + scRect.width - 8;
+          // Keep within visible horizontal bounds
+          const visibleRight = containerScrollLeft + containerClientWidth - 8;
           if (popupLeft + popupWidth > visibleRight) popupLeft = Math.max(8, visibleRight - popupWidth);
 
-          // If below overflows visible area, position above with tight gap
-          const visibleBottom = scScrollTop + scRect.height - 8;
+          // If below overflows visible area, position above
+          const visibleBottom = containerScrollTop + containerClientHeight - 8;
           if (popupTop + popupHeight > visibleBottom) {
-            popupTop = Math.max(8, scScrollTop + offsetTopInContainer - popupHeight - gap);
+            popupTop = Math.max(8, offTop - popupHeight - gap);
           }
 
           popup.style.cssText = `
@@ -5567,7 +5581,7 @@ const updateTextSize = (container, size) => {
             pointer-events: none;
           `;
           popup.textContent = messageText;
-          sidebarContainer.appendChild(popup);
+          anchorContainer.appendChild(popup);
           
           // Register this popup as the current one
           window.__geminiPopupManager.setCurrentPopup(popup, li);
