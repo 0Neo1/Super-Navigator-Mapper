@@ -5520,30 +5520,36 @@ const updateTextSize = (container, size) => {
             }
           } catch(_) {}
 
-          // Compute tight placement just below or above the hovered item (account for container scroll)
-          const scScrollTop = sidebarContainer.scrollTop || 0;
-          const scScrollLeft = sidebarContainer.scrollLeft || 0;
-          const offsetTopInContainer = rect.top - scRect.top;
-          const offsetBottomInContainer = rect.bottom - scRect.top;
-          const offsetLeftInContainer = rect.left - scRect.left;
+          // Compute exact offsets within sidebarContainer so popup is strictly below the hovered LI
+          const getOffsetWithin = (el, ancestor) => {
+            let top = 0, left = 0;
+            let node = el;
+            while (node && node !== ancestor) {
+              top += (node.offsetTop || 0);
+              left += (node.offsetLeft || 0);
+              node = node.offsetParent;
+            }
+            return { top, left };
+          };
 
+          const { top: offTop, left: offLeft } = getOffsetWithin(li, sidebarContainer);
           const gap = 4;
-          const maxAvailWidth = Math.max(200, Math.floor(scRect.width - 16));
+          const maxAvailWidth = Math.max(200, Math.floor(sidebarContainer.clientWidth - 16));
           const popupWidth = Math.min(400, maxAvailWidth);
-          const desiredPopupHeight = 260; // compact height
+          const popupHeight = 260; // compact height
 
-          // Strictly position just below the hovered item within the sidebar
-          let popupTop = scScrollTop + offsetBottomInContainer + gap;
-          let popupLeft = Math.max(8, scScrollLeft + offsetLeftInContainer);
+          // Strictly below the hovered node
+          let popupTop = offTop + li.offsetHeight + gap;
+          let popupLeft = Math.max(8, offLeft);
 
-          // Keep within horizontal bounds of the visible sidebar area
-          const visibleRight = scScrollLeft + scRect.width - 8;
+          // Clamp horizontally within container
+          const visibleRight = (sidebarContainer.scrollLeft || 0) + sidebarContainer.clientWidth - 8;
           if (popupLeft + popupWidth > visibleRight) popupLeft = Math.max(8, visibleRight - popupWidth);
 
-          // Compute available space below; shrink height to fit instead of moving above
-          const visibleBottom = scScrollTop + scRect.height - 8;
-          const availableBelow = Math.max(80, visibleBottom - popupTop);
-          const computedHeight = Math.max(80, Math.min(desiredPopupHeight, availableBelow));
+          // If not enough space below, reduce height to fit instead of moving above
+          const visibleBottom = (sidebarContainer.scrollTop || 0) + sidebarContainer.clientHeight - 8;
+          const availableBelow = Math.max(60, visibleBottom - popupTop);
+          const computedHeight = Math.max(60, Math.min(popupHeight, availableBelow));
 
           popup.style.cssText = `
             position: absolute;
