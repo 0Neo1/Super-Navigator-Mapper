@@ -5330,6 +5330,22 @@ const updateTextSize = (container, size) => {
         };
         window.__geminiWarnPatched = true;
       }
+      // Inject stable hover styles once to reduce visual flicker
+      if (!window.__geminiHoverStyle) {
+        const style = document.createElement('style');
+        style.setAttribute('data-zeroeka', 'gemini-hover-style');
+        style.textContent = `
+          .catalogeu-navigation-plugin-floatbar .panel li.zk-hover {
+            background: rgba(255,255,255,0.06);
+            outline: 1px solid rgba(255,255,255,0.15);
+          }
+          .catalogeu-navigation-plugin-floatbar .panel li {
+            transition: background-color 120ms linear, outline-color 120ms linear;
+          }
+        `;
+        document.head.appendChild(style);
+        window.__geminiHoverStyle = true;
+      }
     } catch(_) {}
 
     // Utilities
@@ -5605,7 +5621,13 @@ const updateTextSize = (container, size) => {
         li.addEventListener('mouseenter', () => {
           isHovering = true;
           window.__geminiPopupManager.currentHoverLi = li;
-          console.log('Mouse entered, starting 1-second timer...');
+          // Debounced highlight to avoid flicker
+          try {
+            if (li.__hoverDebounce) clearTimeout(li.__hoverDebounce);
+          } catch(_) {}
+          li.__hoverDebounce = setTimeout(() => {
+            li.classList.add('zk-hover');
+          }, 40);
           
           // Clear any existing hide timeout
           if (hideTimeout) {
@@ -5633,6 +5655,11 @@ const updateTextSize = (container, size) => {
           }
           // Instant hide
           window.__geminiPopupManager.removeCurrentPopup();
+          // Remove hover class immediately
+          try {
+            if (li.__hoverDebounce) clearTimeout(li.__hoverDebounce);
+            li.classList.remove('zk-hover');
+          } catch(_) {}
         };
         li.addEventListener('mouseleave', handleLeave);
         li.addEventListener('pointerleave', handleLeave);
