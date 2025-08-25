@@ -5357,7 +5357,7 @@ const updateTextSize = (container, size) => {
       li.appendChild(div);
       
       // Hover popup for Gemini message tree: show at least 50 words, hide on leave
-      {
+      if (refEl) {
         let popupTimeout = null;
         let hideTimeout = null;
         let isHovering = false;
@@ -5491,19 +5491,10 @@ const updateTextSize = (container, size) => {
             if (!messageText && refEl && refEl.textContent) {
               messageText = refEl.textContent.trim();
             }
-
-            // Strategy 5: Fallback to the LI label text for root/parent nodes
-            if (!messageText) {
-              try {
-                const labelEl = li.querySelector(':scope > div');
-                const labelText = (labelEl && labelEl.textContent) ? labelEl.textContent.trim() : '';
-                if (labelText) messageText = labelText;
-              } catch(_) {}
-            }
             
           } catch (_) {}
           
-          if (!messageText || messageText.length < 3) return;
+          if (!messageText || messageText.length < 10) return;
           
           // Show at least 50 words; if longer, truncate to first 50 words
           const words = messageText.split(/\s+/);
@@ -5521,52 +5512,38 @@ const updateTextSize = (container, size) => {
           const scRect = sidebarContainer.getBoundingClientRect();
           if (!rect || rect.width === 0 || rect.height === 0 || scRect.width === 0 || scRect.height === 0) return;
 
-          // Choose the closest list container as anchor for absolute positioning
-          const anchorContainer = li.closest('ul') || sidebarContainer;
-
-          // Ensure anchor is positioned so absolute children use it as reference
+          // Ensure container is positioned so absolute children use it as reference
           try {
-            const aPos = window.getComputedStyle(anchorContainer).position;
-            if (!aPos || aPos === 'static') {
-              anchorContainer.style.position = 'relative';
+            const scPos = window.getComputedStyle(sidebarContainer).position;
+            if (!scPos || scPos === 'static') {
+              sidebarContainer.style.position = 'relative';
             }
           } catch(_) {}
 
-          // Compute offsets within the anchor container using offsetParent chain
-          const getOffsetWithin = (el, ancestor) => {
-            let top = 0, left = 0;
-            let node = el;
-            while (node && node !== ancestor) {
-              top += (node.offsetTop || 0);
-              left += (node.offsetLeft || 0);
-              node = node.offsetParent;
-            }
-            return { top, left };
-          };
+          // Compute tight placement just below or above the hovered item (account for container scroll)
+          const scScrollTop = sidebarContainer.scrollTop || 0;
+          const scScrollLeft = sidebarContainer.scrollLeft || 0;
+          const offsetTopInContainer = rect.top - scRect.top;
+          const offsetBottomInContainer = rect.bottom - scRect.top;
+          const offsetLeftInContainer = rect.left - scRect.left;
 
-          const { top: offTop, left: offLeft } = getOffsetWithin(li, anchorContainer);
           const gap = 4;
-          const containerClientWidth = anchorContainer.clientWidth || scRect.width;
-          const containerClientHeight = anchorContainer.clientHeight || scRect.height;
-          const containerScrollTop = anchorContainer.scrollTop || sidebarContainer.scrollTop || 0;
-          const containerScrollLeft = anchorContainer.scrollLeft || sidebarContainer.scrollLeft || 0;
-
-          const maxAvailWidth = Math.max(200, containerClientWidth - 16);
+          const maxAvailWidth = Math.max(200, Math.floor(scRect.width - 16));
           const popupWidth = Math.min(400, maxAvailWidth);
-          const popupHeight = 260; // compact height
+          const desiredPopupHeight = 260; // compact height
 
-          // Preferred and enforced: below the item
-          let popupTop = offTop + li.offsetHeight + gap;
-          let popupLeft = Math.max(8, offLeft);
+          // Strictly position just below the hovered item within the sidebar
+          let popupTop = scScrollTop + offsetBottomInContainer + gap;
+          let popupLeft = Math.max(8, scScrollLeft + offsetLeftInContainer);
 
-          // Keep within visible horizontal bounds
-          const visibleRight = containerScrollLeft + containerClientWidth - 8;
+          // Keep within horizontal bounds of the visible sidebar area
+          const visibleRight = scScrollLeft + scRect.width - 8;
           if (popupLeft + popupWidth > visibleRight) popupLeft = Math.max(8, visibleRight - popupWidth);
 
-          // If below overflows visible area, keep below but shrink height to fit
-          const visibleBottom = containerScrollTop + containerClientHeight - 8;
+          // Compute available space below; shrink height to fit instead of moving above
+          const visibleBottom = scScrollTop + scRect.height - 8;
           const availableBelow = Math.max(80, visibleBottom - popupTop);
-          const computedHeight = Math.max(80, Math.min(popupHeight, availableBelow));
+          const computedHeight = Math.max(80, Math.min(desiredPopupHeight, availableBelow));
 
           popup.style.cssText = `
             position: absolute;
@@ -5589,7 +5566,7 @@ const updateTextSize = (container, size) => {
             pointer-events: none;
           `;
           popup.textContent = messageText;
-          anchorContainer.appendChild(popup);
+          sidebarContainer.appendChild(popup);
           
           // Register this popup as the current one
           window.__geminiPopupManager.setCurrentPopup(popup, li);
