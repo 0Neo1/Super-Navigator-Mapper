@@ -568,6 +568,23 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   padding: 0 1px;
 }
 
+/* Add center icon image */
+.catalogeu-navigation-plugin-floatbar>.panel>.tools::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  background-image: url('chrome-extension://__MSG_@@extension_id__/images/zeroeka_main.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
 /* Add left side text - Support */
 .catalogeu-navigation-plugin-floatbar>.panel>.tools::before {
   content: "Support";
