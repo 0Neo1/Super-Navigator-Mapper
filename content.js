@@ -5492,7 +5492,7 @@ const updateTextSize = (container, size) => {
             mindmapBtn.className = 'new mindmap'; // Keep 'new' class for compatibility
             mindmapBtn.title = lang('mindTitle') || 'Mind map';
             mindmapBtn.innerHTML = `
-              <img src="${chrome.runtime.getURL('images/mind_map.png')}" alt="Mind Map" style="width: 16px; height: 16px; filter: brightness(1.5) contrast(1.2);">
+              <img src="${chrome.runtime.getURL('images/mind_map.png')}" alt="Mind Map" style="width: 18px; height: 18px; filter: brightness(1.5) contrast(1.2);">
             `;
             
             // Add click functionality for mindmap

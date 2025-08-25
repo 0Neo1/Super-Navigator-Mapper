@@ -500,8 +500,8 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
 }
 
 .catalogeu-navigation-plugin-floatbar>.panel>.header>.new.mindmap img {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   filter: brightness(1.5) contrast(1.2);
   object-fit: contain;
 }
