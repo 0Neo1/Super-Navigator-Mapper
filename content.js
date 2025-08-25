@@ -5400,101 +5400,37 @@ const updateTextSize = (container, size) => {
           // Don't show if already showing for this item
           if (window.__geminiPopupManager.currentLi === li) return;
           
-          // Enhanced text extraction: prioritize sub-node content over parent content
+          // Strict text extraction: use only this node's refEl or its label
           let messageText = '';
           try {
-            // Strategy 1: First try to get content from the specific refEl (sub-node content)
-            if (refEl && refEl.textContent) {
-              const refText = refEl.textContent.trim();
-              if (refText.length > 10) {
-                messageText = refText;
-              }
+            // Primary: exact node content
+            if (refEl && typeof refEl.textContent === 'string') {
+              messageText = (refEl.textContent || '').trim();
             }
-            
-            // Strategy 2: If refEl has minimal content, try to find more specific content within it
-            if (!messageText || messageText.length < 20) {
-              if (refEl) {
-                // Look for specific content elements within the refEl
-                const specificSelectors = [
-                  'h1', 'h2', 'h3', 'h4', 'h5', 'h6', // Headings
-                  'p', 'li', 'blockquote', 'code', 'pre', // Text elements
-                  '.markdown', '.prose', '[role="presentation"]' // Content containers
-                ];
-                
-                for (const selector of specificSelectors) {
-                  const contentEl = refEl.querySelector(selector);
-                  if (contentEl && contentEl.textContent && contentEl.textContent.trim().length > 20) {
-                    messageText = contentEl.textContent.trim();
-                    break;
-                  }
-                }
-                
-                // If still no content, try direct children
-                if (!messageText && refEl.children.length > 0) {
-                  for (const child of refEl.children) {
-                    if (child.textContent && child.textContent.trim().length > 20) {
-                      messageText = child.textContent.trim();
-                      break;
-                    }
-                  }
-                }
-              }
-            }
-            
-            // Strategy 3: If still no meaningful content, try to find parent message container
-            if (!messageText || messageText.length < 20) {
-              let messageContainer = refEl;
-              while (messageContainer && messageContainer !== document.body) {
-                // Look for common message container selectors
-                if (messageContainer.matches && (
-                  messageContainer.matches('[data-testid*="conversation-turn"]') ||
-                  messageContainer.matches('user-query-content') ||
-                  messageContainer.matches('[data-message-author]') ||
-                  messageContainer.matches('.model-response-text') ||
-                  messageContainer.closest('[data-testid*="conversation-turn"]') ||
-                  messageContainer.closest('user-query-content') ||
-                  messageContainer.closest('[data-message-author]')
-                )) {
+            // If empty or too short, search within refEl for meaningful direct content
+            if ((!messageText || messageText.length < 3) && refEl) {
+              const specificSelectors = [
+                ':scope > p', ':scope > li', ':scope > blockquote', ':scope > code', ':scope > pre',
+                ':scope > .markdown', ':scope > .prose', ':scope > [role="presentation"]'
+              ];
+              for (const selector of specificSelectors) {
+                const el = refEl.querySelector(selector);
+                if (el && el.textContent && el.textContent.trim().length >= 3) {
+                  messageText = el.textContent.trim();
                   break;
                 }
-                messageContainer = messageContainer.parentElement;
-              }
-              
-              // Extract text from the found container
-              if (messageContainer && messageContainer !== document.body) {
-                const contentSelectors = [
-                  '.model-response-text',
-                  '.query-text',
-                  '.markdown',
-                  '.prose',
-                  '[role="presentation"]',
-                  'p',
-                  'div'
-                ];
-                
-                for (const selector of contentSelectors) {
-                  const contentEl = messageContainer.querySelector(selector);
-                  if (contentEl && contentEl.textContent && contentEl.textContent.trim().length > 20) {
-                    messageText = contentEl.textContent.trim();
-                    break;
-                  }
-                }
-                
-                // If no specific content found, use the container's text
-                if (!messageText && messageContainer.textContent) {
-                  messageText = messageContainer.textContent.trim();
-                }
               }
             }
-            
-            // Strategy 4: Final fallback to original refEl
-            if (!messageText && refEl && refEl.textContent) {
-              messageText = refEl.textContent.trim();
+            // Fallback: node label in the tree (does not include children)
+            if (!messageText || messageText.length < 3) {
+              const labelEl = li.querySelector(':scope > div');
+              if (labelEl && labelEl.textContent) {
+                messageText = labelEl.textContent.trim();
+              }
             }
-            
-          } catch (_) {}
+          } catch(_) {}
           
-          if (!messageText || messageText.length < 10) return;
+          if (!messageText || messageText.length < 1) return;
           
           // Show at least 50 words; if longer, truncate to first 50 words
           const words = messageText.split(/\s+/);
