@@ -124,6 +124,13 @@ const createZeroEkaIconButton = () => {
     padding: 16px 8px;
   `;
 
+  // Nudge Gemini main page to avoid overlap with contracted sidebar
+  try {
+    if (location.hostname.includes('gemini.google')) {
+      document.body.classList.add('zeroeka-gemini-contract');
+    }
+  } catch (_) {}
+
   // Create container for top buttons
   const topButtonsContainer = document.createElement('div');
   topButtonsContainer.style.cssText = `
