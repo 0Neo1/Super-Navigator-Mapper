@@ -590,8 +590,14 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
 
 
 
-/* Hide all footer buttons but keep the container */
-.catalogeu-navigation-plugin-floatbar>.panel>.tools > * {
+/* Hide original footer buttons but keep our custom elements */
+.catalogeu-navigation-plugin-floatbar>.panel>.tools > button,
+.catalogeu-navigation-plugin-floatbar>.panel>.tools > .more,
+.catalogeu-navigation-plugin-floatbar>.panel>.tools > .areas,
+.catalogeu-navigation-plugin-floatbar>.panel>.tools > .wide,
+.catalogeu-navigation-plugin-floatbar>.panel>.tools > .mind,
+.catalogeu-navigation-plugin-floatbar>.panel>.tools > .partial,
+.catalogeu-navigation-plugin-floatbar>.panel>.tools > .resizebar {
   display: none !important;
 }
 
