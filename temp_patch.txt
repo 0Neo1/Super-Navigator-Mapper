@@ -1,0 +1,34 @@
+--- a/content.js
++++ b/content.js
+@@ -3949,6 +3949,11 @@
+           main && main.style.setProperty('padding-right', w, 'important');
+           const gRoot = document.getElementById('yDmH0d');
+           gRoot && gRoot.style.setProperty('padding-right', w, 'important');
++          // Also set max-width to actually shrink the content area
++          const viewportWidth = window.innerWidth;
++          const newMaxWidth = viewportWidth - panelWidth;
++          main && main.style.setProperty('max-width', `${newMaxWidth}px`, 'important');
++          gRoot && gRoot.style.setProperty('max-width', `${newMaxWidth}px`, 'important');
+         }
+       } catch(_) {}
+       console.log('Expanded panel visible; reserving space:', panelWidth);
+@@ -3916,6 +3921,13 @@
+       // remove both margin-right and padding-right from likely wrappers
+       ['marginRight', 'paddingRight'].forEach((prop) => {
+         try { main && (main.style[prop] = ''); } catch(_){}
+         try { document.body && (document.body.style[prop] = ''); } catch(_){}
+         // keep nextInner untouched
+         try { nextRoot && (nextRoot.style[prop] = ''); } catch(_){}
+         try { root && (root.style[prop] = ''); } catch(_){}
++      });
++      // Gemini-specific: also clear max-width and padding-right from main containers
++      try {
++        if (location.hostname.includes('gemini.google.com')) {
++          main && (main.style.maxWidth = '');
++          main && (main.style.paddingRight = '');
++          const gRoot = document.getElementById('yDmH0d');
++          gRoot && (gRoot.style.maxWidth = '');
++          gRoot && (gRoot.style.paddingRight = '');
++        }
++      } catch(_) {}
+     };

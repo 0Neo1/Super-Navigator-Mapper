@@ -3969,9 +3969,44 @@ const createZeroEkaIconButton = () => {
       try {
         if (location.hostname.includes('gemini.google.com')) {
           const w = `${contractedWidth}px`;
-          main && main.style.setProperty('padding-right', w, 'important');
+          const viewportWidth = window.innerWidth;
+          const newMaxWidth = Math.max(viewportWidth - contractedWidth - 20, 300); // Leave 20px buffer
+          
+          // Apply to main containers with comprehensive styling
+          if (main) {
+            main.style.setProperty('max-width', `${newMaxWidth}px`, 'important');
+            main.style.setProperty('padding-right', w, 'important');
+            main.style.setProperty('box-sizing', 'border-box', 'important');
+            main.style.setProperty('overflow-x', 'hidden', 'important');
+          }
+          
           const gRoot = document.getElementById('yDmH0d');
-          gRoot && gRoot.style.setProperty('padding-right', w, 'important');
+          if (gRoot) {
+            gRoot.style.setProperty('max-width', `${newMaxWidth}px`, 'important');
+            gRoot.style.setProperty('padding-right', w, 'important');
+            gRoot.style.setProperty('box-sizing', 'border-box', 'important');
+            gRoot.style.setProperty('overflow-x', 'hidden', 'important');
+          }
+          
+          // Also target Gemini-specific containers
+          const geminiMain = document.querySelector('[data-jscontroller]') || document.querySelector('[jscontroller]');
+          if (geminiMain) {
+            geminiMain.style.setProperty('max-width', `${newMaxWidth}px`, 'important');
+            geminiMain.style.setProperty('padding-right', w, 'important');
+            geminiMain.style.setProperty('box-sizing', 'border-box', 'important');
+          }
+          
+          // Target any flex containers that might be causing layout issues
+          const flexContainers = document.querySelectorAll('.flex, [class*="flex"], [style*="display: flex"]');
+          flexContainers.forEach(container => {
+            if (container !== main && container !== gRoot && container !== geminiMain && 
+                !container.closest('.catalogeu-navigation-plugin-floatbar')) {
+              container.style.setProperty('max-width', `${newMaxWidth}px`, 'important');
+              container.style.setProperty('box-sizing', 'border-box', 'important');
+            }
+          });
+          
+          console.log(`Gemini comprehensive width management: max-width=${newMaxWidth}px, padding-right=${w}`);
         }
       } catch(_) {}
       console.log('Showing contracted sidebar and reserving exact space:', contractedWidth);
