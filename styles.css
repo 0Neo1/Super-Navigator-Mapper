@@ -648,6 +648,30 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   transform: translateY(-50%);
 }
 
+/* Ensure clickable Feedback element (if injected) is styled similarly */
+.catalogeu-navigation-plugin-floatbar>.panel>.tools > .zeroeka-feedback {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13.5px;
+  font-weight: 400;
+  line-height: 1;
+  display: inline-block;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 10;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  padding: 4px 8px;
+  background-color: rgba(255, 255, 255, 0.05);
+  text-decoration: underline;
+}
+.catalogeu-navigation-plugin-floatbar>.panel>.tools > .zeroeka-feedback:hover {
+  color: rgba(255, 255, 255, 1);
+}
+
 
 
 /* Hide original footer buttons but keep our custom elements */

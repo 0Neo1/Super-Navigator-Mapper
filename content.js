@@ -6718,9 +6718,24 @@ const updateTextSize = (container, size) => {
     try {
       const footer = document.querySelector('.catalogeu-navigation-plugin-floatbar .panel .tools');
       if (!footer) return;
-      if (footer.querySelector('.zeroeka-support')) return;
-      // Append clickable element; CSS will position it
-      footer.appendChild(createSupportElement());
+      // Append clickable Support element if missing
+      if (!footer.querySelector('.zeroeka-support')) {
+        footer.appendChild(createSupportElement());
+      }
+
+      // Append clickable Feedback element if missing
+      if (!footer.querySelector('.zeroeka-feedback')) {
+        const feedback = document.createElement('div');
+        feedback.className = 'zeroeka-feedback';
+        feedback.textContent = 'Feedback';
+        feedback.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const formUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSehCMDjCiczvSUqjRjZteeEbjuHLh7Jy8MGvHiJhabj8EToRQ/viewform?usp=header';
+          window.open(formUrl, '_blank');
+        }, true);
+        footer.appendChild(feedback);
+      }
     } catch (_) {}
   };
 
