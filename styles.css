@@ -1,7 +1,3 @@
-/* Reserve space for contracted sidebar on Gemini so it doesn't overlap */
-body:has(#zeroeka-contracted-sidebar) {
-  margin-right: 64px !important; /* matches contracted sidebar width */
-}
 body[disselect] {
   user-select: none;
 }

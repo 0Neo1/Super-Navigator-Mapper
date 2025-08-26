@@ -3942,6 +3942,15 @@ const createZeroEkaIconButton = () => {
       // Ensure we do not overshoot, but do not shrink expanded panel reservation
       panelWidth = Math.max(300, panelWidth);
       applyReserve(panelWidth);
+      // Gemini-only: also pad its main/root wrappers so content won't overlap expanded panel
+      try {
+        if (location.hostname.includes('gemini.google.com')) {
+          const w = `${panelWidth}px`;
+          main && main.style.setProperty('padding-right', w, 'important');
+          const gRoot = document.getElementById('yDmH0d');
+          gRoot && gRoot.style.setProperty('padding-right', w, 'important');
+        }
+      } catch(_) {}
       console.log('Expanded panel visible; reserving space:', panelWidth);
       // Ensure ChatGPT tree nesting when panel is open
       setTimeout(() => { try { startAssistantTreeObserver(); } catch(_) {} }, 150);
@@ -3956,6 +3965,15 @@ const createZeroEkaIconButton = () => {
       const rect = contractedSidebar.getBoundingClientRect();
       let contractedWidth = rect && rect.width ? Math.ceil(rect.width) : (contractedSidebar.offsetWidth || 80);
       applyReserve(contractedWidth);
+      // Gemini-only: also pad its main/root wrappers so content won't overlap contracted bar
+      try {
+        if (location.hostname.includes('gemini.google.com')) {
+          const w = `${contractedWidth}px`;
+          main && main.style.setProperty('padding-right', w, 'important');
+          const gRoot = document.getElementById('yDmH0d');
+          gRoot && gRoot.style.setProperty('padding-right', w, 'important');
+        }
+      } catch(_) {}
       console.log('Showing contracted sidebar and reserving exact space:', contractedWidth);
     }
   };
