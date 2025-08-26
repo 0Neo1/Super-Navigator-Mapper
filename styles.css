@@ -584,27 +584,17 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   color: rgba(255, 255, 255, 0.7);
   font-size: 13.5px;
   font-weight: 400;
-  height: 20px;
-  line-height: 20px;
+  height: 14px;
+  line-height: 14px;
   display: inline-block;
   cursor: pointer;
   text-decoration: none;
   pointer-events: auto;
-  user-select: none;
   z-index: 10;
-  transition: none !important;
-  -webkit-transition: none !important;
-  -webkit-tap-highlight-color: transparent;
 }
-.catalogeu-navigation-plugin-floatbar>.panel>.tools > .zeroeka-support:hover,
-.catalogeu-navigation-plugin-floatbar>.panel>.tools > .zeroeka-support:active,
-.catalogeu-navigation-plugin-floatbar>.panel>.tools > .zeroeka-support:focus,
-.catalogeu-navigation-plugin-floatbar>.panel>.tools > .zeroeka-support:focus-visible {
+.catalogeu-navigation-plugin-floatbar>.panel>.tools > .zeroeka-support:hover {
   color: rgba(255, 255, 255, 1);
   text-decoration: none;
-  transform: translateY(-50%);
-  top: 50%;
-  outline: none;
 }
 
 /* Add right side text - Feedback */
