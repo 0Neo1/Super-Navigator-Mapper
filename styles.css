@@ -869,7 +869,7 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   border: 1px solid var(--color3);
 }
 
-.catalogeu-navigation-plugin-floatbar>.panel>.tools>*:not(.resizebar):hover {
+.catalogeu-navigation-plugin-floatbar>.panel>.tools>*:not(.resizebar):not(.zeroeka-support):not(.zeroeka-feedback):hover {
   background: #3a3a3a;
   border-color: #555;
   border-radius: 8px;
