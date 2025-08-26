@@ -124,11 +124,6 @@ const createZeroEkaIconButton = () => {
     padding: 16px 8px;
   `;
 
-  // Add a body class to reserve space for the contracted bar on the right
-  try {
-    document.body.classList.add('zeroeka-contracted');
-  } catch (_) {}
-
   // Create container for top buttons
   const topButtonsContainer = document.createElement('div');
   topButtonsContainer.style.cssText = `
