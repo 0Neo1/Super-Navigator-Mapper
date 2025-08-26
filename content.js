@@ -6714,27 +6714,30 @@ const updateTextSize = (container, size) => {
     return el;
   };
 
+  const createFeedbackElement = () => {
+    const el = document.createElement('div');
+    el.className = 'zeroeka-feedback';
+    el.textContent = 'Feedback';
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const formUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSehCMDjCiczvSUqjRjZteeEbjuHLh7Jy8MGvHiJhabj8EToRQ/viewform?usp=header';
+      window.open(formUrl, '_blank');
+    }, true);
+    return el;
+  };
+
   const tryBind = () => {
     try {
       const footer = document.querySelector('.catalogeu-navigation-plugin-floatbar .panel .tools');
       if (!footer) return;
-      // Append clickable Support element if missing
+      // Append clickable Support element; CSS will position it
       if (!footer.querySelector('.zeroeka-support')) {
         footer.appendChild(createSupportElement());
       }
-
-      // Append clickable Feedback element if missing
+      // Append clickable Feedback element; CSS will position it
       if (!footer.querySelector('.zeroeka-feedback')) {
-        const feedback = document.createElement('div');
-        feedback.className = 'zeroeka-feedback';
-        feedback.textContent = 'Feedback';
-        feedback.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const formUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSehCMDjCiczvSUqjRjZteeEbjuHLh7Jy8MGvHiJhabj8EToRQ/viewform?usp=header';
-          window.open(formUrl, '_blank');
-        }, true);
-        footer.appendChild(feedback);
+        footer.appendChild(createFeedbackElement());
       }
     } catch (_) {}
   };
