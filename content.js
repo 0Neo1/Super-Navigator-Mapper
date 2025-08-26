@@ -6696,6 +6696,44 @@ const updateTextSize = (container, size) => {
     }, 1200);
   })();
   
+// Global footer Support binder for both ChatGPT and Gemini
+(() => {
+  const createSupportElement = () => {
+    const el = document.createElement('div');
+    el.className = 'zeroeka-support';
+    el.textContent = 'Support';
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const email = 'support@zeroeka.com';
+      const subject = 'Support Request';
+      const body = 'Hello ZeroEka Support Team,\n\nI need assistance with:\n\n\n\nBest regards,\n[Your Name]';
+      const mailtoUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.open(mailtoUrl, '_blank');
+    }, true);
+    return el;
+  };
+
+  const tryBind = () => {
+    try {
+      const footer = document.querySelector('.catalogeu-navigation-plugin-floatbar .panel .tools');
+      if (!footer) return;
+      if (footer.querySelector('.zeroeka-support')) return;
+      // Append clickable element; CSS will position it
+      footer.appendChild(createSupportElement());
+    } catch (_) {}
+  };
+
+  // Initial binds and observers
+  tryBind();
+  setTimeout(tryBind, 500);
+  setTimeout(tryBind, 1500);
+  const mo = new MutationObserver(() => tryBind());
+  try {
+    mo.observe(document.body, { childList: true, subtree: true });
+  } catch (_) {}
+})();
+
 })();
 
 // Enhanced chat context menu modification for pin/unpin functionality
