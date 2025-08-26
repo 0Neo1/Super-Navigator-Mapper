@@ -1321,6 +1321,19 @@ body.zeroeka-contracted [role="main"],
 body.zeroeka-contracted .flex.flex-1.overflow-hidden,
 body.zeroeka-contracted .flex.h-full.flex-1.flex-col {
   margin-right: 64px !important;
+  width: 80% !important;
+  max-width: 80% !important;
+  box-sizing: border-box !important;
+}
+
+/* Ensure inner content respects reduced width on Gemini */
+body.zeroeka-contracted .max-w-3xl,
+body.zeroeka-contracted .lg\:max-w-\[48rem\],
+body.zeroeka-contracted .xl\:max-w-\[48rem\],
+body.zeroeka-contracted [data-testid="conversation-turn"],
+body.zeroeka-contracted .prose {
+  max-width: 100% !important;
+  width: 100% !important;
 }
 
 /* Additional positioning for the panel when shown */
