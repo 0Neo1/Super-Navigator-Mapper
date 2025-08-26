@@ -6618,17 +6618,17 @@ const updateTextSize = (container, size) => {
       }
     }, 500);
 
-    // Add footer click functionality for Support and Feedback
-    const setupFooterClicks = () => {
+    // Add support click functionality for footer
+    const addSupportClickFunctionality = () => {
       try {
         const footer = document.querySelector('.catalogeu-navigation-plugin-floatbar .panel .tools');
-        if (footer && !footer.__footerClicksBound) {
-          footer.__footerClicksBound = true;
+        if (footer && !footer.__supportClickBound) {
+          footer.__supportClickBound = true;
           
-          // Create clickable Support text
-          const supportText = document.createElement('span');
-          supportText.textContent = 'Support';
-          supportText.style.cssText = `
+          // Create clickable support element
+          const supportElement = document.createElement('div');
+          supportElement.textContent = 'Support';
+          supportElement.style.cssText = `
             position: absolute;
             left: 5px;
             top: 50%;
@@ -6638,71 +6638,40 @@ const updateTextSize = (container, size) => {
             font-weight: 400;
             cursor: pointer;
             text-decoration: underline;
-            z-index: 10;
             pointer-events: auto;
+            z-index: 10;
           `;
           
-          // Create clickable Feedback text
-          const feedbackText = document.createElement('span');
-          feedbackText.textContent = 'Feedback';
-          feedbackText.style.cssText = `
-            position: absolute;
-            right: 5px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 13.5px;
-            font-weight: 400;
-            cursor: pointer;
-            text-decoration: underline;
-            z-index: 10;
-            pointer-events: auto;
-          `;
-          
-          // Add click handlers
-          supportText.addEventListener('click', () => {
+          supportElement.addEventListener('click', () => {
             const email = 'support@zeroeka.com';
             const subject = 'Support Request';
-            const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subject)}`;
-            window.open(gmailUrl, '_blank');
+            const body = 'Hello ZeroEka Support Team,\n\nI need assistance with:\n\n\n\nBest regards,\n[Your Name]';
+            const mailtoUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            window.open(mailtoUrl, '_blank');
           });
           
-          feedbackText.addEventListener('click', () => {
-            const email = 'support@zeroeka.com';
-            const subject = 'Feedback';
-            const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subject)}`;
-            window.open(gmailUrl, '_blank');
+          // Add hover effect
+          supportElement.addEventListener('mouseenter', () => {
+            supportElement.style.color = 'rgba(255, 255, 255, 1)';
           });
           
-          // Add hover effects
-          supportText.addEventListener('mouseenter', () => {
-            supportText.style.color = 'rgba(255, 255, 255, 1)';
-          });
-          supportText.addEventListener('mouseleave', () => {
-            supportText.style.color = 'rgba(255, 255, 255, 0.7)';
+          supportElement.addEventListener('mouseleave', () => {
+            supportElement.style.color = 'rgba(255, 255, 255, 0.7)';
           });
           
-          feedbackText.addEventListener('mouseenter', () => {
-            feedbackText.style.color = 'rgba(255, 255, 255, 1)';
-          });
-          feedbackText.addEventListener('mouseleave', () => {
-            feedbackText.style.color = 'rgba(255, 255, 255, 0.7)';
-          });
+          footer.appendChild(supportElement);
           
-          // Append to footer
-          footer.appendChild(supportText);
-          footer.appendChild(feedbackText);
-          
-          console.log('[Footer] Support and Feedback click handlers added successfully');
+          // Hide the CSS pseudo-element
+          footer.style.setProperty('--support-content', 'none');
         }
       } catch(err) {
-        console.error('[Footer] Error setting up footer clicks:', err);
+        console.error('[ZeroEka] Error adding support click functionality:', err);
       }
     };
     
-    // Setup footer clicks after a delay to ensure footer is ready
-    setTimeout(setupFooterClicks, 1000);
-    setTimeout(setupFooterClicks, 2000);
+    // Add support functionality after a delay
+    setTimeout(addSupportClickFunctionality, 1000);
+    setTimeout(addSupportClickFunctionality, 2000);
 
     // Detect SPA route changes via History API
     try {

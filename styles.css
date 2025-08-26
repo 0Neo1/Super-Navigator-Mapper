@@ -570,7 +570,23 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   padding: 0 1px;
 }
 
+/* Add left side text - Support - Hidden since replaced with clickable element */
+.catalogeu-navigation-plugin-floatbar>.panel>.tools::before {
+  content: none;
+}
 
+/* Add right side text - Feedback */
+.catalogeu-navigation-plugin-floatbar>.panel>.tools::after {
+  content: "Feedback";
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13.5px;
+  font-weight: 400;
+  pointer-events: none;
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+}
 
 
 
