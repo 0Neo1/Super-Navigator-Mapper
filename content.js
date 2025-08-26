@@ -6624,24 +6624,17 @@ const updateTextSize = (container, size) => {
         const footer = document.querySelector('.catalogeu-navigation-plugin-floatbar .panel .tools');
         if (footer && !footer.__supportClickBound) {
           footer.__supportClickBound = true;
-          
-          // Create clickable support element
+
+          // Remove any legacy Support nodes without our class to prevent overlap (Gemini)
+          Array.from(footer.querySelectorAll('div'))
+            .filter(n => n.textContent?.trim() === 'Support' && !n.classList.contains('zeroeka-support'))
+            .forEach(n => n.remove());
+
+          // Create clickable support element (styled via CSS)
           const supportElement = document.createElement('div');
+          supportElement.className = 'zeroeka-support';
           supportElement.textContent = 'Support';
-          supportElement.style.cssText = `
-            position: absolute;
-            left: 5px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 13.5px;
-            font-weight: 400;
-            cursor: pointer;
-            text-decoration: underline;
-            pointer-events: auto;
-            z-index: 10;
-          `;
-          
+
           supportElement.addEventListener('click', () => {
             const email = 'support@zeroeka.com';
             const subject = 'Support Request';
@@ -6649,20 +6642,8 @@ const updateTextSize = (container, size) => {
             const mailtoUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
             window.open(mailtoUrl, '_blank');
           });
-          
-          // Add hover effect
-          supportElement.addEventListener('mouseenter', () => {
-            supportElement.style.color = 'rgba(255, 255, 255, 1)';
-          });
-          
-          supportElement.addEventListener('mouseleave', () => {
-            supportElement.style.color = 'rgba(255, 255, 255, 0.7)';
-          });
-          
+
           footer.appendChild(supportElement);
-          
-          // Hide the CSS pseudo-element
-          footer.style.setProperty('--support-content', 'none');
         }
       } catch(err) {
         console.error('[ZeroEka] Error adding support click functionality:', err);
