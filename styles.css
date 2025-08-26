@@ -1315,14 +1315,12 @@ main#main #page-header + div > div > div {
   z-index: 10000000 !important;
 }
 
-/* Gemini: prevent contracted sidebar overlap by adding left gutter */
-body.zeroeka-gemini-contract #__next, /* Chat UI wrapper */
-body.zeroeka-gemini-contract main,
-body.zeroeka-gemini-contract [role="main"],
-body.zeroeka-gemini-contract .aeN, /* generic container fallback */
-body.zeroeka-gemini-contract .zQTmif { /* Gemini page content wrapper */
-  padding-left: 64px !important; /* equal to contractedSidebar width */
-  box-sizing: border-box !important;
+/* Reserve space on the right when contracted sidebar is visible (Gemini/chat pages) */
+body.zeroeka-contracted main,
+body.zeroeka-contracted [role="main"],
+body.zeroeka-contracted .flex.flex-1.overflow-hidden,
+body.zeroeka-contracted .flex.h-full.flex-1.flex-col {
+  margin-right: 64px !important;
 }
 
 /* Additional positioning for the panel when shown */

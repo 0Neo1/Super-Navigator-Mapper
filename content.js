@@ -124,11 +124,9 @@ const createZeroEkaIconButton = () => {
     padding: 16px 8px;
   `;
 
-  // Nudge Gemini main page to avoid overlap with contracted sidebar
+  // Add a body class to reserve space for the contracted bar on the right
   try {
-    if (location.hostname.includes('gemini.google')) {
-      document.body.classList.add('zeroeka-gemini-contract');
-    }
+    document.body.classList.add('zeroeka-contracted');
   } catch (_) {}
 
   // Create container for top buttons
@@ -6481,7 +6479,7 @@ const updateTextSize = (container, size) => {
             if (foldBtn && !foldBtn.__geminiFoldBound) {
               foldBtn.__geminiFoldBound = true;
               foldBtn.addEventListener('click', (e) => {
-                e.preventDefault();
+          e.preventDefault();
                 e.stopPropagation();
                 console.log('[Gemini] Fold button clicked - toggling between parent-only and parent+child (sidebar only)');
                 
@@ -6591,7 +6589,7 @@ const updateTextSize = (container, size) => {
                 } catch(_) {}
               };
               syncBtn.addEventListener('click', (e) => {
-                e.preventDefault();
+          e.preventDefault();
                 e.stopPropagation();
                 console.log('[Gemini] Sync button clicked - toggling main page message folding');
                 
@@ -6691,7 +6689,7 @@ const updateTextSize = (container, size) => {
     el.className = 'zeroeka-support';
     el.textContent = 'Support';
     el.addEventListener('click', (e) => {
-      e.preventDefault();
+          e.preventDefault();
       e.stopPropagation();
       const email = 'support@zeroeka.com';
       const subject = 'Support Request';
@@ -6787,9 +6785,9 @@ const updateTextSize = (container, size) => {
               } else {
                 console.log('[ZeroEka] Not a ChatGPT chat context menu, skipping');
               }
-            }
-          }
-        });
+      }
+    }
+  });
       });
     });
 
@@ -7148,6 +7146,6 @@ const updateTextSize = (container, size) => {
           console.log(`[ZeroEka] Skipping non-ChatGPT menu ${i}:`, menu);
         }
       }
-    });
-  };
+  });
+};
 })();
