@@ -633,6 +633,10 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   padding: 4px 8px;
   background-color: rgba(255, 255, 255, 0.05);
   text-decoration: underline;
+  /* Match Support box height exactly */
+  line-height: 1;
+  display: inline-block;
+  box-sizing: border-box;
 }
 
 /* Keep Feedback underline and prevent layout shifts on hover/focus */
