@@ -584,11 +584,13 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   color: rgba(255, 255, 255, 0.7);
   font-size: 13.5px;
   font-weight: 400;
-  line-height: 1;
+  height: 20px;
+  line-height: 20px;
   display: inline-block;
   cursor: pointer;
-  text-decoration: underline;
+  text-decoration: none;
   pointer-events: auto;
+  user-select: none;
   z-index: 10;
   transition: none !important;
   -webkit-transition: none !important;
@@ -599,7 +601,7 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
 .catalogeu-navigation-plugin-floatbar>.panel>.tools > .zeroeka-support:focus,
 .catalogeu-navigation-plugin-floatbar>.panel>.tools > .zeroeka-support:focus-visible {
   color: rgba(255, 255, 255, 1);
-  text-decoration: underline;
+  text-decoration: none;
   transform: translateY(-50%);
   top: 50%;
   outline: none;
