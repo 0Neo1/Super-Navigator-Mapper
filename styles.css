@@ -627,6 +627,21 @@ body.zeroeka-chatgpt-fold [data-message-author="assistant"] .markdown code {
   right: 5px;
   top: 50%;
   transform: translateY(-50%);
+  /* Box styling to match Gemini */
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  padding: 4px 8px;
+  background-color: rgba(255, 255, 255, 0.05);
+  text-decoration: underline;
+}
+
+/* Keep Feedback underline and prevent layout shifts on hover/focus */
+.catalogeu-navigation-plugin-floatbar>.panel>.tools:hover::after,
+.catalogeu-navigation-plugin-floatbar>.panel>.tools:focus-within::after {
+  color: rgba(255, 255, 255, 1);
+  text-decoration: underline;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 
