@@ -3809,28 +3809,6 @@ const createZeroEkaIconButton = () => {
   // Add to page
   document.body.appendChild(contractedSidebar);
 
-  // On Gemini only, reserve space on the right for the contracted sidebar
-  try {
-    const isGemini = (location.hostname || '').includes('gemini.google');
-    if (isGemini) {
-      try { document.documentElement.classList.add('zeroeka-gemini'); } catch (_) {}
-      const styleId = 'zeroeka-gemini-right-reserve-style';
-      let reserveStyle = document.getElementById(styleId);
-      if (!reserveStyle) {
-        reserveStyle = document.createElement('style');
-        reserveStyle.id = styleId;
-        reserveStyle.textContent = `
-          /* Reserve space for contracted sidebar on Gemini */
-          html, body {
-            padding-right: 64px !important;
-            box-sizing: border-box !important;
-          }
-        `;
-        document.head.appendChild(reserveStyle);
-      }
-    }
-  } catch (_) {}
-
   // Ensure ChatGPT tree shows user -> assistant -> subnodes structure
   const isOnChatGPT = (location.hostname || '').includes('chatgpt.com');
   const enforceAssistantChildStructure = () => {
