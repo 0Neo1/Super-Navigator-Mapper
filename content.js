@@ -3980,28 +3980,7 @@ const createZeroEkaIconButton = () => {
       // Ensure we do not overshoot, but do not shrink expanded panel reservation
       panelWidth = Math.max(300, panelWidth);
       applyReserve(panelWidth);
-      try {
-        if (window.location.hostname.includes('gemini.google.com')) {
-          const headers = (typeof getHeaderEls === 'function') ? getHeaderEls() : [];
-          if (Array.isArray(headers)) {
-            const pushPx = 150; // reduce gap by ~25% from 200px
-            headers.forEach(h => {
-              try {
-                if (!h) return;
-                h.style.setProperty('padding-right', `${pushPx}px`, 'important');
-                const rightGroup = h.querySelector(':scope > div:last-child') || h.querySelector(':scope [role="toolbar"]') || h.querySelector(':scope nav:last-child');
-                if (rightGroup) {
-                  rightGroup.style.setProperty('margin-right', `${pushPx}px`, 'important');
-                  const pos = (getComputedStyle(rightGroup).position || '').toLowerCase();
-                  if (pos === 'fixed' || pos === 'sticky' || pos === 'absolute') {
-                    rightGroup.style.setProperty('right', `${pushPx}px`, 'important');
-                  }
-                }
-              } catch(_){}
-            });
-          }
-        }
-      } catch(_) {}
+      try { if (window.location.hostname.includes('gemini.google.com')) setGeminiHeaderOffset(150); } catch(_) {}
       console.log('Expanded panel visible; reserving space:', panelWidth);
       // Ensure ChatGPT tree nesting when panel is open
       setTimeout(() => { try { startAssistantTreeObserver(); } catch(_) {} }, 150);
@@ -4016,28 +3995,7 @@ const createZeroEkaIconButton = () => {
       const rect = contractedSidebar.getBoundingClientRect();
       let contractedWidth = rect && rect.width ? Math.ceil(rect.width) : (contractedSidebar.offsetWidth || 80);
       applyReserve(contractedWidth);
-      try {
-        if (window.location.hostname.includes('gemini.google.com')) {
-          const headers = (typeof getHeaderEls === 'function') ? getHeaderEls() : [];
-          if (Array.isArray(headers)) {
-            const pushPx = 150; // reduce gap by ~25% from 200px
-            headers.forEach(h => {
-              try {
-                if (!h) return;
-                h.style.setProperty('padding-right', `${pushPx}px`, 'important');
-                const rightGroup = h.querySelector(':scope > div:last-child') || h.querySelector(':scope [role="toolbar"]') || h.querySelector(':scope nav:last-child');
-                if (rightGroup) {
-                  rightGroup.style.setProperty('margin-right', `${pushPx}px`, 'important');
-                  const pos = (getComputedStyle(rightGroup).position || '').toLowerCase();
-                  if (pos === 'fixed' || pos === 'sticky' || pos === 'absolute') {
-                    rightGroup.style.setProperty('right', `${pushPx}px`, 'important');
-                  }
-                }
-              } catch(_){}
-            });
-          }
-        }
-      } catch(_) {}
+      try { if (window.location.hostname.includes('gemini.google.com')) setGeminiHeaderOffset(150); } catch(_) {}
       console.log('Showing contracted sidebar and reserving exact space:', contractedWidth);
     }
   };
@@ -4076,6 +4034,30 @@ const createZeroEkaIconButton = () => {
       updateSidebarPosition();
     }
   });
+  
+    // Gemini header offset helper via CSS (strong override)
+    const setGeminiHeaderOffset = (px) => {
+      try {
+        if (!window.location.hostname.includes('gemini.google.com')) return;
+        const id = 'zeroeka-gemini-header-offset';
+        let styleEl = document.getElementById(id);
+        if (!styleEl) {
+          styleEl = document.createElement('style');
+          styleEl.id = id;
+          document.head.appendChild(styleEl);
+        }
+        const n = Math.max(0, Math.floor(px || 0));
+        styleEl.textContent = `
+          [role="presentation"] > #page-header, #page-header { padding-right: ${n}px !important; }
+          #page-header > *:last-child, [role="presentation"] > #page-header > *:last-child {
+            margin-right: ${n}px !important;
+            right: ${n}px !important;
+            position: relative !important;
+            z-index: 2147483647 !important;
+          }
+        `;
+      } catch (_) {}
+    };
   
 
   
