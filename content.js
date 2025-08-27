@@ -1168,7 +1168,7 @@ const createZeroEkaIconButton = () => {
               .ze-content { position: relative; z-index: 1; }
               .message-block { margin: 0 0 8px; }
               .role-label { font-weight: 900; color: #0B3D91; font-size: 24px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px; }
-              .message-content { white-space: normal; overflow-wrap: anywhere; }
+              .message-content { white-space: pre-wrap; overflow-wrap: anywhere; }
               pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
               pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
               img, svg, canvas, video { max-width: 100%; height: auto; }
@@ -1317,13 +1317,23 @@ const createZeroEkaIconButton = () => {
             // Create completely isolated content - NO HTML from the turn
             let turnContent = '';
             
-            // Method 1: Extract only text content (guaranteed no overlap)
+            // Method 1: Extract content with preserved structure (like Gemini)
             const textContent = turn.textContent || '';
             if (textContent.trim()) {
+              // Preserve original whitespace and line breaks like Gemini does
               const textDiv = (iframeDoc || document).createElement('div');
-              textDiv.textContent = textContent.trim();
+              // Use innerHTML to preserve structure, fallback to textContent if no HTML
+              const originalHtml = turn.innerHTML || '';
+              if (originalHtml && originalHtml.trim() && originalHtml !== textContent.trim()) {
+                // Use original HTML to preserve formatting, structure, and spacing
+                textDiv.innerHTML = originalHtml;
+                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using original HTML for structure`);
+              } else {
+                // Fallback to textContent but preserve whitespace
+                textDiv.textContent = textContent; // Don't trim - preserve spacing
+                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using text content with preserved spacing`);
+              }
               turnContent = textDiv.outerHTML;
-              console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using text content only`);
             }
             
             // Method 2: Add images as separate elements (no HTML overlap)
@@ -1354,7 +1364,13 @@ const createZeroEkaIconButton = () => {
                 // Add text content first
                 if (textContent.trim()) {
                   const textDiv = (iframeDoc || document).createElement('div');
-                  textDiv.textContent = textContent.trim();
+                  // Preserve original HTML structure if available, otherwise use textContent without trimming
+                  const originalHtml = turn.innerHTML || '';
+                  if (originalHtml && originalHtml.trim() && originalHtml !== textContent.trim()) {
+                    textDiv.innerHTML = originalHtml;
+                  } else {
+                    textDiv.textContent = textContent; // Don't trim - preserve spacing
+                  }
                   turnWrapper.appendChild(textDiv);
                 }
                 
