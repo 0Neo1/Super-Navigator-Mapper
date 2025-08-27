@@ -3972,7 +3972,7 @@ const createZeroEkaIconButton = () => {
         if (window.location.hostname.includes('gemini.google.com')) {
           const headers = (typeof getHeaderEls === 'function') ? getHeaderEls() : [];
           if (Array.isArray(headers)) {
-            const pushPx = panelWidth + 80;
+            const pushPx = 200;
             headers.forEach(h => {
               try {
                 if (!h) return;
@@ -4008,7 +4008,7 @@ const createZeroEkaIconButton = () => {
         if (window.location.hostname.includes('gemini.google.com')) {
           const headers = (typeof getHeaderEls === 'function') ? getHeaderEls() : [];
           if (Array.isArray(headers)) {
-            const pushPx = contractedWidth + 80;
+            const pushPx = 200;
             headers.forEach(h => {
               try {
                 if (!h) return;
