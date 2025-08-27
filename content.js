@@ -3932,7 +3932,19 @@ const createZeroEkaIconButton = () => {
           try {
             const headers = (typeof getHeaderEls === 'function') ? getHeaderEls() : [];
             if (Array.isArray(headers)) {
-              headers.forEach(h => { try { h && (h.style.paddingRight = ''); } catch(_){} });
+              headers.forEach(h => {
+                try {
+                  if (!h) return;
+                  h.style.paddingRight = '';
+                  h.style.zIndex = '';
+                  const candidates = [
+                    h.querySelector(':scope > div:last-child'),
+                    h.querySelector(':scope [role="toolbar"]'),
+                    h.querySelector(':scope nav:last-child')
+                  ].filter(Boolean);
+                  candidates.forEach(el => { try { el.style.marginRight = ''; el.style.right = ''; el.style.zIndex = ''; } catch(_){} });
+                } catch(_){}
+              });
             }
           } catch(_) {}
         } catch(_) {}
