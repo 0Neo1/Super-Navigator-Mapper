@@ -1168,7 +1168,16 @@ const createZeroEkaIconButton = () => {
               .ze-content { position: relative; z-index: 1; }
               .message-block { margin: 0 0 8px; }
               .role-label { font-weight: 900; color: #0B3D91; font-size: 24px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px; }
-              .message-content { white-space: pre-line; overflow-wrap: anywhere; word-wrap: break-word; line-height: 1 !important; font-size: 14px !important; }
+              .message-content { white-space: pre-line; overflow-wrap: anywhere; word-wrap: break-word; line-height: 1.2; }
+              .message-content p { margin: 0; }
+              .message-content ul, .message-content ol { margin: 0; padding: 0 0 0 18px; }
+              .message-content li { margin: 0; padding: 0; }
+              .message-content br + br { display: none; }
+              .message-content p + p { margin-top: 0; }
+              .message-content li + li { margin-top: 0; }
+              .message-content * { line-height: 1.2; }
+              .message-content p:empty { display: none; }
+              .message-content div:empty { display: none; }
               pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
               pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
               img, svg, canvas, video { max-width: 100%; height: auto; }
@@ -1179,7 +1188,6 @@ const createZeroEkaIconButton = () => {
               ul, ol { margin: 0 0 0 18px; }
               li { margin: 0; padding: 0; }
               .message-content br + br { display: none; }
-              .message-content * { line-height: 1 !important; margin: 0 !important; padding: 0 !important; }
               h1, h2, h3, h4, h5, h6 { margin: 3px 0; }
               @page { size: auto; margin: 8mm; }
               @media print { body { margin: 0; } pre, table, img { break-inside: avoid; page-break-inside: avoid; } }
@@ -1256,6 +1264,30 @@ const createZeroEkaIconButton = () => {
                 }
               } catch(_) {}
             });
+            // Clean up bullet point spacing - remove extra line breaks between list items
+            wrapper.querySelectorAll("ul, ol").forEach(list => {
+              // Remove any empty text nodes between list items
+              Array.from(list.childNodes).forEach(node => {
+                if (node.nodeType === Node.TEXT_NODE && node.textContent.trim() === "") {
+                  node.remove();
+                }
+              });
+              // Ensure list items have no extra spacing
+              list.querySelectorAll("li").forEach(li => {
+                li.style.margin = "0";
+                li.style.padding = "0";
+                li.style.lineHeight = "1.2";
+              });
+            });
+            
+            // Remove consecutive line breaks and empty paragraphs
+            wrapper.querySelectorAll("br + br").forEach(br => br.remove());
+            wrapper.querySelectorAll("p").forEach(p => {
+              if (p.textContent.trim() === "") p.remove();
+              p.style.margin = "0";
+              p.style.lineHeight = "1.2";
+            });
+            
             return wrapper.innerHTML;
           } catch (_) {
             return unsafeHtml || '';
