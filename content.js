@@ -1168,17 +1168,18 @@ const createZeroEkaIconButton = () => {
               .ze-content { position: relative; z-index: 1; }
               .message-block { margin: 0 0 8px; }
               .role-label { font-weight: 900; color: #0B3D91; font-size: 24px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px; }
-              .message-content { white-space: normal; overflow-wrap: anywhere; word-wrap: break-word; line-height: 1.1; }
+              .message-content { white-space: pre-line; overflow-wrap: anywhere; word-wrap: break-word; line-height: 1.2; }
               pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
               pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
               img, svg, canvas, video { max-width: 100%; height: auto; }
               table { border-collapse: collapse; }
               table, th, td { border: 1px solid #ddd; }
               th, td { padding: 6px 8px; }
-              p { margin: 0 0 0px; padding: 0; }
-              ul, ol { margin: 0 0 0px 18px; padding: 0; }
-              li { margin: 0 0 0px; padding: 0; }
-              h1, h2, h3, h4, h5, h6 { margin: 1px 0; padding: 0; }
+              p { margin: 0; }
+              ul, ol { margin: 0 0 0 18px; }
+              li { margin: 0; padding: 0; }
+              .message-content br + br { display: none; }
+              h1, h2, h3, h4, h5, h6 { margin: 3px 0; }
               @page { size: auto; margin: 8mm; }
               @media print { body { margin: 0; } pre, table, img { break-inside: avoid; page-break-inside: avoid; } }
             </style>
@@ -1323,7 +1324,7 @@ const createZeroEkaIconButton = () => {
             if (textContent.trim()) {
               const textDiv = (iframeDoc || document).createElement('div');
               // Preserve whitespace and line breaks like Gemini does
-              textDiv.style.cssText = 'white-space: normal; word-wrap: break-word;';
+              textDiv.style.cssText = 'white-space: pre-wrap; word-wrap: break-word;';
               textDiv.textContent = textContent;
               turnContent = textDiv.outerHTML;
               console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using preserved structure content`);
@@ -1357,7 +1358,7 @@ const createZeroEkaIconButton = () => {
                 // Add text content first
                 if (textContent.trim()) {
                   const textDiv = (iframeDoc || document).createElement('div');
-                  textDiv.style.cssText = "white-space: normal; word-wrap: break-word;"; textDiv.textContent = textContent;
+                  textDiv.style.cssText = "white-space: pre-wrap; word-wrap: break-word;"; textDiv.textContent = textContent;
                   turnWrapper.appendChild(textDiv);
                 }
                 
@@ -3000,7 +3001,7 @@ const createZeroEkaIconButton = () => {
       max-height: 200px;
       font-family: inherit;
       line-height: 1.4;
-      white-space: normal;
+      white-space: pre-wrap;
       word-wrap: break-word;
       word-break: break-word;
       box-sizing: border-box;
@@ -3528,7 +3529,7 @@ const createZeroEkaIconButton = () => {
           <div style="font-weight: 600; color: #3bb910; margin-bottom: 4px; font-size: 13px;">
             ${authorLabel} ${messageNumber}${matchInfo}${topMatchLabel}
           </div>
-          <div style="color: #cccccc; font-size: 13px; line-height: 1.4; white-space: normal; word-wrap: break-word; max-height: 80px; overflow: hidden;">
+          <div style="color: #cccccc; font-size: 13px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; max-height: 80px; overflow: hidden;">
             ${result.beforeMatch ? '...' + result.beforeMatch : ''}${highlightAllWordsInText(result.match, query)}${result.afterMatch ? result.afterMatch + '...' : ''}
           </div>
         `;
@@ -5768,7 +5769,7 @@ const updateTextSize = (container, size) => {
             line-height: 1.4;
             z-index: 2147483000;
             box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            white-space: normal;
+            white-space: pre-wrap;
             word-wrap: break-word;
             overflow: auto;
             pointer-events: none;
