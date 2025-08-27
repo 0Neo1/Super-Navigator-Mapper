@@ -3980,7 +3980,7 @@ const createZeroEkaIconButton = () => {
       // Ensure we do not overshoot, but do not shrink expanded panel reservation
       panelWidth = Math.max(300, panelWidth);
       applyReserve(panelWidth);
-      try { if (window.location.hostname.includes('gemini.google.com')) setGeminiHeaderOffset(150); } catch(_) {}
+      try { if (window.location.hostname.includes('gemini.google.com')) setGeminiHeaderOffset(240); } catch(_) {}
       console.log('Expanded panel visible; reserving space:', panelWidth);
       // Ensure ChatGPT tree nesting when panel is open
       setTimeout(() => { try { startAssistantTreeObserver(); } catch(_) {} }, 150);
@@ -3995,7 +3995,7 @@ const createZeroEkaIconButton = () => {
       const rect = contractedSidebar.getBoundingClientRect();
       let contractedWidth = rect && rect.width ? Math.ceil(rect.width) : (contractedSidebar.offsetWidth || 80);
       applyReserve(contractedWidth);
-      try { if (window.location.hostname.includes('gemini.google.com')) setGeminiHeaderOffset(150); } catch(_) {}
+      try { if (window.location.hostname.includes('gemini.google.com')) setGeminiHeaderOffset(240); } catch(_) {}
       console.log('Showing contracted sidebar and reserving exact space:', contractedWidth);
     }
   };
@@ -4048,8 +4048,18 @@ const createZeroEkaIconButton = () => {
         }
         const n = Math.max(0, Math.floor(px || 0));
         styleEl.textContent = `
-          [role="presentation"] > #page-header, #page-header { padding-right: ${n}px !important; }
-          #page-header > *:last-child, [role="presentation"] > #page-header > *:last-child {
+          [role="presentation"] > #page-header,
+          #page-header,
+          header[role="banner"],
+          [role="banner"] {
+            padding-right: ${n}px !important;
+            position: relative !important;
+            z-index: 2147483647 !important;
+          }
+          #page-header > *:last-child,
+          [role="presentation"] > #page-header > *:last-child,
+          header[role="banner"] > *:last-child,
+          [role="banner"] > *:last-child {
             margin-right: ${n}px !important;
             right: ${n}px !important;
             position: relative !important;
