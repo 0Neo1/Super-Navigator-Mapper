@@ -391,34 +391,34 @@ body[disselect] {
   pointer-events: none;
 }
 
+/* Ensure right-side buttons are properly positioned and visible */
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.close,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.sync,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.deep,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.refresh {
+  position: relative;
+  z-index: 10;
+  /* Ensure buttons don't get cut off by sidebar */
+  margin-right: 0;
+  right: auto;
+}
+
+/* Override header layout to prevent right-side buttons from being hidden */
 .catalogeu-navigation-plugin-floatbar>.panel>.header {
-  flex-shrink: 0;
+  justify-content: flex-start !important;
+  gap: 0.5em !important;
+}
 
-  display: flex;
-  /* grid-template-columns: auto auto auto auto auto;
-        grid-template-rows: calc(var(--chatgpt-font-size) * 1.5); */
-  align-items: stretch;
-  /* Change from space-between to flex-start to prevent buttons from spreading too far right */
-  justify-content: flex-start;
-  gap: 0.5em; /* Add gap between buttons */
-
-  --chatgpt-font-size: 16px;
-  /* padding: var(--chatgpt-font-size) .5em; */
-  /* height: calc(var(--chatgpt-font-size) * 3.5); */
-  line-height: 0;
-  box-sizing: border-box;
-  /* cursor: move; */
-
-  background: #2a2a2a;
-  border-bottom: 1px solid #444;
-  /* background: var(--color2); */
-
-  /* background: none; */
-  /* Reduce side padding to remove extra left spacing */
-  padding: .4em .4em;
-  /* Add right margin to prevent buttons from being hidden by contracted sidebar */
-  margin-right: 1em;
-  height: 2.5em; /* Increased height for side panel */
+/* Ensure right-side buttons don't get hidden by contracted sidebar */
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.close,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.sync,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.deep,
+.catalogeu-navigation-plugin-floatbar>.panel>.header>.refresh {
+  position: relative;
+  z-index: 10;
+  /* Ensure buttons don't get cut off by sidebar */
+  margin-right: 0;
+  right: auto;
 }
 
 .catalogeu-navigation-plugin-floatbar>.panel>.header>* {
