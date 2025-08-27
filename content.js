@@ -3813,6 +3813,7 @@ const createZeroEkaIconButton = () => {
   try {
     const isGemini = (location.hostname || '').includes('gemini.google');
     if (isGemini) {
+      try { document.documentElement.classList.add('zeroeka-gemini'); } catch (_) {}
       const styleId = 'zeroeka-gemini-right-reserve-style';
       let reserveStyle = document.getElementById(styleId);
       if (!reserveStyle) {

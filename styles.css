@@ -416,6 +416,31 @@ body[disselect] {
   height: 2.5em; /* Increased height for side panel */
 }
 
+/* Gemini: move header action buttons to the left, beside the Gemini logo */
+.zeroeka-gemini .catalogeu-navigation-plugin-floatbar>.panel>.header {
+  justify-content: flex-start !important;
+  gap: 6px !important;
+}
+
+.zeroeka-gemini .catalogeu-navigation-plugin-floatbar>.panel>.header>.title,
+.zeroeka-gemini .catalogeu-navigation-plugin-floatbar>.panel>.title {
+  order: 0;
+}
+
+.zeroeka-gemini .catalogeu-navigation-plugin-floatbar>.panel>.header>.fold,
+.zeroeka-gemini .catalogeu-navigation-plugin-floatbar>.panel>.header>.sync,
+.zeroeka-gemini .catalogeu-navigation-plugin-floatbar>.panel>.header>.deep,
+.zeroeka-gemini .catalogeu-navigation-plugin-floatbar>.panel>.header>.refresh,
+.zeroeka-gemini .catalogeu-navigation-plugin-floatbar>.panel>.header>.new,
+.zeroeka-gemini .catalogeu-navigation-plugin-floatbar>.panel>.header>.close {
+  order: 1;
+}
+
+/* keep spacing tidy when moved left */
+.zeroeka-gemini .catalogeu-navigation-plugin-floatbar>.panel>.header>* {
+  margin-right: 6px;
+}
+
 .catalogeu-navigation-plugin-floatbar>.panel>.header>* {
   cursor: pointer;
   box-sizing: border-box;
