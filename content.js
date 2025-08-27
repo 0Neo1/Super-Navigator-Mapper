@@ -132,9 +132,26 @@ const createZeroEkaIconButton = () => {
       style.id = 'zeroeka-gemini-contracted-space';
       style.textContent = `
         /* Reserve 64px on the right when the contracted sidebar exists (Gemini only) */
-        body:has(#zeroeka-contracted-sidebar) main,
-        body:has(#zeroeka-contracted-sidebar) [role="main"] {
-          margin-right: 64px;
+        main,
+        [role="main"],
+        .conversation-container,
+        .chat-container,
+        #main,
+        .main-content {
+          margin-right: 64px !important;
+          width: calc(100vw - 64px) !important;
+          max-width: calc(100vw - 64px) !important;
+          box-sizing: border-box !important;
+        }
+        
+        /* Override for when expanded panel is shown (600px wins) */
+        .catalogeu-navigation-plugin-floatbar.show-panel ~ * main,
+        .catalogeu-navigation-plugin-floatbar.show-panel ~ * [role="main"],
+        .show-panel main,
+        .show-panel [role="main"] {
+          margin-right: 600px !important;
+          width: calc(100vw - 600px) !important;
+          max-width: calc(100vw - 600px) !important;
         }
       `;
       document.head.appendChild(style);
