@@ -1168,7 +1168,7 @@ const createZeroEkaIconButton = () => {
               .ze-content { position: relative; z-index: 1; }
               .message-block { margin: 0 0 8px; }
               .role-label { font-weight: 900; color: #0B3D91; font-size: 24px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px; }
-              .message-content { white-space: pre-line; overflow-wrap: anywhere; word-wrap: break-word; line-height: 1.2; }
+              .message-content { white-space: pre-wrap; overflow-wrap: anywhere; word-wrap: break-word; line-height: 1.2; }
               pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
               pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
               img, svg, canvas, video { max-width: 100%; height: auto; }
@@ -1176,8 +1176,10 @@ const createZeroEkaIconButton = () => {
               table, th, td { border: 1px solid #ddd; }
               th, td { padding: 6px 8px; }
               p { margin: 0; }
-              ul, ol { margin: 0 0 0 18px; }
-              li { margin: 0; padding: 0; }
+              ul, ol { margin: 0 0 0 18px; list-style-position: outside; }
+              ul { list-style-type: disc; }
+              ol { list-style-type: decimal; }
+              li { margin: 0; padding: 0; list-style: disc; }
               .message-content br + br { display: none; }
               h1, h2, h3, h4, h5, h6 { margin: 3px 0; }
               @page { size: auto; margin: 8mm; }
