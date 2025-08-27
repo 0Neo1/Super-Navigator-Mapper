@@ -3922,6 +3922,10 @@ const createZeroEkaIconButton = () => {
         try { nextRoot && (nextRoot.style[prop] = ''); } catch(_){}
         try { root && (root.style[prop] = ''); } catch(_){}
       });
+      try {
+        const s = document.getElementById('zeroeka-global-right-reserve');
+        if (s && s.parentNode) s.parentNode.removeChild(s);
+      } catch(_) {}
       // Gemini-specific: also clear padding-right from main containers
       if (window.location.hostname.includes('gemini.google.com')) {
         try {
@@ -3932,19 +3936,7 @@ const createZeroEkaIconButton = () => {
           try {
             const headers = (typeof getHeaderEls === 'function') ? getHeaderEls() : [];
             if (Array.isArray(headers)) {
-              headers.forEach(h => {
-                try {
-                  if (!h) return;
-                  h.style.paddingRight = '';
-                  h.style.zIndex = '';
-                  const candidates = [
-                    h.querySelector(':scope > div:last-child'),
-                    h.querySelector(':scope [role="toolbar"]'),
-                    h.querySelector(':scope nav:last-child')
-                  ].filter(Boolean);
-                  candidates.forEach(el => { try { el.style.marginRight = ''; el.style.right = ''; el.style.zIndex = ''; } catch(_){} });
-                } catch(_){}
-              });
+              headers.forEach(h => { try { h && (h.style.paddingRight = ''); } catch(_){} });
             }
           } catch(_) {}
         } catch(_) {}
@@ -3958,6 +3950,21 @@ const createZeroEkaIconButton = () => {
       try { root && root.style.setProperty('padding-right', w, 'important'); } catch(_){}
       try { document.body && document.body.style.setProperty('padding-right', w, 'important'); } catch(_){}
       try { nextRoot && nextRoot.style.setProperty('padding-right', w, 'important'); } catch(_){}
+      // Inject a global style so the entire page (html/body/main/presentation) reserves right space
+      try {
+        const id = 'zeroeka-global-right-reserve';
+        const css = `html, body, main, [role="presentation"], #yDmH0d { padding-right: ${w} !important; box-sizing: border-box !important; }`;
+        let styleEl = document.getElementById(id);
+        if (!styleEl) {
+          styleEl = document.createElement('style');
+          styleEl.id = id;
+          styleEl.type = 'text/css';
+          styleEl.appendChild(document.createTextNode(css));
+          (document.head || document.documentElement).appendChild(styleEl);
+        } else {
+          styleEl.textContent = css;
+        }
+      } catch(_) {}
       
       // For Gemini: also apply padding-right to main content containers
       if (window.location.hostname.includes('gemini.google.com')) {
@@ -3980,7 +3987,14 @@ const createZeroEkaIconButton = () => {
       // Ensure we do not overshoot, but do not shrink expanded panel reservation
       panelWidth = Math.max(300, panelWidth);
       applyReserve(panelWidth);
-      try { if (window.location.hostname.includes('gemini.google.com')) setGeminiHeaderOffset(240); } catch(_) {}
+      try {
+        if (window.location.hostname.includes('gemini.google.com')) {
+          const headers = (typeof getHeaderEls === 'function') ? getHeaderEls() : [];
+          if (Array.isArray(headers)) {
+            headers.forEach(h => { try { h && h.style.setProperty('padding-right', `${panelWidth + 24}px`, 'important'); } catch(_){} });
+          }
+        }
+      } catch(_) {}
       console.log('Expanded panel visible; reserving space:', panelWidth);
       // Ensure ChatGPT tree nesting when panel is open
       setTimeout(() => { try { startAssistantTreeObserver(); } catch(_) {} }, 150);
@@ -3995,7 +4009,14 @@ const createZeroEkaIconButton = () => {
       const rect = contractedSidebar.getBoundingClientRect();
       let contractedWidth = rect && rect.width ? Math.ceil(rect.width) : (contractedSidebar.offsetWidth || 80);
       applyReserve(contractedWidth);
-      try { if (window.location.hostname.includes('gemini.google.com')) setGeminiHeaderOffset(240); } catch(_) {}
+      try {
+        if (window.location.hostname.includes('gemini.google.com')) {
+          const headers = (typeof getHeaderEls === 'function') ? getHeaderEls() : [];
+          if (Array.isArray(headers)) {
+            headers.forEach(h => { try { h && h.style.setProperty('padding-right', `${contractedWidth + 24}px`, 'important'); } catch(_){} });
+          }
+        }
+      } catch(_) {}
       console.log('Showing contracted sidebar and reserving exact space:', contractedWidth);
     }
   };
@@ -4034,40 +4055,6 @@ const createZeroEkaIconButton = () => {
       updateSidebarPosition();
     }
   });
-  
-    // Gemini header offset helper via CSS (strong override)
-    const setGeminiHeaderOffset = (px) => {
-      try {
-        if (!window.location.hostname.includes('gemini.google.com')) return;
-        const id = 'zeroeka-gemini-header-offset';
-        let styleEl = document.getElementById(id);
-        if (!styleEl) {
-          styleEl = document.createElement('style');
-          styleEl.id = id;
-          document.head.appendChild(styleEl);
-        }
-        const n = Math.max(0, Math.floor(px || 0));
-        styleEl.textContent = `
-          [role="presentation"] > #page-header,
-          #page-header,
-          header[role="banner"],
-          [role="banner"] {
-            padding-right: ${n}px !important;
-            position: relative !important;
-            z-index: 2147483647 !important;
-          }
-          #page-header > *:last-child,
-          [role="presentation"] > #page-header > *:last-child,
-          header[role="banner"] > *:last-child,
-          [role="banner"] > *:last-child {
-            margin-right: ${n}px !important;
-            right: ${n}px !important;
-            position: relative !important;
-            z-index: 2147483647 !important;
-          }
-        `;
-      } catch (_) {}
-    };
   
 
   
