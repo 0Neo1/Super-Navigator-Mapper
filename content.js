@@ -3928,6 +3928,13 @@ const createZeroEkaIconButton = () => {
           main && (main.style.paddingRight = '');
           const gRoot = document.getElementById('yDmH0d');
           gRoot && (gRoot.style.paddingRight = '');
+          // Also clear header offsets so right-side buttons return to normal
+          try {
+            const headers = (typeof getHeaderEls === 'function') ? getHeaderEls() : [];
+            if (Array.isArray(headers)) {
+              headers.forEach(h => { try { h && (h.style.paddingRight = ''); } catch(_){} });
+            }
+          } catch(_) {}
         } catch(_) {}
       }
     };
@@ -3961,6 +3968,14 @@ const createZeroEkaIconButton = () => {
       // Ensure we do not overshoot, but do not shrink expanded panel reservation
       panelWidth = Math.max(300, panelWidth);
       applyReserve(panelWidth);
+      try {
+        if (window.location.hostname.includes('gemini.google.com')) {
+          const headers = (typeof getHeaderEls === 'function') ? getHeaderEls() : [];
+          if (Array.isArray(headers)) {
+            headers.forEach(h => { try { h && h.style.setProperty('padding-right', `${panelWidth}px`, 'important'); } catch(_){} });
+          }
+        }
+      } catch(_) {}
       console.log('Expanded panel visible; reserving space:', panelWidth);
       // Ensure ChatGPT tree nesting when panel is open
       setTimeout(() => { try { startAssistantTreeObserver(); } catch(_) {} }, 150);
@@ -3975,6 +3990,14 @@ const createZeroEkaIconButton = () => {
       const rect = contractedSidebar.getBoundingClientRect();
       let contractedWidth = rect && rect.width ? Math.ceil(rect.width) : (contractedSidebar.offsetWidth || 80);
       applyReserve(contractedWidth);
+      try {
+        if (window.location.hostname.includes('gemini.google.com')) {
+          const headers = (typeof getHeaderEls === 'function') ? getHeaderEls() : [];
+          if (Array.isArray(headers)) {
+            headers.forEach(h => { try { h && h.style.setProperty('padding-right', `${contractedWidth}px`, 'important'); } catch(_){} });
+          }
+        }
+      } catch(_) {}
       console.log('Showing contracted sidebar and reserving exact space:', contractedWidth);
     }
   };
