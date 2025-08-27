@@ -124,40 +124,6 @@ const createZeroEkaIconButton = () => {
     padding: 16px 8px;
   `;
 
-  // Ensure Gemini main page reserves space for the contracted sidebar (avoid overlap)
-  try {
-    const isGeminiHost = (location.hostname || '').includes('gemini.google.com');
-    if (isGeminiHost && !document.getElementById('zeroeka-gemini-contracted-space')) {
-      const style = document.createElement('style');
-      style.id = 'zeroeka-gemini-contracted-space';
-      style.textContent = `
-        /* Reserve 64px on the right when the contracted sidebar exists (Gemini only) */
-        main,
-        [role="main"],
-        .conversation-container,
-        .chat-container,
-        #main,
-        .main-content {
-          margin-right: 64px !important;
-          width: calc(100vw - 64px) !important;
-          max-width: calc(100vw - 64px) !important;
-          box-sizing: border-box !important;
-        }
-        
-        /* Override for when expanded panel is shown (600px wins) */
-        .catalogeu-navigation-plugin-floatbar.show-panel ~ * main,
-        .catalogeu-navigation-plugin-floatbar.show-panel ~ * [role="main"],
-        .show-panel main,
-        .show-panel [role="main"] {
-          margin-right: 600px !important;
-          width: calc(100vw - 600px) !important;
-          max-width: calc(100vw - 600px) !important;
-        }
-      `;
-      document.head.appendChild(style);
-    }
-  } catch (_) {}
-
   // Create container for top buttons
   const topButtonsContainer = document.createElement('div');
   topButtonsContainer.style.cssText = `
@@ -3956,6 +3922,14 @@ const createZeroEkaIconButton = () => {
         try { nextRoot && (nextRoot.style[prop] = ''); } catch(_){}
         try { root && (root.style[prop] = ''); } catch(_){}
       });
+      // Gemini-specific: also clear padding-right from main containers
+      if (window.location.hostname.includes('gemini.google.com')) {
+        try {
+          main && (main.style.paddingRight = '');
+          const gRoot = document.getElementById('yDmH0d');
+          gRoot && (gRoot.style.paddingRight = '');
+        } catch(_) {}
+      }
     };
     const applyReserve = (px) => {
       // Prefer padding-right so layout reflows without clipping scrollbars
@@ -3965,6 +3939,17 @@ const createZeroEkaIconButton = () => {
       try { root && root.style.setProperty('padding-right', w, 'important'); } catch(_){}
       try { document.body && document.body.style.setProperty('padding-right', w, 'important'); } catch(_){}
       try { nextRoot && nextRoot.style.setProperty('padding-right', w, 'important'); } catch(_){}
+      
+      // For Gemini: also apply padding-right to main content containers
+      if (window.location.hostname.includes('gemini.google.com')) {
+        try { 
+          main && main.style.setProperty('padding-right', w, 'important'); 
+        } catch(_){}
+        try { 
+          const gRoot = document.getElementById('yDmH0d');
+          gRoot && gRoot.style.setProperty('padding-right', w, 'important'); 
+        } catch(_){}
+      }
       // Do not apply to nextInner and main to prevent duplicate inner gaps
     };
 
