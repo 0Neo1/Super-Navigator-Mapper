@@ -1168,16 +1168,17 @@ const createZeroEkaIconButton = () => {
               .ze-content { position: relative; z-index: 1; }
               .message-block { margin: 0 0 8px; }
               .role-label { font-weight: 900; color: #0B3D91; font-size: 24px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px; }
-              .message-content { white-space: pre-wrap; overflow-wrap: anywhere; word-wrap: break-word; }
+              .message-content { white-space: pre-wrap; overflow-wrap: anywhere; word-wrap: break-word; line-height: 1.3; }
               pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
               pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
               img, svg, canvas, video { max-width: 100%; height: auto; }
               table { border-collapse: collapse; }
               table, th, td { border: 1px solid #ddd; }
               th, td { padding: 6px 8px; }
-              p { margin: 0 0 6px; }
-              ul, ol { margin: 0 0 6px 18px; }
-              h1, h2, h3, h4, h5, h6 { margin: 6px 0; }
+              p { margin: 0 0 2px; }
+              ul, ol { margin: 0 0 2px 18px; }
+              li { margin: 0 0 1px; }
+              h1, h2, h3, h4, h5, h6 { margin: 3px 0; }
               @page { size: auto; margin: 8mm; }
               @media print { body { margin: 0; } pre, table, img { break-inside: avoid; page-break-inside: avoid; } }
             </style>
