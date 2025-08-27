@@ -1168,7 +1168,7 @@ const createZeroEkaIconButton = () => {
               .ze-content { position: relative; z-index: 1; }
               .message-block { margin: 0 0 8px; }
               .role-label { font-weight: 900; color: #0B3D91; font-size: 24px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px; }
-              .message-content { white-space: pre-line; overflow-wrap: anywhere; }
+              .message-content { white-space: pre-wrap; overflow-wrap: anywhere; word-wrap: break-word; }
               pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
               pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
               img, svg, canvas, video { max-width: 100%; height: auto; }
@@ -1320,22 +1320,12 @@ const createZeroEkaIconButton = () => {
             // Method 1: Extract content with preserved structure (like Gemini)
             const textContent = turn.textContent || '';
             if (textContent.trim()) {
-              // Preserve original whitespace and line breaks like Gemini does
               const textDiv = (iframeDoc || document).createElement('div');
-              // Use innerHTML to preserve structure, fallback to textContent if no HTML
-              const originalHtml = turn.innerHTML || '';
-              if (originalHtml && originalHtml.trim() && originalHtml !== textContent.trim()) {
-                // Use original HTML to preserve formatting, structure, and spacing
-                textDiv.innerHTML = originalHtml;
-                // Remove images from HTML to prevent duplication with Method 2
-                textDiv.querySelectorAll('img, picture, canvas, video, figure').forEach(el => el.remove());
-                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using original HTML for structure`);
-              } else {
-                // Fallback to textContent but preserve whitespace
-                textDiv.textContent = textContent; // Don't trim - preserve spacing
-                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using text content with preserved spacing`);
-              }
+              // Preserve whitespace and line breaks like Gemini does
+              textDiv.style.cssText = 'white-space: pre-wrap; word-wrap: break-word;';
+              textDiv.textContent = textContent;
               turnContent = textDiv.outerHTML;
+              console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using preserved structure content`);
             }
             
             // Method 2: Add images as separate elements (no HTML overlap)
@@ -1360,8 +1350,36 @@ const createZeroEkaIconButton = () => {
               if (images.length > 0) {
                 console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} filtered to ${images.length} image(s)`);
                 
-                // Add images directly to the existing content instead of creating a new wrapper
+                // Create a wrapper for this turn's content
+                const turnWrapper = (iframeDoc || document).createElement('div');
+                
+                // Add text content first
+                if (textContent.trim()) {
+                  const textDiv = (iframeDoc || document).createElement('div');
+                  textDiv.style.cssText = "white-space: pre-wrap; word-wrap: break-word;"; textDiv.textContent = textContent;
+                  turnWrapper.appendChild(textDiv);
+                }
+                
+                // Helper to choose a canonical source and dedupe
+                const getCanonicalSrc = (img) => {
+                  try {
+                    const cs = img.currentSrc || img.getAttribute('src') || img.getAttribute('data-src') || '';
+                    if (cs) return cs.split('?')[0];
+                    const ss = img.getAttribute('srcset');
+                    if (ss) {
+                      const first = ss.split(',')[0] || '';
+                      return first.trim().split(' ')[0].split('?')[0];
+                    }
+                  } catch(_) {}
+                  return '';
+                };
+                const addedSrcs = new Set();
+
+                // Add each unique image as a separate element
                 images.forEach((img) => {
+                  const canonical = (getCanonicalSrc(img) || '').toLowerCase();
+                  if (!canonical || addedSrcs.has(canonical)) return;
+                  addedSrcs.add(canonical);
                   const imgClone = img.cloneNode(true);
                   // Remove any attributes that might cause issues
                   imgClone.removeAttribute('style');
@@ -1369,11 +1387,10 @@ const createZeroEkaIconButton = () => {
                   imgClone.style.maxWidth = '100%';
                   imgClone.style.height = 'auto';
                   imgClone.style.margin = '8px 0';
-                  textDiv.appendChild(imgClone);
+                  turnWrapper.appendChild(imgClone);
                 });
                 
-                // Update turnContent with the enhanced content
-                turnContent = textDiv.outerHTML;
+                turnContent = turnWrapper.innerHTML;
               }
             }
             
