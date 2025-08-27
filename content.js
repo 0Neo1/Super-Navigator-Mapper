@@ -3972,7 +3972,21 @@ const createZeroEkaIconButton = () => {
         if (window.location.hostname.includes('gemini.google.com')) {
           const headers = (typeof getHeaderEls === 'function') ? getHeaderEls() : [];
           if (Array.isArray(headers)) {
-            headers.forEach(h => { try { h && h.style.setProperty('padding-right', `${panelWidth + 24}px`, 'important'); } catch(_){} });
+            const pushPx = panelWidth + 80;
+            headers.forEach(h => {
+              try {
+                if (!h) return;
+                h.style.setProperty('padding-right', `${pushPx}px`, 'important');
+                const rightGroup = h.querySelector(':scope > div:last-child') || h.querySelector(':scope [role="toolbar"]') || h.querySelector(':scope nav:last-child');
+                if (rightGroup) {
+                  rightGroup.style.setProperty('margin-right', `${pushPx}px`, 'important');
+                  const pos = (getComputedStyle(rightGroup).position || '').toLowerCase();
+                  if (pos === 'fixed' || pos === 'sticky' || pos === 'absolute') {
+                    rightGroup.style.setProperty('right', `${pushPx}px`, 'important');
+                  }
+                }
+              } catch(_){}
+            });
           }
         }
       } catch(_) {}
@@ -3994,7 +4008,21 @@ const createZeroEkaIconButton = () => {
         if (window.location.hostname.includes('gemini.google.com')) {
           const headers = (typeof getHeaderEls === 'function') ? getHeaderEls() : [];
           if (Array.isArray(headers)) {
-            headers.forEach(h => { try { h && h.style.setProperty('padding-right', `${contractedWidth + 24}px`, 'important'); } catch(_){} });
+            const pushPx = contractedWidth + 80;
+            headers.forEach(h => {
+              try {
+                if (!h) return;
+                h.style.setProperty('padding-right', `${pushPx}px`, 'important');
+                const rightGroup = h.querySelector(':scope > div:last-child') || h.querySelector(':scope [role="toolbar"]') || h.querySelector(':scope nav:last-child');
+                if (rightGroup) {
+                  rightGroup.style.setProperty('margin-right', `${pushPx}px`, 'important');
+                  const pos = (getComputedStyle(rightGroup).position || '').toLowerCase();
+                  if (pos === 'fixed' || pos === 'sticky' || pos === 'absolute') {
+                    rightGroup.style.setProperty('right', `${pushPx}px`, 'important');
+                  }
+                }
+              } catch(_){}
+            });
           }
         }
       } catch(_) {}
