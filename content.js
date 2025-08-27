@@ -3972,7 +3972,7 @@ const createZeroEkaIconButton = () => {
         if (window.location.hostname.includes('gemini.google.com')) {
           const headers = (typeof getHeaderEls === 'function') ? getHeaderEls() : [];
           if (Array.isArray(headers)) {
-            headers.forEach(h => { try { h && h.style.setProperty('padding-right', `${panelWidth}px`, 'important'); } catch(_){} });
+            headers.forEach(h => { try { h && h.style.setProperty('padding-right', `${panelWidth + 24}px`, 'important'); } catch(_){} });
           }
         }
       } catch(_) {}
@@ -3994,7 +3994,7 @@ const createZeroEkaIconButton = () => {
         if (window.location.hostname.includes('gemini.google.com')) {
           const headers = (typeof getHeaderEls === 'function') ? getHeaderEls() : [];
           if (Array.isArray(headers)) {
-            headers.forEach(h => { try { h && h.style.setProperty('padding-right', `${contractedWidth}px`, 'important'); } catch(_){} });
+            headers.forEach(h => { try { h && h.style.setProperty('padding-right', `${contractedWidth + 24}px`, 'important'); } catch(_){} });
           }
         }
       } catch(_) {}
