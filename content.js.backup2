@@ -1195,11 +1195,44 @@ const createZeroEkaIconButton = () => {
           try {
             const wrapper = (iframeDoc || document).createElement('div');
             wrapper.innerHTML = unsafeHtml || '';
-            // Remove extension UI artifacts (stars, buttons, sidebars)
-            wrapper.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]').forEach(el => el.remove());
+            // Remove ALL extension UI artifacts and ChatGPT UI elements
+            wrapper.querySelectorAll(`
+              .zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"],
+              button, [role="button"], [data-testid*="copy"], [data-testid*="share"], [data-testid*="like"],
+              .copy-button, .share-button, .like-button, .vote-button,
+              [aria-label*="copy"], [aria-label*="share"], [aria-label*="like"],
+              .flex.items-center.gap-2, .flex.items-center.gap-1,
+              [class*="copy"], [class*="share"], [class*="like"], [class*="vote"],
+              .text-xs.text-gray-500, .text-xs.text-gray-400,
+              [data-testid="conversation-turn-actions"], [data-testid="message-actions"],
+              .conversation-turn-actions, .message-actions,
+              [class*="action"], [class*="toolbar"], [class*="controls"]
+            `).forEach(el => el.remove());
+            
             // Remove any contenteditable or interactive controls that may add spacing
-            wrapper.querySelectorAll('button, [role="button"]').forEach(el => {
+            wrapper.querySelectorAll('[contenteditable], [tabindex], [onclick], [onmouseover]').forEach(el => {
               if (el.className && /zeroeka/i.test(el.className)) el.remove();
+            });
+            
+            // Remove empty divs and spans that create extra spacing
+            wrapper.querySelectorAll('div, span').forEach(el => {
+              if (el.children.length === 0 && (!el.textContent || el.textContent.trim() === '')) {
+                el.remove();
+              }
+            });
+            
+            // Clean up excessive whitespace in text nodes
+            const walker = document.createTreeWalker(wrapper, NodeFilter.SHOW_TEXT, null, false);
+            const textNodes = [];
+            let node;
+            while (node = walker.nextNode()) {
+              textNodes.push(node);
+            }
+            textNodes.forEach(textNode => {
+              if (textNode.textContent) {
+                // Replace multiple consecutive whitespace with single space, but preserve line breaks
+                textNode.textContent = textNode.textContent.replace(/[ \t]+/g, ' ').replace(/\n\s*\n/g, '\n');
+              }
             });
             // Normalize <picture>/<img> for printing: force eager load and ensure concrete src
             wrapper.querySelectorAll('picture').forEach(pic => {
@@ -1326,10 +1359,13 @@ const createZeroEkaIconButton = () => {
               const originalHtml = turn.innerHTML || '';
               if (originalHtml && originalHtml.trim() && originalHtml !== textContent.trim()) {
                 // Use original HTML to preserve formatting, structure, and spacing
-                textDiv.innerHTML = originalHtml;
-                // Remove images from HTML to prevent duplication with Method 2
-                textDiv.querySelectorAll('img, picture, canvas, video, figure').forEach(el => el.remove());
-                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using original HTML for structure`);
+                // But remove images to prevent duplication with Method 2
+                const tempDiv = (iframeDoc || document).createElement('div');
+                tempDiv.innerHTML = originalHtml;
+                // Remove all images from the HTML to prevent duplication
+                tempDiv.querySelectorAll('img, picture, canvas, video, figure').forEach(el => el.remove());
+                textDiv.innerHTML = tempDiv.innerHTML;
+                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using original HTML for structure (images removed)`);
               } else {
                 // Fallback to textContent but preserve whitespace
                 textDiv.textContent = textContent; // Don't trim - preserve spacing
@@ -1360,8 +1396,42 @@ const createZeroEkaIconButton = () => {
               if (images.length > 0) {
                 console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} filtered to ${images.length} image(s)`);
                 
-                // Add images directly to the existing content instead of creating a new wrapper
+                // Create a wrapper for this turn's content
+                const turnWrapper = (iframeDoc || document).createElement('div');
+                
+                // Add text content first
+                if (textContent.trim()) {
+                  const textDiv = (iframeDoc || document).createElement('div');
+                  // Preserve original HTML structure if available, otherwise use textContent without trimming
+                  const originalHtml = turn.innerHTML || '';
+                  if (originalHtml && originalHtml.trim() && originalHtml !== textContent.trim()) {
+                    textDiv.innerHTML = originalHtml;
+                  } else {
+                    textDiv.textContent = textContent; // Don't trim - preserve spacing
+                  }
+                  turnWrapper.appendChild(textDiv);
+                }
+                
+                // Helper to choose a canonical source and dedupe
+                const getCanonicalSrc = (img) => {
+                  try {
+                    const cs = img.currentSrc || img.getAttribute('src') || img.getAttribute('data-src') || '';
+                    if (cs) return cs.split('?')[0];
+                    const ss = img.getAttribute('srcset');
+                    if (ss) {
+                      const first = ss.split(',')[0] || '';
+                      return first.trim().split(' ')[0].split('?')[0];
+                    }
+                  } catch(_) {}
+                  return '';
+                };
+                const addedSrcs = new Set();
+
+                // Add each unique image as a separate element
                 images.forEach((img) => {
+                  const canonical = (getCanonicalSrc(img) || '').toLowerCase();
+                  if (!canonical || addedSrcs.has(canonical)) return;
+                  addedSrcs.add(canonical);
                   const imgClone = img.cloneNode(true);
                   // Remove any attributes that might cause issues
                   imgClone.removeAttribute('style');
@@ -1369,11 +1439,10 @@ const createZeroEkaIconButton = () => {
                   imgClone.style.maxWidth = '100%';
                   imgClone.style.height = 'auto';
                   imgClone.style.margin = '8px 0';
-                  textDiv.appendChild(imgClone);
+                  turnWrapper.appendChild(imgClone);
                 });
                 
-                // Update turnContent with the enhanced content
-                turnContent = textDiv.outerHTML;
+                turnContent = turnWrapper.innerHTML;
               }
             }
             
