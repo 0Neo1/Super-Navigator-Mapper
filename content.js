@@ -1198,6 +1198,37 @@ const createZeroEkaIconButton = () => {
           try {
             const wrapper = (iframeDoc || document).createElement('div');
             wrapper.innerHTML = unsafeHtml || '';
+            
+            // Remove phrases like "you said", "ChatGPT said", "assistant said", etc.
+            const removeSaidPhrases = (element) => {
+              const walker = document.createTreeWalker(
+                element,
+                NodeFilter.SHOW_TEXT,
+                null,
+                false
+              );
+              
+              const textNodes = [];
+              let node;
+              while (node = walker.nextNode()) {
+                textNodes.push(node);
+              }
+              
+              textNodes.forEach(textNode => {
+                let text = textNode.textContent;
+                // Remove various "said" phrases while preserving the actual content
+                text = text
+                  .replace(/(?:^|\s)(?:you said|chatgpt said|assistant said|user said|model said|ai said|bot said)(?:\s*[:：]\s*)/gi, '')
+                  .replace(/(?:^|\s)(?:you|chatgpt|assistant|user|model|ai|bot)\s+said(?:\s*[:：]\s*)/gi, '')
+                  .replace(/(?:^|\s)(?:said\s+by\s+(?:you|chatgpt|assistant|user|model|ai|bot))(?:\s*[:：]\s*)/gi, '')
+                  .replace(/(?:^|\s)(?:from\s+(?:you|chatgpt|assistant|user|model|ai|bot))(?:\s*[:：]\s*)/gi, '');
+                
+                textNode.textContent = text;
+              });
+            };
+            
+            removeSaidPhrases(wrapper);
+            
             // Remove extension UI artifacts (stars, buttons, sidebars)
             wrapper.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]').forEach(el => el.remove());
             // Remove any contenteditable or interactive controls that may add spacing
@@ -1312,26 +1343,38 @@ const createZeroEkaIconButton = () => {
                   textNodes.push(node);
                 }
                 
-                textNodes.forEach(textNode => {
-                  let text = textNode.textContent;
-                  text = text
-                    .replace(/\n\s*\n\s*\n/g, '\n\n')  // Reduce 3+ consecutive line breaks to 2
-                    .replace(/\n\s*\n\s*\n/g, '\n\n')  // Apply again to catch remaining 3+
-                    .replace(/[ \t]+/g, ' ')            // Normalize multiple spaces/tabs to single space
-                    .replace(/\n[ \t]+/g, '\n')        // Remove leading spaces after line breaks
-                    .replace(/[ \t]+\n/g, '\n');       // Remove trailing spaces before line breaks
-                  
-                  textNode.textContent = text;
-                });
+                              textNodes.forEach(textNode => {
+                let text = textNode.textContent;
+                text = text
+                  // Remove "said" phrases first
+                  .replace(/(?:^|\s)(?:you said|chatgpt said|assistant said|user said|model said|ai said|bot said)(?:\s*[:：]\s*)/gi, '')
+                  .replace(/(?:^|\s)(?:you|chatgpt|assistant|user|model|ai|bot)\s+said(?:\s*[:：]\s*)/gi, '')
+                  .replace(/(?:^|\s)(?:said\s+by\s+(?:you|chatgpt|assistant|user|model|ai|bot))(?:\s*[:：]\s*)/gi, '')
+                  .replace(/(?:^|\s)(?:from\s+(?:you|chatgpt|assistant|user|model|ai|bot))(?:\s*[:：]\s*)/gi, '')
+                  // Then normalize spacing
+                  .replace(/\n\s*\n\s*\n/g, '\n\n')  // Reduce 3+ consecutive line breaks to 2
+                  .replace(/\n\s*\n\s*\n/g, '\n\n')  // Apply again to catch remaining 3+
+                  .replace(/[ \t]+/g, ' ')            // Normalize multiple spaces/tabs to single space
+                  .replace(/\n[ \t]+/g, '\n')        // Remove leading spaces after line breaks
+                  .replace(/[ \t]+\n/g, '\n');       // Remove trailing spaces before line breaks
+                
+                textNode.textContent = text;
+              });
               };
               
               normalizeTextNodes(tempDiv);
               html = tempDiv.innerHTML;
             }
             if (!html) {
-              // Normalize spacing for Gemini as well
+              // Normalize spacing for Gemini as well (including "said" phrase removal)
               let normalizedText = (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
               normalizedText = normalizedText
+                // Remove "said" phrases first
+                .replace(/(?:^|\s)(?:you said|chatgpt said|assistant said|user said|model said|ai said|bot said)(?:\s*[:：]\s*)/gi, '')
+                .replace(/(?:^|\s)(?:you|chatgpt|assistant|user|model|ai|bot)\s+said(?:\s*[:：]\s*)/gi, '')
+                .replace(/(?:^|\s)(?:said\s+by\s+(?:you|chatgpt|assistant|user|model|ai|bot))(?:\s*[:：]\s*)/gi, '')
+                .replace(/(?:^|\s)(?:from\s+(?:you|chatgpt|assistant|user|model|ai|bot))(?:\s*[:：]\s*)/gi, '')
+                // Then normalize spacing
                 .replace(/\n\s*\n\s*\n/g, '\n\n')  // Reduce 3+ consecutive line breaks to 2
                 .replace(/\n\s*\n\s*\n/g, '\n\n')  // Apply again to catch remaining 3+
                 .replace(/[ \t]+/g, ' ')            // Normalize multiple spaces/tabs to single space
@@ -1376,8 +1419,14 @@ const createZeroEkaIconButton = () => {
               // Normalize spacing: preserve structure but reduce excessive gaps
               textDiv.style.cssText = 'white-space: pre-line; word-wrap: break-word; line-height: 1.4;';
               
-              // Normalize the text content to reduce excessive spacing
+              // Normalize the text content to reduce excessive spacing and remove "said" phrases
               let normalizedText = textContent
+                // Remove "said" phrases first
+                .replace(/(?:^|\s)(?:you said|chatgpt said|assistant said|user said|model said|ai said|bot said)(?:\s*[:：]\s*)/gi, '')
+                .replace(/(?:^|\s)(?:you|chatgpt|assistant|user|model|ai|bot)\s+said(?:\s*[:：]\s*)/gi, '')
+                .replace(/(?:^|\s)(?:said\s+by\s+(?:you|chatgpt|assistant|user|model|ai|bot))(?:\s*[:：]\s*)/gi, '')
+                .replace(/(?:^|\s)(?:from\s+(?:you|chatgpt|assistant|user|model|ai|bot))(?:\s*[:：]\s*)/gi, '')
+                // Then normalize spacing
                 .replace(/\n\s*\n\s*\n/g, '\n\n')  // Reduce 3+ consecutive line breaks to 2
                 .replace(/\n\s*\n\s*\n/g, '\n\n')  // Apply again to catch remaining 3+
                 .replace(/[ \t]+/g, ' ')            // Normalize multiple spaces/tabs to single space
@@ -1419,8 +1468,14 @@ const createZeroEkaIconButton = () => {
                   const textDiv = (iframeDoc || document).createElement('div');
                   textDiv.style.cssText = "white-space: pre-line; word-wrap: break-word; line-height: 1.4;";
                   
-                  // Apply the same normalization as above
+                  // Apply the same normalization as above (including "said" phrase removal)
                   let normalizedText = textContent
+                    // Remove "said" phrases first
+                    .replace(/(?:^|\s)(?:you said|chatgpt said|assistant said|user said|model said|ai said|bot said)(?:\s*[:：]\s*)/gi, '')
+                    .replace(/(?:^|\s)(?:you|chatgpt|assistant|user|model|ai|bot)\s+said(?:\s*[:：]\s*)/gi, '')
+                    .replace(/(?:^|\s)(?:said\s+by\s+(?:you|chatgpt|assistant|user|model|ai|bot))(?:\s*[:：]\s*)/gi, '')
+                    .replace(/(?:^|\s)(?:from\s+(?:you|chatgpt|assistant|user|model|ai|bot))(?:\s*[:：]\s*)/gi, '')
+                    // Then normalize spacing
                     .replace(/\n\s*\n\s*\n/g, '\n\n')  // Reduce 3+ consecutive line breaks to 2
                     .replace(/\n\s*\n\s*\n/g, '\n\n')  // Apply again to catch remaining 3+
                     .replace(/[ \t]+/g, ' ')            // Normalize multiple spaces/tabs to single space
