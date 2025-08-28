@@ -1169,15 +1169,18 @@ const createZeroEkaIconButton = () => {
               .message-block { margin: 0 0 8px; }
               .role-label { font-weight: 900; color: #0B3D91; font-size: 24px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px; }
               .message-content { white-space: pre-wrap; overflow-wrap: anywhere; word-wrap: break-word; }
+              .message-content:empty { display: none; }
+              .message-content > *:empty { display: none; }
               pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
               pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
-              img, svg, canvas, video { max-width: 100%; height: auto; }
+              img, svg, canvas, video { max-width: 100%; height: auto; margin: 4px 0; }
               table { border-collapse: collapse; }
               table, th, td { border: 1px solid #ddd; }
               th, td { padding: 6px 8px; }
-              p { margin: 0 0 6px; }
-              ul, ol { margin: 0 0 6px 18px; }
-              h1, h2, h3, h4, h5, h6 { margin: 6px 0; }
+              p { margin: 0 0 4px; }
+              ul, ol { margin: 0 0 4px 16px; }
+              h1, h2, h3, h4, h5, h6 { margin: 4px 0; }
+              li { margin: 0 0 2px; }
               @page { size: auto; margin: 8mm; }
               @media print { body { margin: 0; } pre, table, img { break-inside: avoid; page-break-inside: avoid; } }
             </style>
@@ -1253,6 +1256,24 @@ const createZeroEkaIconButton = () => {
                 }
               } catch(_) {}
             });
+            
+            // Final cleanup: remove excessive whitespace and empty elements
+            wrapper.querySelectorAll('div, span, p').forEach(el => {
+              if (!el.textContent || el.textContent.trim() === '') {
+                el.remove();
+              } else {
+                // Normalize whitespace in text nodes
+                el.textContent = el.textContent.replace(/\s+/g, ' ').trim();
+              }
+            });
+            
+            // Remove any remaining completely empty containers
+            wrapper.querySelectorAll('*').forEach(el => {
+              if (el.children.length === 0 && (!el.textContent || el.textContent.trim() === '')) {
+                el.remove();
+              }
+            });
+            
             return wrapper.innerHTML;
           } catch (_) {
             return unsafeHtml || '';
@@ -1333,12 +1354,31 @@ const createZeroEkaIconButton = () => {
                 // Remove any UI elements that might interfere with formatting
                 tempDiv.querySelectorAll('[data-testid*="copy"], [data-testid*="share"], [data-testid*="like"], button, [role="button"]').forEach(el => el.remove());
                 
+                // Clean up empty elements and normalize spacing (like Gemini does)
+                tempDiv.querySelectorAll('div, span, p').forEach(el => {
+                  // Remove elements that only contain whitespace or are completely empty
+                  if (!el.textContent || el.textContent.trim() === '') {
+                    el.remove();
+                  }
+                  // Normalize excessive whitespace in text nodes
+                  if (el.textContent) {
+                    el.textContent = el.textContent.replace(/\s+/g, ' ').trim();
+                  }
+                });
+                
+                // Remove any remaining empty containers
+                tempDiv.querySelectorAll('*').forEach(el => {
+                  if (el.children.length === 0 && (!el.textContent || el.textContent.trim() === '')) {
+                    el.remove();
+                  }
+                });
+                
                 // Preserve the cleaned HTML structure
                 const textDiv = (iframeDoc || document).createElement('div');
                 textDiv.style.cssText = 'white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere;';
                 textDiv.innerHTML = tempDiv.innerHTML;
                 turnContent = textDiv.outerHTML;
-                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using original HTML structure for preserved formatting`);
+                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using cleaned HTML structure for preserved formatting`);
               } else {
                 // Fallback to textContent but preserve whitespace
                 const textDiv = (iframeDoc || document).createElement('div');
@@ -1388,6 +1428,25 @@ const createZeroEkaIconButton = () => {
                     
                     // Remove any UI elements that might interfere with formatting
                     tempDiv.querySelectorAll('[data-testid*="copy"], [data-testid*="share"], [data-testid*="like"], button, [role="button"]').forEach(el => el.remove());
+                    
+                    // Clean up empty elements and normalize spacing (like Gemini does)
+                    tempDiv.querySelectorAll('div, span, p').forEach(el => {
+                      // Remove elements that only contain whitespace or are completely empty
+                      if (!el.textContent || el.textContent.trim() === '') {
+                        el.remove();
+                      }
+                      // Normalize excessive whitespace in text nodes
+                      if (el.textContent) {
+                        el.textContent = el.textContent.replace(/\s+/g, ' ').trim();
+                      }
+                    });
+                    
+                    // Remove any remaining empty containers
+                    tempDiv.querySelectorAll('*').forEach(el => {
+                      if (el.children.length === 0 && (!el.textContent || el.textContent.trim() === '')) {
+                        el.remove();
+                      }
+                    });
                     
                     // Preserve the cleaned HTML structure
                     const textDiv = (iframeDoc || document).createElement('div');
