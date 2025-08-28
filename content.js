@@ -1168,21 +1168,7 @@ const createZeroEkaIconButton = () => {
               .ze-content { position: relative; z-index: 1; }
               .message-block { margin: 0 0 8px; }
               .role-label { font-weight: 900; color: #0B3D91; font-size: 24px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px; }
-              .message-content { white-space: normal; overflow-wrap: anywhere; word-wrap: break-word; }
-              .message-content ul, .message-content ol { margin: 0 0 6px 18px; }
-              .message-content li { margin: 0 0 2px; line-height: 1.4; }
-              .message-content li + li { margin-top: 0; }
-              .message-content ul li, .message-content ol li { 
-                margin: 0 0 2px 0; 
-                padding: 0; 
-                line-height: 1.4; 
-              }
-              .message-content ul li:before, .message-content ol li:before { 
-                content: none; 
-              }
-              .message-content ul li:last-child, .message-content ol li:last-child { 
-                margin-bottom: 0; 
-              }
+              .message-content { white-space: pre-wrap; overflow-wrap: anywhere; word-wrap: break-word; }
               pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
               pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
               img, svg, canvas, video { max-width: 100%; height: auto; }
@@ -1214,35 +1200,6 @@ const createZeroEkaIconButton = () => {
             // Remove any contenteditable or interactive controls that may add spacing
             wrapper.querySelectorAll('button, [role="button"]').forEach(el => {
               if (el.className && /zeroeka/i.test(el.className)) el.remove();
-            });
-            // Clean up excessive whitespace and empty lines between bullet points
-            wrapper.querySelectorAll('ul, ol').forEach(list => {
-              // Remove empty list items
-              list.querySelectorAll('li').forEach(li => {
-                if (!li.textContent || li.textContent.trim() === '') {
-                  li.remove();
-                }
-              });
-              // Ensure proper spacing between list items
-              list.querySelectorAll('li + li').forEach(li => {
-                li.style.marginTop = '0';
-                li.style.marginBottom = '2px';
-              });
-            });
-            // Remove excessive empty lines and normalize spacing
-            const textNodes = [];
-            const walker = document.createTreeWalker(wrapper, NodeFilter.SHOW_TEXT, null, false);
-            let node;
-            while (node = walker.nextNode()) {
-              textNodes.push(node);
-            }
-            textNodes.forEach(textNode => {
-              if (textNode.nodeValue) {
-                // Replace multiple consecutive line breaks with single line break
-                textNode.nodeValue = textNode.nodeValue.replace(/\n\s*\n\s*\n/g, '\n\n');
-                // Remove leading/trailing whitespace from text nodes
-                textNode.nodeValue = textNode.nodeValue.replace(/^\s+|\s+$/g, '');
-              }
             });
             // Normalize <picture>/<img> for printing: force eager load and ensure concrete src
             wrapper.querySelectorAll('picture').forEach(pic => {
@@ -1363,12 +1320,33 @@ const createZeroEkaIconButton = () => {
             // Method 1: Extract content with preserved structure (like Gemini)
             const textContent = turn.textContent || '';
             if (textContent.trim()) {
-              const textDiv = (iframeDoc || document).createElement('div');
-              // Use normal whitespace for better bullet point handling
-              textDiv.style.cssText = 'white-space: normal; word-wrap: break-word;';
-              textDiv.textContent = textContent;
-              turnContent = textDiv.outerHTML;
-              console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using preserved structure content`);
+              // Use original HTML to preserve formatting, structure, and spacing exactly as shown
+              const originalHtml = turn.innerHTML || '';
+              if (originalHtml && originalHtml.trim()) {
+                // Create a temporary div to work with the HTML
+                const tempDiv = (iframeDoc || document).createElement('div');
+                tempDiv.innerHTML = originalHtml;
+                
+                // Remove all images from the HTML to prevent duplication with Method 2
+                tempDiv.querySelectorAll('img, picture, canvas, video, figure').forEach(el => el.remove());
+                
+                // Remove any UI elements that might interfere with formatting
+                tempDiv.querySelectorAll('[data-testid*="copy"], [data-testid*="share"], [data-testid*="like"], button, [role="button"]').forEach(el => el.remove());
+                
+                // Preserve the cleaned HTML structure
+                const textDiv = (iframeDoc || document).createElement('div');
+                textDiv.style.cssText = 'white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere;';
+                textDiv.innerHTML = tempDiv.innerHTML;
+                turnContent = textDiv.outerHTML;
+                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using original HTML structure for preserved formatting`);
+              } else {
+                // Fallback to textContent but preserve whitespace
+                const textDiv = (iframeDoc || document).createElement('div');
+                textDiv.style.cssText = 'white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere;';
+                textDiv.textContent = textContent; // Don't trim - preserve spacing
+                turnContent = textDiv.outerHTML;
+                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using text content with preserved spacing`);
+              }
             }
             
             // Method 2: Add images as separate elements (no HTML overlap)
@@ -1396,11 +1374,33 @@ const createZeroEkaIconButton = () => {
                 // Create a wrapper for this turn's content
                 const turnWrapper = (iframeDoc || document).createElement('div');
                 
-                // Add text content first
+                // Add text content first with preserved structure
                 if (textContent.trim()) {
-                  const textDiv = (iframeDoc || document).createElement('div');
-                  textDiv.style.cssText = "white-space: normal; word-wrap: break-word;"; textDiv.textContent = textContent;
-                  turnWrapper.appendChild(textDiv);
+                  // Use the same improved text content approach as Method 1
+                  const originalHtml = turn.innerHTML || '';
+                  if (originalHtml && originalHtml.trim()) {
+                    // Create a temporary div to work with the HTML
+                    const tempDiv = (iframeDoc || document).createElement('div');
+                    tempDiv.innerHTML = originalHtml;
+                    
+                    // Remove all images from the HTML to prevent duplication
+                    tempDiv.querySelectorAll('img, picture, canvas, video, figure').forEach(el => el.remove());
+                    
+                    // Remove any UI elements that might interfere with formatting
+                    tempDiv.querySelectorAll('[data-testid*="copy"], [data-testid*="share"], [data-testid*="like"], button, [role="button"]').forEach(el => el.remove());
+                    
+                    // Preserve the cleaned HTML structure
+                    const textDiv = (iframeDoc || document).createElement('div');
+                    textDiv.style.cssText = 'white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere;';
+                    textDiv.innerHTML = tempDiv.innerHTML;
+                    turnWrapper.appendChild(textDiv);
+                  } else {
+                    // Fallback to textContent but preserve whitespace
+                    const textDiv = (iframeDoc || document).createElement('div');
+                    textDiv.style.cssText = 'white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere;';
+                    textDiv.textContent = textContent; // Don't trim - preserve spacing
+                    turnWrapper.appendChild(textDiv);
+                  }
                 }
                 
                 // Helper to choose a canonical source and dedupe
