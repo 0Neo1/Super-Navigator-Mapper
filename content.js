@@ -1152,50 +1152,47 @@ const createZeroEkaIconButton = () => {
             <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@600;700;800&display=swap" rel="stylesheet" />
             <style>
               :root { color-scheme: light; }
-              body {
-                font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-                line-height: 1.2;
-                margin: 0;
-                padding: 6mm;
-                color: #1f1f1f;
-                background: #ffffff;
-              }
+                              body {
+                  font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+                  line-height: 1.2;
+                  margin: 0;
+                  padding: 6mm;
+                  color: #1f1f1f;
+                  background: #ffffff;
+                }
               .ze-header { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 24px; }
               .ze-header img { width: 128px; height: 128px; object-fit: contain; }
               .ze-header .ze-title { font-family: 'EB Garamond', serif; font-size: 56px; font-weight: 800; letter-spacing: 0.3px; color: #0B3D91; }
               .ze-watermark { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 0; pointer-events: none; opacity: 0.06; }
               .ze-watermark img { max-width: 80%; max-height: 80%; object-fit: contain; }
               .ze-content { position: relative; z-index: 1; }
-              .message-block { margin: 0 0 4px; }
-              .role-label { font-weight: 900; color: #0B3D91; font-size: 24px; margin: 0 0 4px; text-transform: uppercase; letter-spacing: 1px; }
-              .message-content { white-space: pre-line; overflow-wrap: anywhere; word-wrap: break-word; line-height: 1.2; }
-              .message-content p { margin: 0 0 2px; }
-              .message-content div { margin: 0 0 1px; }
+                             .message-block { margin: 0 0 4px; }
+               .role-label { font-weight: 900; color: #0B3D91; font-size: 24px; margin: 0 0 4px; text-transform: uppercase; letter-spacing: 1px; }
+               .message-content { white-space: pre-line; overflow-wrap: anywhere; word-wrap: break-word; line-height: 1.2; }
+               .message-content p { margin: 0 0 2px; }
+               .message-content div { margin: 0 0 1px; }
               .message-content br + br { display: none; }
-              .message-content h1, .message-content h2, .message-content h3, .message-content h4, .message-content h5, .message-content h6 { 
-                margin: 4px 0 2px; font-weight: bold; color: #0B3D91; 
-              }
+                             .message-content h1, .message-content h2, .message-content h3, .message-content h4, .message-content h5, .message-content h6 { 
+                 margin: 4px 0 2px; font-weight: bold; color: #0B3D91; 
+               }
               .message-content h1 { font-size: 20px; }
               .message-content h2 { font-size: 18px; }
               .message-content h3 { font-size: 16px; }
-              .message-content ul, .message-content ol { margin: 2px 0 2px 20px; }
-              .message-content li { margin: 1px 0; }
+                             .message-content ul, .message-content ol { margin: 2px 0 2px 20px; }
+               .message-content li { margin: 1px 0; }
               .message-content strong, .message-content b { font-weight: bold; }
               .message-content em, .message-content i { font-style: italic; }
-              .message-content * + * { margin-top: 1px; }
-              .message-content p + p { margin-top: 1px; }
-              .message-content div + div { margin-top: 1px; }
-              .message-content code { background: #f6f7f8; padding: 1px 3px; border-radius: 3px; font-family: monospace; }
-              .message-content pre { background: #f6f7f8; padding: 4px; border-radius: 4px; overflow: auto; margin: 2px 0; }
+                             .message-content code { background: #f6f7f8; padding: 1px 3px; border-radius: 3px; font-family: monospace; }
+               .message-content pre { background: #f6f7f8; padding: 4px; border-radius: 4px; overflow: auto; margin: 2px 0; }
               pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-              pre { background: #f6f7f8; padding: 4px; border-radius: 4px; overflow: auto; }
+              pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
               img, svg, canvas, video { max-width: 100%; height: auto; }
               table { border-collapse: collapse; }
               table, th, td { border: 1px solid #ddd; }
               th, td { padding: 6px 8px; }
-              p { margin: 0 0 3px; }
-              ul, ol { margin: 0 0 3px 18px; }
-              h1, h2, h3, h4, h5, h6 { margin: 3px 0; }
+                             p { margin: 0 0 3px; }
+               ul, ol { margin: 0 0 3px 18px; }
+               h1, h2, h3, h4, h5, h6 { margin: 3px 0; }
               @page { size: auto; margin: 8mm; }
               @media print { body { margin: 0; } pre, table, img { break-inside: avoid; page-break-inside: avoid; } }
             </style>
@@ -1244,23 +1241,23 @@ const createZeroEkaIconButton = () => {
             
             removeSaidPhrases(wrapper);
             
-            // Preserve important HTML structure elements with tighter spacing
-            wrapper.querySelectorAll('h1, h2, h3, h4, h5, h6, ul, ol, li, strong, b, em, i, code, pre, blockquote').forEach(el => {
-              // Ensure these elements keep their semantic meaning
-              if (el.tagName.toLowerCase() === 'li') {
-                // Preserve list item structure with tighter spacing
-                el.style.margin = '1px 0';
-                el.style.padding = '0';
-              } else if (el.tagName.toLowerCase() === 'p') {
-                // Reduce paragraph spacing
-                el.style.margin = '1px 0';
-                el.style.padding = '0';
-              } else if (el.tagName.toLowerCase() === 'div') {
-                // Reduce div spacing
-                el.style.margin = '0';
-                el.style.padding = '0';
-              }
-            });
+                         // Preserve important HTML structure elements with tighter spacing
+             wrapper.querySelectorAll('h1, h2, h3, h4, h5, h6, ul, ol, li, strong, b, em, i, code, pre, blockquote').forEach(el => {
+               // Ensure these elements keep their semantic meaning
+               if (el.tagName.toLowerCase() === 'li') {
+                 // Preserve list item structure with tighter spacing
+                 el.style.margin = '1px 0';
+                 el.style.padding = '0';
+               } else if (el.tagName.toLowerCase() === 'p') {
+                 // Reduce paragraph spacing
+                 el.style.margin = '1px 0';
+                 el.style.padding = '0';
+               } else if (el.tagName.toLowerCase() === 'div') {
+                 // Reduce div spacing
+                 el.style.margin = '0';
+                 el.style.padding = '0';
+               }
+             });
             
             // Remove extension UI artifacts (stars, buttons, sidebars)
             wrapper.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]').forEach(el => el.remove());
@@ -1459,7 +1456,7 @@ const createZeroEkaIconButton = () => {
               const textContent = turn.textContent || '';
               if (textContent.trim()) {
                 const textDiv = (iframeDoc || document).createElement('div');
-                textDiv.style.cssText = 'white-space: pre-line; word-wrap: break-word; line-height: 1.2;';
+                                 textDiv.style.cssText = 'white-space: pre-line; word-wrap: break-word; line-height: 1.2;';
                 
                 // Normalize the text content to reduce excessive spacing and remove "said" phrases
                 let normalizedText = textContent
@@ -1518,7 +1515,7 @@ const createZeroEkaIconButton = () => {
                 } else if (textContent && textContent.trim()) {
                   // Fallback to text content if no HTML available
                   const textDiv = (iframeDoc || document).createElement('div');
-                  textDiv.style.cssText = "white-space: pre-line; word-wrap: break-word; line-height: 1.2;";
+                                     textDiv.style.cssText = "white-space: pre-line; word-wrap: break-word; line-height: 1.2;";
                   
                   // Apply the same normalization as above (including "said" phrase removal)
                   let normalizedText = textContent
