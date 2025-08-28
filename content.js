@@ -1168,21 +1168,65 @@ const createZeroEkaIconButton = () => {
               .ze-content { position: relative; z-index: 1; }
               .message-block { margin: 0 0 8px; }
               .role-label { font-weight: 900; color: #0B3D91; font-size: 24px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px; }
-              .message-content { white-space: pre-wrap; overflow-wrap: anywhere; word-wrap: break-word; }
-              .message-content:empty { display: none; }
-              .message-content > *:empty { display: none; }
+              .message-content { 
+                white-space: pre-wrap; 
+                overflow-wrap: anywhere; 
+                word-wrap: break-word; 
+                line-height: 1.6;
+                margin: 0;
+                padding: 0;
+              }
+              /* Preserve ChatGPT conversation structure exactly */
+              .message-content p { margin: 0 0 8px 0; }
+              .message-content ul, .message-content ol { margin: 0 0 8px 20px; padding-left: 0; }
+              .message-content li { margin: 0 0 4px 0; }
+              .message-content h1, .message-content h2, .message-content h3, 
+              .message-content h4, .message-content h5, .message-content h6 { 
+                margin: 12px 0 8px 0; 
+                line-height: 1.3; 
+              }
+              .message-content blockquote { 
+                margin: 8px 0; 
+                padding: 8px 12px; 
+                border-left: 4px solid #ddd; 
+                background: #f9f9f9; 
+              }
+              .message-content pre { 
+                margin: 8px 0; 
+                padding: 12px; 
+                background: #f6f7f8; 
+                border-radius: 6px; 
+                overflow-x: auto; 
+              }
+              .message-content code { 
+                background: #f1f3f4; 
+                padding: 2px 4px; 
+                border-radius: 3px; 
+                font-size: 0.9em; 
+              }
               pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
               pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
-              img, svg, canvas, video { max-width: 100%; height: auto; margin: 4px 0; }
+              img, svg, canvas, video { max-width: 100%; height: auto; }
               table { border-collapse: collapse; }
               table, th, td { border: 1px solid #ddd; }
               th, td { padding: 6px 8px; }
-              p { margin: 0 0 4px; }
-              ul, ol { margin: 0 0 4px 16px; }
-              h1, h2, h3, h4, h5, h6 { margin: 4px 0; }
-              li { margin: 0 0 2px; }
+              p { margin: 0 0 6px; }
+              ul, ol { margin: 0 0 6px 18px; }
+              h1, h2, h3, h4, h5, h6 { margin: 6px 0; }
               @page { size: auto; margin: 8mm; }
-              @media print { body { margin: 0; } pre, table, img { break-inside: avoid; page-break-inside: avoid; } }
+              @media print { 
+                body { margin: 0; } 
+                pre, table, img { break-inside: avoid; page-break-inside: avoid; }
+                .message-block { break-inside: avoid; page-break-inside: avoid; }
+                .message-content { break-inside: avoid; page-break-inside: avoid; }
+              }
+              /* Additional spacing for better readability */
+              .message-block { 
+                margin: 0 0 16px 0; 
+                padding: 12px 0; 
+                border-bottom: 1px solid #f0f0f0; 
+              }
+              .message-block:last-child { border-bottom: none; }
             </style>
           </head>
           <body>
@@ -1256,24 +1300,6 @@ const createZeroEkaIconButton = () => {
                 }
               } catch(_) {}
             });
-            
-            // Final cleanup: remove excessive whitespace and empty elements
-            wrapper.querySelectorAll('div, span, p').forEach(el => {
-              if (!el.textContent || el.textContent.trim() === '') {
-                el.remove();
-              } else {
-                // Normalize whitespace in text nodes
-                el.textContent = el.textContent.replace(/\s+/g, ' ').trim();
-              }
-            });
-            
-            // Remove any remaining completely empty containers
-            wrapper.querySelectorAll('*').forEach(el => {
-              if (el.children.length === 0 && (!el.textContent || el.textContent.trim() === '')) {
-                el.remove();
-              }
-            });
-            
             return wrapper.innerHTML;
           } catch (_) {
             return unsafeHtml || '';
@@ -1339,160 +1365,50 @@ const createZeroEkaIconButton = () => {
             let turnContent = '';
             
             // Method 1: Extract content with preserved structure (like Gemini)
-            const textContent = turn.textContent || '';
-            if (textContent.trim()) {
-              // Use original HTML to preserve formatting, structure, and spacing exactly as shown
-              const originalHtml = turn.innerHTML || '';
-              if (originalHtml && originalHtml.trim()) {
-                // Create a temporary div to work with the HTML
-                const tempDiv = (iframeDoc || document).createElement('div');
-                tempDiv.innerHTML = originalHtml;
-                
-                // Remove all images from the HTML to prevent duplication with Method 2
-                tempDiv.querySelectorAll('img, picture, canvas, video, figure').forEach(el => el.remove());
-                
-                // Remove any UI elements that might interfere with formatting
-                tempDiv.querySelectorAll('[data-testid*="copy"], [data-testid*="share"], [data-testid*="like"], button, [role="button"]').forEach(el => el.remove());
-                
-                // Clean up empty elements and normalize spacing (like Gemini does)
-                tempDiv.querySelectorAll('div, span, p').forEach(el => {
-                  // Remove elements that only contain whitespace or are completely empty
-                  if (!el.textContent || el.textContent.trim() === '') {
-                    el.remove();
-                  }
-                  // Normalize excessive whitespace in text nodes
-                  if (el.textContent) {
-                    el.textContent = el.textContent.replace(/\s+/g, ' ').trim();
-                  }
-                });
-                
-                // Remove any remaining empty containers
-                tempDiv.querySelectorAll('*').forEach(el => {
-                  if (el.children.length === 0 && (!el.textContent || el.textContent.trim() === '')) {
-                    el.remove();
-                  }
-                });
-                
-                // Preserve the cleaned HTML structure
-                const textDiv = (iframeDoc || document).createElement('div');
-                textDiv.style.cssText = 'white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere;';
-                textDiv.innerHTML = tempDiv.innerHTML;
-                turnContent = textDiv.outerHTML;
-                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using cleaned HTML structure for preserved formatting`);
-              } else {
-                // Fallback to textContent but preserve whitespace
-                const textDiv = (iframeDoc || document).createElement('div');
-                textDiv.style.cssText = 'white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere;';
-                textDiv.textContent = textContent; // Don't trim - preserve spacing
-                turnContent = textDiv.outerHTML;
-                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using text content with preserved spacing`);
-              }
+            // For ChatGPT: preserve HTML structure exactly as it appears
+            
+            // Get the main content container for this turn
+            const contentContainer = turn.querySelector('[data-message-author-role]') || turn;
+            
+            if (contentContainer) {
+              // Clone the content to preserve exact structure
+              const clonedContent = contentContainer.cloneNode(true);
+              
+              // Remove any UI elements that shouldn't be in PDF
+              clonedContent.querySelectorAll('button, [role="button"], .copy-button, .vote-button, .feedback-button, [aria-label*="copy"], [aria-label*="vote"], [aria-label*="feedback"]').forEach(el => el.remove());
+              
+              // Clean up any remaining UI artifacts
+              clonedContent.querySelectorAll('[class*="button"], [class*="control"], [class*="toolbar"]').forEach(el => {
+                if (el.textContent.length < 50) el.remove(); // Remove short UI elements
+              });
+              
+              // Preserve the HTML structure exactly
+              turnContent = clonedContent.innerHTML;
+              console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using preserved HTML structure content`);
             }
             
-            // Method 2: Add images as separate elements (no HTML overlap)
-            // For ChatGPT: exclude images from user prompts; include only assistant images
-            const includeImages = role !== 'user';
-            if (includeImages) {
-              // Collect only <img> tags; ignore picture/figure to avoid duplication
-              const rawImgs = Array.from(turn.querySelectorAll('img'));
-              // Filter out UI/thumbnail/hidden images
-              const images = rawImgs.filter((img) => {
-                try {
-                  const classStr = (img.className || '').toString();
-                  if (/avatar|icon|logo|badge|toolbar|button|control|copy|vote|thumb/i.test(classStr)) return false;
-                  const closestHidden = img.closest('[aria-hidden="true"], [hidden], button, [role="button"], a');
-                  if (closestHidden) return false;
-                  const w = Number(img.getAttribute('width') || 0);
-                  const h = Number(img.getAttribute('height') || 0);
-                  if ((w && w < 48) && (h && h < 48)) return false;
-                  return true;
-                } catch(_) { return true; }
-              });
+            // Method 2: Ensure images are properly included in the HTML structure
+            // Since we're now preserving HTML structure, images should already be included
+            // But let's verify and enhance if needed
+            if (role !== 'user') {
+              // For assistant responses, ensure images are properly formatted
+              const images = turn.querySelectorAll('img');
               if (images.length > 0) {
-                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} filtered to ${images.length} image(s)`);
+                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} contains ${images.length} image(s) in HTML structure`);
                 
-                // Create a wrapper for this turn's content
-                const turnWrapper = (iframeDoc || document).createElement('div');
-                
-                // Add text content first with preserved structure
-                if (textContent.trim()) {
-                  // Use the same improved text content approach as Method 1
-                  const originalHtml = turn.innerHTML || '';
-                  if (originalHtml && originalHtml.trim()) {
-                    // Create a temporary div to work with the HTML
-                    const tempDiv = (iframeDoc || document).createElement('div');
-                    tempDiv.innerHTML = originalHtml;
-                    
-                    // Remove all images from the HTML to prevent duplication
-                    tempDiv.querySelectorAll('img, picture, canvas, video, figure').forEach(el => el.remove());
-                    
-                    // Remove any UI elements that might interfere with formatting
-                    tempDiv.querySelectorAll('[data-testid*="copy"], [data-testid*="share"], [data-testid*="like"], button, [role="button"]').forEach(el => el.remove());
-                    
-                    // Clean up empty elements and normalize spacing (like Gemini does)
-                    tempDiv.querySelectorAll('div, span, p').forEach(el => {
-                      // Remove elements that only contain whitespace or are completely empty
-                      if (!el.textContent || el.textContent.trim() === '') {
-                        el.remove();
-                      }
-                      // Normalize excessive whitespace in text nodes
-                      if (el.textContent) {
-                        el.textContent = el.textContent.replace(/\s+/g, ' ').trim();
-                      }
-                    });
-                    
-                    // Remove any remaining empty containers
-                    tempDiv.querySelectorAll('*').forEach(el => {
-                      if (el.children.length === 0 && (!el.textContent || el.textContent.trim() === '')) {
-                        el.remove();
-                      }
-                    });
-                    
-                    // Preserve the cleaned HTML structure
-                    const textDiv = (iframeDoc || document).createElement('div');
-                    textDiv.style.cssText = 'white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere;';
-                    textDiv.innerHTML = tempDiv.innerHTML;
-                    turnWrapper.appendChild(textDiv);
-                  } else {
-                    // Fallback to textContent but preserve whitespace
-                    const textDiv = (iframeDoc || document).createElement('div');
-                    textDiv.style.cssText = 'white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere;';
-                    textDiv.textContent = textContent; // Don't trim - preserve spacing
-                    turnWrapper.appendChild(textDiv);
-                  }
-                }
-                
-                // Helper to choose a canonical source and dedupe
-                const getCanonicalSrc = (img) => {
-                  try {
-                    const cs = img.currentSrc || img.getAttribute('src') || img.getAttribute('data-src') || '';
-                    if (cs) return cs.split('?')[0];
-                    const ss = img.getAttribute('srcset');
-                    if (ss) {
-                      const first = ss.split(',')[0] || '';
-                      return first.trim().split(' ')[0].split('?')[0];
-                    }
-                  } catch(_) {}
-                  return '';
-                };
-                const addedSrcs = new Set();
-
-                // Add each unique image as a separate element
+                // Ensure all images have proper attributes for PDF
                 images.forEach((img) => {
-                  const canonical = (getCanonicalSrc(img) || '').toLowerCase();
-                  if (!canonical || addedSrcs.has(canonical)) return;
-                  addedSrcs.add(canonical);
-                  const imgClone = img.cloneNode(true);
-                  // Remove any attributes that might cause issues
-                  imgClone.removeAttribute('style');
-                  imgClone.removeAttribute('class');
-                  imgClone.style.maxWidth = '100%';
-                  imgClone.style.height = 'auto';
-                  imgClone.style.margin = '8px 0';
-                  turnWrapper.appendChild(imgClone);
+                  try {
+                    // Ensure image has a valid src
+                    if (!img.getAttribute('src') && img.getAttribute('data-src')) {
+                      img.setAttribute('src', img.getAttribute('data-src'));
+                    }
+                    // Set consistent styling
+                    img.style.maxWidth = '100%';
+                    img.style.height = 'auto';
+                    img.style.margin = '8px 0';
+                  } catch(_) {}
                 });
-                
-                turnContent = turnWrapper.innerHTML;
               }
             }
             
