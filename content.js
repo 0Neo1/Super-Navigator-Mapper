@@ -1168,27 +1168,30 @@ const createZeroEkaIconButton = () => {
               .ze-content { position: relative; z-index: 1; }
               .message-block { margin: 0 0 8px; }
               .role-label { font-weight: 900; color: #0B3D91; font-size: 24px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px; }
-              .message-content { white-space: pre-line; overflow-wrap: anywhere; word-wrap: break-word; line-height: 1.2; }
-              .message-content p { margin: 0; }
-              .message-content ul, .message-content ol { margin: 0; padding: 0 0 0 18px; }
-              .message-content li { margin: 0; padding: 0; }
-              .message-content br + br { display: none; }
-              .message-content p + p { margin-top: 0; }
+              .message-content { white-space: normal; overflow-wrap: anywhere; word-wrap: break-word; }
+              .message-content ul, .message-content ol { margin: 0 0 6px 18px; }
+              .message-content li { margin: 0 0 2px; line-height: 1.4; }
               .message-content li + li { margin-top: 0; }
-              .message-content * { line-height: 1.2; }
-              .message-content p:empty { display: none; }
-              .message-content div:empty { display: none; }
+              .message-content ul li, .message-content ol li { 
+                margin: 0 0 2px 0; 
+                padding: 0; 
+                line-height: 1.4; 
+              }
+              .message-content ul li:before, .message-content ol li:before { 
+                content: none; 
+              }
+              .message-content ul li:last-child, .message-content ol li:last-child { 
+                margin-bottom: 0; 
+              }
               pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
               pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
               img, svg, canvas, video { max-width: 100%; height: auto; }
               table { border-collapse: collapse; }
               table, th, td { border: 1px solid #ddd; }
               th, td { padding: 6px 8px; }
-              p { margin: 0; }
-              ul, ol { margin: 0 0 0 18px; }
-              li { margin: 0; padding: 0; }
-              .message-content br + br { display: none; }
-              h1, h2, h3, h4, h5, h6 { margin: 3px 0; }
+              p { margin: 0 0 6px; }
+              ul, ol { margin: 0 0 6px 18px; }
+              h1, h2, h3, h4, h5, h6 { margin: 6px 0; }
               @page { size: auto; margin: 8mm; }
               @media print { body { margin: 0; } pre, table, img { break-inside: avoid; page-break-inside: avoid; } }
             </style>
@@ -1211,6 +1214,35 @@ const createZeroEkaIconButton = () => {
             // Remove any contenteditable or interactive controls that may add spacing
             wrapper.querySelectorAll('button, [role="button"]').forEach(el => {
               if (el.className && /zeroeka/i.test(el.className)) el.remove();
+            });
+            // Clean up excessive whitespace and empty lines between bullet points
+            wrapper.querySelectorAll('ul, ol').forEach(list => {
+              // Remove empty list items
+              list.querySelectorAll('li').forEach(li => {
+                if (!li.textContent || li.textContent.trim() === '') {
+                  li.remove();
+                }
+              });
+              // Ensure proper spacing between list items
+              list.querySelectorAll('li + li').forEach(li => {
+                li.style.marginTop = '0';
+                li.style.marginBottom = '2px';
+              });
+            });
+            // Remove excessive empty lines and normalize spacing
+            const textNodes = [];
+            const walker = document.createTreeWalker(wrapper, NodeFilter.SHOW_TEXT, null, false);
+            let node;
+            while (node = walker.nextNode()) {
+              textNodes.push(node);
+            }
+            textNodes.forEach(textNode => {
+              if (textNode.nodeValue) {
+                // Replace multiple consecutive line breaks with single line break
+                textNode.nodeValue = textNode.nodeValue.replace(/\n\s*\n\s*\n/g, '\n\n');
+                // Remove leading/trailing whitespace from text nodes
+                textNode.nodeValue = textNode.nodeValue.replace(/^\s+|\s+$/g, '');
+              }
             });
             // Normalize <picture>/<img> for printing: force eager load and ensure concrete src
             wrapper.querySelectorAll('picture').forEach(pic => {
@@ -1264,30 +1296,6 @@ const createZeroEkaIconButton = () => {
                 }
               } catch(_) {}
             });
-            // Clean up bullet point spacing - remove extra line breaks between list items
-            wrapper.querySelectorAll("ul, ol").forEach(list => {
-              // Remove any empty text nodes between list items
-              Array.from(list.childNodes).forEach(node => {
-                if (node.nodeType === Node.TEXT_NODE && node.textContent.trim() === "") {
-                  node.remove();
-                }
-              });
-              // Ensure list items have no extra spacing
-              list.querySelectorAll("li").forEach(li => {
-                li.style.margin = "0";
-                li.style.padding = "0";
-                li.style.lineHeight = "1.2";
-              });
-            });
-            
-            // Remove consecutive line breaks and empty paragraphs
-            wrapper.querySelectorAll("br + br").forEach(br => br.remove());
-            wrapper.querySelectorAll("p").forEach(p => {
-              if (p.textContent.trim() === "") p.remove();
-              p.style.margin = "0";
-              p.style.lineHeight = "1.2";
-            });
-            
             return wrapper.innerHTML;
           } catch (_) {
             return unsafeHtml || '';
@@ -1356,8 +1364,8 @@ const createZeroEkaIconButton = () => {
             const textContent = turn.textContent || '';
             if (textContent.trim()) {
               const textDiv = (iframeDoc || document).createElement('div');
-              // Preserve whitespace and line breaks like Gemini does
-              textDiv.style.cssText = 'white-space: pre-wrap; word-wrap: break-word;';
+              // Use normal whitespace for better bullet point handling
+              textDiv.style.cssText = 'white-space: normal; word-wrap: break-word;';
               textDiv.textContent = textContent;
               turnContent = textDiv.outerHTML;
               console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using preserved structure content`);
@@ -1391,7 +1399,7 @@ const createZeroEkaIconButton = () => {
                 // Add text content first
                 if (textContent.trim()) {
                   const textDiv = (iframeDoc || document).createElement('div');
-                  textDiv.style.cssText = "white-space: pre-wrap; word-wrap: break-word;"; textDiv.textContent = textContent;
+                  textDiv.style.cssText = "white-space: normal; word-wrap: break-word;"; textDiv.textContent = textContent;
                   turnWrapper.appendChild(textDiv);
                 }
                 
