@@ -1168,42 +1168,10 @@ const createZeroEkaIconButton = () => {
               .ze-content { position: relative; z-index: 1; }
               .message-block { margin: 0 0 8px; }
               .role-label { font-weight: 900; color: #0B3D91; font-size: 24px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px; }
-              .message-content { 
-                white-space: pre-wrap; 
-                overflow-wrap: anywhere; 
-                word-wrap: break-word; 
-                line-height: 1.6;
-                margin: 0;
-                padding: 0;
-              }
-              /* Preserve ChatGPT conversation structure exactly */
-              .message-content p { margin: 0 0 8px 0; }
-              .message-content ul, .message-content ol { margin: 0 0 8px 20px; padding-left: 0; }
-              .message-content li { margin: 0 0 4px 0; }
-              .message-content h1, .message-content h2, .message-content h3, 
-              .message-content h4, .message-content h5, .message-content h6 { 
-                margin: 12px 0 8px 0; 
-                line-height: 1.3; 
-              }
-              .message-content blockquote { 
-                margin: 8px 0; 
-                padding: 8px 12px; 
-                border-left: 4px solid #ddd; 
-                background: #f9f9f9; 
-              }
-              .message-content pre { 
-                margin: 8px 0; 
-                padding: 12px; 
-                background: #f6f7f8; 
-                border-radius: 6px; 
-                overflow-x: auto; 
-              }
-              .message-content code { 
-                background: #f1f3f4; 
-                padding: 2px 4px; 
-                border-radius: 3px; 
-                font-size: 0.9em; 
-              }
+              .message-content { white-space: pre-line; overflow-wrap: anywhere; word-wrap: break-word; line-height: 1.4; }
+              .message-content p { margin: 0 0 4px; }
+              .message-content div { margin: 0 0 2px; }
+              .message-content br + br { display: none; }
               pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
               pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
               img, svg, canvas, video { max-width: 100%; height: auto; }
@@ -1214,19 +1182,7 @@ const createZeroEkaIconButton = () => {
               ul, ol { margin: 0 0 6px 18px; }
               h1, h2, h3, h4, h5, h6 { margin: 6px 0; }
               @page { size: auto; margin: 8mm; }
-              @media print { 
-                body { margin: 0; } 
-                pre, table, img { break-inside: avoid; page-break-inside: avoid; }
-                .message-block { break-inside: avoid; page-break-inside: avoid; }
-                .message-content { break-inside: avoid; page-break-inside: avoid; }
-              }
-              /* Additional spacing for better readability */
-              .message-block { 
-                margin: 0 0 16px 0; 
-                padding: 12px 0; 
-                border-bottom: 1px solid #f0f0f0; 
-              }
-              .message-block:last-child { border-bottom: none; }
+              @media print { body { margin: 0; } pre, table, img { break-inside: avoid; page-break-inside: avoid; } }
             </style>
           </head>
           <body>
@@ -1334,7 +1290,56 @@ const createZeroEkaIconButton = () => {
                 if (container && container.innerHTML) html = container.innerHTML;
               }
             }
-            if (!html) html = (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+            
+            // Normalize HTML content to reduce excessive spacing
+            if (html) {
+              // Create a temporary div to normalize the HTML content
+              const tempDiv = document.createElement('div');
+              tempDiv.innerHTML = html;
+              
+              // Normalize text nodes to reduce excessive spacing
+              const normalizeTextNodes = (element) => {
+                const walker = document.createTreeWalker(
+                  element,
+                  NodeFilter.SHOW_TEXT,
+                  null,
+                  false
+                );
+                
+                const textNodes = [];
+                let node;
+                while (node = walker.nextNode()) {
+                  textNodes.push(node);
+                }
+                
+                textNodes.forEach(textNode => {
+                  let text = textNode.textContent;
+                  text = text
+                    .replace(/\n\s*\n\s*\n/g, '\n\n')  // Reduce 3+ consecutive line breaks to 2
+                    .replace(/\n\s*\n\s*\n/g, '\n\n')  // Apply again to catch remaining 3+
+                    .replace(/[ \t]+/g, ' ')            // Normalize multiple spaces/tabs to single space
+                    .replace(/\n[ \t]+/g, '\n')        // Remove leading spaces after line breaks
+                    .replace(/[ \t]+\n/g, '\n');       // Remove trailing spaces before line breaks
+                  
+                  textNode.textContent = text;
+                });
+              };
+              
+              normalizeTextNodes(tempDiv);
+              html = tempDiv.innerHTML;
+            }
+            if (!html) {
+              // Normalize spacing for Gemini as well
+              let normalizedText = (node.textContent || '').replace(/[\u00A0\u200B]/g, ' ');
+              normalizedText = normalizedText
+                .replace(/\n\s*\n\s*\n/g, '\n\n')  // Reduce 3+ consecutive line breaks to 2
+                .replace(/\n\s*\n\s*\n/g, '\n\n')  // Apply again to catch remaining 3+
+                .replace(/[ \t]+/g, ' ')            // Normalize multiple spaces/tabs to single space
+                .replace(/\n[ \t]+/g, '\n')        // Remove leading spaces after line breaks
+                .replace(/[ \t]+\n/g, '\n');       // Remove trailing spaces before line breaks
+              
+              html = normalizedText;
+            }
             writeBlock(isUser ? 'user' : 'assistant', html, index++);
           });
         } else {
@@ -1364,51 +1369,99 @@ const createZeroEkaIconButton = () => {
             // Create completely isolated content - NO HTML from the turn
             let turnContent = '';
             
-            // Method 1: Extract content with preserved structure (like Gemini)
-            // For ChatGPT: preserve HTML structure exactly as it appears
-            
-            // Get the main content container for this turn
-            const contentContainer = turn.querySelector('[data-message-author-role]') || turn;
-            
-            if (contentContainer) {
-              // Clone the content to preserve exact structure
-              const clonedContent = contentContainer.cloneNode(true);
+            // Method 1: Extract content with normalized spacing (reduced extra gaps)
+            const textContent = turn.textContent || '';
+            if (textContent.trim()) {
+              const textDiv = (iframeDoc || document).createElement('div');
+              // Normalize spacing: preserve structure but reduce excessive gaps
+              textDiv.style.cssText = 'white-space: pre-line; word-wrap: break-word; line-height: 1.4;';
               
-              // Remove any UI elements that shouldn't be in PDF
-              clonedContent.querySelectorAll('button, [role="button"], .copy-button, .vote-button, .feedback-button, [aria-label*="copy"], [aria-label*="vote"], [aria-label*="feedback"]').forEach(el => el.remove());
+              // Normalize the text content to reduce excessive spacing
+              let normalizedText = textContent
+                .replace(/\n\s*\n\s*\n/g, '\n\n')  // Reduce 3+ consecutive line breaks to 2
+                .replace(/\n\s*\n\s*\n/g, '\n\n')  // Apply again to catch remaining 3+
+                .replace(/[ \t]+/g, ' ')            // Normalize multiple spaces/tabs to single space
+                .replace(/\n[ \t]+/g, '\n')        // Remove leading spaces after line breaks
+                .replace(/[ \t]+\n/g, '\n');       // Remove trailing spaces before line breaks
               
-              // Clean up any remaining UI artifacts
-              clonedContent.querySelectorAll('[class*="button"], [class*="control"], [class*="toolbar"]').forEach(el => {
-                if (el.textContent.length < 50) el.remove(); // Remove short UI elements
-              });
-              
-              // Preserve the HTML structure exactly
-              turnContent = clonedContent.innerHTML;
-              console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using preserved HTML structure content`);
+              textDiv.textContent = normalizedText;
+              turnContent = textDiv.outerHTML;
+              console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using normalized spacing content`);
             }
             
-            // Method 2: Ensure images are properly included in the HTML structure
-            // Since we're now preserving HTML structure, images should already be included
-            // But let's verify and enhance if needed
-            if (role !== 'user') {
-              // For assistant responses, ensure images are properly formatted
-              const images = turn.querySelectorAll('img');
+            // Method 2: Add images as separate elements (no HTML overlap)
+            // For ChatGPT: exclude images from user prompts; include only assistant images
+            const includeImages = role !== 'user';
+            if (includeImages) {
+              // Collect only <img> tags; ignore picture/figure to avoid duplication
+              const rawImgs = Array.from(turn.querySelectorAll('img'));
+              // Filter out UI/thumbnail/hidden images
+              const images = rawImgs.filter((img) => {
+                try {
+                  const classStr = (img.className || '').toString();
+                  if (/avatar|icon|logo|badge|toolbar|button|control|copy|vote|thumb/i.test(classStr)) return false;
+                  const closestHidden = img.closest('[aria-hidden="true"], [hidden], button, [role="button"], a');
+                  if (closestHidden) return false;
+                  const w = Number(img.getAttribute('width') || 0);
+                  const h = Number(img.getAttribute('height') || 0);
+                  if ((w && w < 48) && (h && h < 48)) return false;
+                  return true;
+                } catch(_) { return true; }
+              });
               if (images.length > 0) {
-                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} contains ${images.length} image(s) in HTML structure`);
+                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} filtered to ${images.length} image(s)`);
                 
-                // Ensure all images have proper attributes for PDF
-                images.forEach((img) => {
+                // Create a wrapper for this turn's content
+                const turnWrapper = (iframeDoc || document).createElement('div');
+                
+                // Add text content first with normalized spacing
+                if (textContent.trim()) {
+                  const textDiv = (iframeDoc || document).createElement('div');
+                  textDiv.style.cssText = "white-space: pre-line; word-wrap: break-word; line-height: 1.4;";
+                  
+                  // Apply the same normalization as above
+                  let normalizedText = textContent
+                    .replace(/\n\s*\n\s*\n/g, '\n\n')  // Reduce 3+ consecutive line breaks to 2
+                    .replace(/\n\s*\n\s*\n/g, '\n\n')  // Apply again to catch remaining 3+
+                    .replace(/[ \t]+/g, ' ')            // Normalize multiple spaces/tabs to single space
+                    .replace(/\n[ \t]+/g, '\n')        // Remove leading spaces after line breaks
+                    .replace(/[ \t]+\n/g, '\n');       // Remove trailing spaces before line breaks
+                  
+                  textDiv.textContent = normalizedText;
+                  turnWrapper.appendChild(textDiv);
+                }
+                
+                // Helper to choose a canonical source and dedupe
+                const getCanonicalSrc = (img) => {
                   try {
-                    // Ensure image has a valid src
-                    if (!img.getAttribute('src') && img.getAttribute('data-src')) {
-                      img.setAttribute('src', img.getAttribute('data-src'));
+                    const cs = img.currentSrc || img.getAttribute('src') || img.getAttribute('data-src') || '';
+                    if (cs) return cs.split('?')[0];
+                    const ss = img.getAttribute('srcset');
+                    if (ss) {
+                      const first = ss.split(',')[0] || '';
+                      return first.trim().split(' ')[0].split('?')[0];
                     }
-                    // Set consistent styling
-                    img.style.maxWidth = '100%';
-                    img.style.height = 'auto';
-                    img.style.margin = '8px 0';
                   } catch(_) {}
+                  return '';
+                };
+                const addedSrcs = new Set();
+
+                // Add each unique image as a separate element
+                images.forEach((img) => {
+                  const canonical = (getCanonicalSrc(img) || '').toLowerCase();
+                  if (!canonical || addedSrcs.has(canonical)) return;
+                  addedSrcs.add(canonical);
+                  const imgClone = img.cloneNode(true);
+                  // Remove any attributes that might cause issues
+                  imgClone.removeAttribute('style');
+                  imgClone.removeAttribute('class');
+                  imgClone.style.maxWidth = '100%';
+                  imgClone.style.height = 'auto';
+                  imgClone.style.margin = '8px 0';
+                  turnWrapper.appendChild(imgClone);
                 });
+                
+                turnContent = turnWrapper.innerHTML;
               }
             }
             
