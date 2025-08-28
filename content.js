@@ -1172,6 +1172,18 @@ const createZeroEkaIconButton = () => {
               .message-content p { margin: 0 0 4px; }
               .message-content div { margin: 0 0 2px; }
               .message-content br + br { display: none; }
+              .message-content h1, .message-content h2, .message-content h3, .message-content h4, .message-content h5, .message-content h6 { 
+                margin: 8px 0 4px; font-weight: bold; color: #0B3D91; 
+              }
+              .message-content h1 { font-size: 20px; }
+              .message-content h2 { font-size: 18px; }
+              .message-content h3 { font-size: 16px; }
+              .message-content ul, .message-content ol { margin: 4px 0 4px 20px; }
+              .message-content li { margin: 2px 0; }
+              .message-content strong, .message-content b { font-weight: bold; }
+              .message-content em, .message-content i { font-style: italic; }
+              .message-content code { background: #f6f7f8; padding: 2px 4px; border-radius: 3px; font-family: monospace; }
+              .message-content pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; margin: 4px 0; }
               pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
               pre { background: #f6f7f8; padding: 8px; border-radius: 4px; overflow: auto; }
               img, svg, canvas, video { max-width: 100%; height: auto; }
@@ -1228,6 +1240,16 @@ const createZeroEkaIconButton = () => {
             };
             
             removeSaidPhrases(wrapper);
+            
+            // Preserve important HTML structure elements
+            wrapper.querySelectorAll('h1, h2, h3, h4, h5, h6, ul, ol, li, strong, b, em, i, code, pre, blockquote').forEach(el => {
+              // Ensure these elements keep their semantic meaning
+              if (el.tagName.toLowerCase() === 'li') {
+                // Preserve list item structure
+                el.style.margin = '2px 0';
+                el.style.padding = '0';
+              }
+            });
             
             // Remove extension UI artifacts (stars, buttons, sidebars)
             wrapper.querySelectorAll('.zeroeka-msg-star, .zeroeka-pinned-star, [id^="zeroeka-"], [class*="zeroeka-"]').forEach(el => el.remove());
@@ -1412,30 +1434,44 @@ const createZeroEkaIconButton = () => {
             // Create completely isolated content - NO HTML from the turn
             let turnContent = '';
             
-            // Method 1: Extract content with normalized spacing (reduced extra gaps)
+            // Method 1: Extract HTML content with preserved structure (headings, bullet points, lists)
+            let htmlContent = '';
             const textContent = turn.textContent || '';
-            if (textContent.trim()) {
-              const textDiv = (iframeDoc || document).createElement('div');
-              // Normalize spacing: preserve structure but reduce excessive gaps
-              textDiv.style.cssText = 'white-space: pre-line; word-wrap: break-word; line-height: 1.4;';
-              
-              // Normalize the text content to reduce excessive spacing and remove "said" phrases
-              let normalizedText = textContent
-                // Remove "said" phrases first
-                .replace(/(?:^|\s)(?:you said|chatgpt said|assistant said|user said|model said|ai said|bot said)(?:\s*[:：]\s*)/gi, '')
-                .replace(/(?:^|\s)(?:you|chatgpt|assistant|user|model|ai|bot)\s+said(?:\s*[:：]\s*)/gi, '')
-                .replace(/(?:^|\s)(?:said\s+by\s+(?:you|chatgpt|assistant|user|model|ai|bot))(?:\s*[:：]\s*)/gi, '')
-                .replace(/(?:^|\s)(?:from\s+(?:you|chatgpt|assistant|user|model|ai|bot))(?:\s*[:：]\s*)/gi, '')
-                // Then normalize spacing
-                .replace(/\n\s*\n\s*\n/g, '\n\n')  // Reduce 3+ consecutive line breaks to 2
-                .replace(/\n\s*\n\s*\n/g, '\n\n')  // Apply again to catch remaining 3+
-                .replace(/[ \t]+/g, ' ')            // Normalize multiple spaces/tabs to single space
-                .replace(/\n[ \t]+/g, '\n')        // Remove leading spaces after line breaks
-                .replace(/[ \t]+\n/g, '\n');       // Remove trailing spaces before line breaks
-              
-              textDiv.textContent = normalizedText;
-              turnContent = textDiv.outerHTML;
-              console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using normalized spacing content`);
+            const markdownContent = turn.querySelector('.markdown');
+            
+            if (markdownContent && markdownContent.innerHTML) {
+              // Use the markdown content which preserves HTML structure
+              htmlContent = markdownContent.innerHTML;
+              console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using markdown HTML content`);
+            } else {
+              // Fallback to text content if no markdown found
+              const textContent = turn.textContent || '';
+              if (textContent.trim()) {
+                const textDiv = (iframeDoc || document).createElement('div');
+                textDiv.style.cssText = 'white-space: pre-line; word-wrap: break-word; line-height: 1.4;';
+                
+                // Normalize the text content to reduce excessive spacing and remove "said" phrases
+                let normalizedText = textContent
+                  // Remove "said" phrases first
+                  .replace(/(?:^|\s)(?:you said|chatgpt said|assistant said|user said|model said|ai said|bot said)(?:\s*[:：]\s*)/gi, '')
+                  .replace(/(?:^|\s)(?:you|chatgpt|assistant|user|model|ai|bot)\s+said(?:\s*[:：]\s*)/gi, '')
+                  .replace(/(?:^|\s)(?:said\s+by\s+(?:you|chatgpt|assistant|user|model|ai|bot))(?:\s*[:：]\s*)/gi, '')
+                  .replace(/(?:^|\s)(?:from\s+(?:you|chatgpt|assistant|user|model|ai|bot))(?:\s*[:：]\s*)/gi, '')
+                  // Then normalize spacing
+                  .replace(/\n\s*\n\s*\n/g, '\n\n')  // Reduce 3+ consecutive line breaks to 2
+                  .replace(/\n\s*\n\s*\n/g, '\n\n')  // Apply again to catch remaining 3+
+                  .replace(/[ \t]+/g, ' ')            // Normalize multiple spaces/tabs to single space
+                  .replace(/\n[ \t]+/g, '\n')        // Remove leading spaces after line breaks
+                  .replace(/[ \t]+\n/g, '\n');       // Remove trailing spaces before line breaks
+                
+                textDiv.textContent = normalizedText;
+                htmlContent = textDiv.outerHTML;
+                console.log(`[ZeroEka PDF] Turn ${turnIndex + 1} using fallback text content`);
+              }
+            }
+            
+            if (htmlContent) {
+              turnContent = htmlContent;
             }
             
             // Method 2: Add images as separate elements (no HTML overlap)
@@ -1463,8 +1499,13 @@ const createZeroEkaIconButton = () => {
                 // Create a wrapper for this turn's content
                 const turnWrapper = (iframeDoc || document).createElement('div');
                 
-                // Add text content first with normalized spacing
-                if (textContent.trim()) {
+                // Add HTML content first (preserves structure like headings, bullet points, lists)
+                if (htmlContent) {
+                  const contentDiv = (iframeDoc || document).createElement('div');
+                  contentDiv.innerHTML = htmlContent;
+                  turnWrapper.appendChild(contentDiv);
+                } else if (textContent && textContent.trim()) {
+                  // Fallback to text content if no HTML available
                   const textDiv = (iframeDoc || document).createElement('div');
                   textDiv.style.cssText = "white-space: pre-line; word-wrap: break-word; line-height: 1.4;";
                   
