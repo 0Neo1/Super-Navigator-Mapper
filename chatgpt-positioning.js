@@ -22,10 +22,11 @@
     const style = document.createElement('style');
     style.id = 'zeroeka-chatgpt-main-positioning';
     style.textContent = `
-      /* ChatGPT body-level width constraint approach - Fixed 500px main content */
+      /* ChatGPT main content constraint - Fixed 500px width for main content only */
       body.zeroeka-expanded-sidebar-open {
-        width: 500px !important;
-        max-width: 500px !important;
+        /* Keep body at full width but constrain main content */
+        width: auto !important;
+        max-width: none !important;
         margin-left: 0 !important;
         margin-right: 0 !important;
         box-sizing: border-box !important;
@@ -33,20 +34,29 @@
         position: relative !important;
       }
       
-      /* Ensure all content respects the body constraint */
-      body.zeroeka-expanded-sidebar-open *:not(.catalogeu-navigation-plugin-floatbar):not(.catalogeu-navigation-plugin-floatbar *) {
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-      }
-      
-      /* Specific targeting for ChatGPT main containers */
+      /* Target main content containers specifically for 500px width */
       body.zeroeka-expanded-sidebar-open main#main,
       body.zeroeka-expanded-sidebar-open main,
-      body.zeroeka-expanded-sidebar-open [role="main"] {
-        width: 100% !important;
-        max-width: 100% !important;
+      body.zeroeka-expanded-sidebar-open [role="main"],
+      body.zeroeka-expanded-sidebar-open .flex.flex-1.overflow-hidden,
+      body.zeroeka-expanded-sidebar-open .flex.h-full.flex-1.flex-col,
+      body.zeroeka-expanded-sidebar-open .flex-1.overflow-hidden {
+        width: 500px !important;
+        max-width: 500px !important;
         margin-right: 0 !important;
         padding-right: 20px !important;
+        box-sizing: border-box !important;
+        overflow-x: hidden !important;
+      }
+      
+      /* Ensure all content within main containers respects the width constraint */
+      body.zeroeka-expanded-sidebar-open main#main *,
+      body.zeroeka-expanded-sidebar-open main *,
+      body.zeroeka-expanded-sidebar-open [role="main"] *,
+      body.zeroeka-expanded-sidebar-open .flex.flex-1.overflow-hidden *,
+      body.zeroeka-expanded-sidebar-open .flex.h-full.flex-1.flex-col *,
+      body.zeroeka-expanded-sidebar-open .flex-1.overflow-hidden * {
+        max-width: 100% !important;
         box-sizing: border-box !important;
       }
       
@@ -87,7 +97,7 @@
     `;
     
     document.head.appendChild(style);
-    console.log('[ChatGPT] Added fixed 500px width constraint to eliminate sidebar overlay');
+    console.log('[ChatGPT] Added 500px width constraint for main content only - body remains full width');
     
     // Set up observer to watch for sidebar state changes
     setupSidebarObserver();
