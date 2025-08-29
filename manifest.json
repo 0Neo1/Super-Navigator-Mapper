@@ -50,6 +50,7 @@
         "tools.js",
         "fullscreen.js",
         "gemini-positioning.js",
+        "chatgpt-positioning.js",
         "content.js"
       ],
       "css": [
@@ -80,7 +81,8 @@
         "jsmind.css",
         "jsmind.draggable-node.js",
         "resources/mindmap.html",
-        "resources/mindmap.js"
+        "resources/mindmap.js",
+        "chatgpt-positioning.js"
       ],
       "matches": [
         "https://chatgpt.com/*",

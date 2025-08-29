@@ -1230,30 +1230,31 @@ main#main #page-header + div > div > div {
   background-color: var(--color4, #e0e0e0) !important;
 }
 
-/* Side panel mode: Adjust main page width when floating box is shown */
+/* Side panel mode: Disabled - now handled by chatgpt-positioning.js */
+/* These rules are overridden by the new positioning script */
 .catalogeu-navigation-plugin-floatbar.show-panel body,
 .catalogeu-navigation-plugin-floatbar.show-panel main,
 .catalogeu-navigation-plugin-floatbar.show-panel [role="main"],
 .catalogeu-navigation-plugin-floatbar.show-panel .flex.flex-1.overflow-hidden {
-  margin-right: 600px !important; /* Reserve space for side panel */
-  transition: margin-right 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  margin-right: 0 !important; /* Disabled - handled by positioning script */
+  transition: none !important;
 }
 
-/* Ensure the main ChatGPT container adjusts properly */
+/* Ensure the main ChatGPT container adjusts properly - disabled */
 .catalogeu-navigation-plugin-floatbar.show-panel .flex.h-full.flex-1.flex-col {
-  margin-right: 600px !important;
-  transition: margin-right 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  margin-right: 0 !important; /* Disabled - handled by positioning script */
+  transition: none !important;
 }
 
-/* Adjust the conversation container */
+/* Adjust the conversation container - disabled */
 .catalogeu-navigation-plugin-floatbar.show-panel .flex-1.overflow-hidden {
-  margin-right: 600px !important;
-  transition: margin-right 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  margin-right: 0 !important; /* Disabled - handled by positioning script */
+  transition: none !important;
 }
 
-/* Ensure content doesn't get cut off */
+/* Ensure content doesn't get cut off - disabled, handled by positioning script */
 .catalogeu-navigation-plugin-floatbar.show-panel .max-w-3xl {
-  max-width: calc(48rem - 600px) !important;
+  max-width: none !important; /* Disabled - handled by positioning script */
 }
 
 /* Adjust the main conversation area */
