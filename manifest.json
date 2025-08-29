@@ -3,7 +3,7 @@
 
   "manifest_version": 3,
   "name": "__MSG_name__",
-  "version": "1.1.0",
+  "version": "1.0.0",
   "description": "__MSG_description__",
   "icons": {
     "16": "images/icons/icon-128.png",
@@ -25,9 +25,9 @@
     "https://www.chatgpt.com/",
     "https://accounts.google.com/*",
     "https://oauth2.googleapis.com/*",
-    "https://identitytoolkit.googleapis.com/*"
-
-    
+    "https://identitytoolkit.googleapis.com/*",
+    "https://ll71q989xd.execute-api.us-east-1.amazonaws.com/*",
+    "https://www.gstatic.com/*"
   ],
   "action": {},
   "oauth2": {
@@ -49,6 +49,7 @@
         "global-error-capture.js",
         "tools.js",
         "fullscreen.js",
+        "gemini-positioning.js",
         "content.js"
       ],
       "css": [
@@ -74,6 +75,7 @@
         "resources/*",
         "resources/firebase/*",
         "resources/login.js",
+        "resources/auth-service.js",
         "jsmind.js",
         "jsmind.css",
         "jsmind.draggable-node.js",

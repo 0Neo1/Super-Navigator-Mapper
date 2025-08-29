@@ -855,9 +855,11 @@ const createZeroEkaIconButton = () => {
         // Show panel
         panel.style.display = 'flex';
         floatbar.classList.add('show-panel');
-        main.style.marginRight = '600px';
-        main.style.width = `calc(100vw - 600px)`;
-        document.body.style.marginRight = '600px';
+        // Avoid hard-coded margin; reservation handled globally
+        try { main && (main.style.marginRight = ''); } catch(_){}
+        // Width and body margin managed by reservation logic
+        try { main && (main.style.width = ''); } catch(_){}
+        try { document.body && (document.body.style.marginRight = ''); } catch(_){}
         contractedSidebar.style.display = 'none';
         
         // Immediately replace existing close button when panel opens
@@ -3023,6 +3025,7 @@ const createZeroEkaIconButton = () => {
   });
 
   // Create profile popover (dark, compact)
+    // Create profile popover (dark, compact)
   function createProfilePopup() {
     // Remove existing
     document.getElementById('zeroeka-profile-backdrop')?.remove();
@@ -3055,11 +3058,18 @@ const createZeroEkaIconButton = () => {
       font-family: ui-sans-serif, -apple-system, system-ui, Segoe UI, Helvetica, Arial, sans-serif;
     `;
 
-    // Header (email only)
+    // Header with user info
     const header = document.createElement('div');
     header.style.cssText = `margin-bottom: 10px;`;
+    
+    // User name
+    const nameEl = document.createElement('div');
+    nameEl.style.cssText = 'font-weight: 700; font-size: 16px; color: #ffffff; margin-bottom: 4px;';
+    header.appendChild(nameEl);
+    
+    // User email
     const emailEl = document.createElement('div');
-    emailEl.style.cssText = 'font-weight: 600; font-size: 14px; color: #ffffff;';
+    emailEl.style.cssText = 'font-weight: 500; font-size: 13px; color: #cccccc;';
     header.appendChild(emailEl);
 
     // Divider
@@ -3079,19 +3089,15 @@ const createZeroEkaIconButton = () => {
       return row;
     };
 
-    const settingsIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#bbb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 3.6 15a1.65 1.65 0 0 0-1.51-1H2a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 3.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 8 3.6a1.65 1.65 0 0 0 1-1.51V2a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 3.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 20.4 8c.36.47.57 1.05.57 1.65S20.76 12 20.4 12.35 19.4 13.53 19.4 15z"/></svg>';
     const helpIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#bbb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 1 1 5.82 1c0 2-3 2-3 4"/><line x1="12" y1="17" x2="12" y2="17"/></svg>';
 
-    const settingsRow = makeRow('Settings', settingsIcon);
     const helpRow = makeRow('Help', helpIcon);
 
     // Simple actions (non-destructive placeholders)
-    settingsRow.addEventListener('click', ()=>{ pop.remove(); backdrop.remove(); });
     helpRow.addEventListener('click', ()=>{ pop.remove(); backdrop.remove(); });
 
     pop.appendChild(header);
     pop.appendChild(hr);
-    pop.appendChild(settingsRow);
     pop.appendChild(helpRow);
 
     document.body.appendChild(pop);
@@ -3105,9 +3111,12 @@ const createZeroEkaIconButton = () => {
     pop.addEventListener('mouseleave', ()=>{ hover = false; schedule(); });
     schedule();
 
-    // Load user info
-    chrome.storage.local.get(['firebaseUser'], ({ firebaseUser }) => {
-      const email = firebaseUser?.email || 'Not signed in';
+    // Load user info with name and email
+    chrome.storage.local.get(['secureUser'], ({ secureUser }) => {
+      const user = secureUser || {};
+      const displayName = user.displayName || 'User';
+      const email = user.email || 'Not signed in';
+      nameEl.textContent = displayName;
       emailEl.textContent = email;
     });
 
@@ -3115,9 +3124,7 @@ const createZeroEkaIconButton = () => {
     const closeAll = ()=>{ clearAuto(); pop.remove(); backdrop.remove(); };
     backdrop.addEventListener('click', closeAll);
     document.addEventListener('keydown', function onKey(e){ if(e.key==='Escape'){ closeAll(); document.removeEventListener('keydown', onKey); } });
-  }
-
-  // Add click functionality for profile button
+  }  // Add click functionality for profile button
   profileButton.addEventListener('click', () => {
     console.log('Profile button clicked');
     createProfilePopup();
@@ -4102,7 +4109,11 @@ const createZeroEkaIconButton = () => {
     };
     const applyReserve = (px) => {
       // Prefer padding-right so layout reflows without clipping scrollbars
-      const w = `${px}px`;
+      // Reduce reservation slightly on Gemini to remove extra gap between panel and content
+      const adjustedPx = (typeof isGemini !== 'undefined' && isGemini)
+        ? Math.max(Math.floor(300 * 0.85), 300 - 80)
+        : px;
+      const w = `${adjustedPx}px`;
       clearReserve();
       // Apply only to the outer wrappers to avoid cumulative inner padding
       try { root && root.style.setProperty('padding-right', w, 'important'); } catch(_){}
@@ -4580,9 +4591,10 @@ const createReactFlowMindmapPopup = (mindmapData, wasVisible = false) => {
         // Show panel and adjust page layout
         panel.style.display = 'flex';
         floatbar.classList.add('show-panel');
-        main.style.marginRight = '600px';
-        main.style.width = `calc(100vw - 600px)`;
-        document.body.style.marginRight = '600px';
+        // Avoid hard-coding right margin/width; rely on applyReserve to compute exact spacing
+        try { main && (main.style.marginRight = ''); } catch(_){}
+        try { main && (main.style.width = ''); } catch(_){}
+        try { document.body && (document.body.style.marginRight = ''); } catch(_){}
       }
     }
   };
@@ -5047,7 +5059,8 @@ const updateTextSize = (container, size) => {
               // Show panel and adjust page layout
               panel.style.display = 'flex';
               floatbar.classList.add('show-panel');
-              main.style.marginRight = '600px';
+              // Avoid hard-coded margin; reservation handled globally
+              try { main && (main.style.marginRight = ''); } catch(_){}
               main.style.width = `calc(100vw - 600px)`;
               document.body.style.marginRight = '600px';
             }
@@ -7320,4 +7333,30 @@ const updateTextSize = (container, size) => {
       }
   });
 };
+
+  // Helper function to get user data from the correct storage key
+  function getUserDataFromStorage() {
+    return new Promise((resolve) => {
+      // First try to get from secureUser (new auth system)
+      chrome.storage.local.get(['secureUser'], ({ secureUser }) => {
+        if (secureUser && secureUser.email) {
+          console.log('Found user data in secureUser:', secureUser);
+          resolve(secureUser);
+          return;
+        }
+        
+        // Fallback to firebaseUser (old auth system)
+        chrome.storage.local.get(['firebaseUser'], ({ firebaseUser }) => {
+          if (firebaseUser && firebaseUser.email) {
+            console.log('Found user data in firebaseUser:', firebaseUser);
+            resolve(firebaseUser);
+            return;
+          }
+          
+          console.log('No user data found in storage');
+          resolve(null);
+        });
+      });
+    });
+  }
 })();
