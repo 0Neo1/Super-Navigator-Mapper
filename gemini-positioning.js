@@ -1,26 +1,32 @@
-// Gemini-specific main content positioning
-// This script pushes the Gemini chat conversation area 10% to the right only when expanded sidebar is open
+// Multi-platform main content positioning
+// This script ensures the chat conversation content contracts and centers
+// when the expanded sidebar is open, and restores to full width when closed.
+// Works for both Gemini and ChatGPT pages.
 
 (function() {
-  // Check if we're on Gemini
-  if (window.location.hostname.includes('gemini.google.com')) {
+  // Check if we're on Gemini or ChatGPT
+  const isGemini = window.location.hostname.includes('gemini.google.com');
+  const isChatGPT = window.location.hostname.includes('chatgpt.com');
+  
+  if (isGemini || isChatGPT) {
     // Wait for the page to load
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initGeminiPositioning);
+      document.addEventListener('DOMContentLoaded', initPositioning);
     } else {
-      initGeminiPositioning();
+      initPositioning();
     }
   }
 
-  function initGeminiPositioning() {
+  function initPositioning() {
     // Check if styles already exist
-    if (document.getElementById('zeroeka-gemini-main-positioning')) {
+    const styleId = isGemini ? 'zeroeka-gemini-main-positioning' : 'zeroeka-chatgpt-main-positioning';
+    if (document.getElementById(styleId)) {
       return;
     }
 
     // Create and inject the CSS
     const style = document.createElement('style');
-    style.id = 'zeroeka-gemini-main-positioning';
+    style.id = styleId;
     style.textContent = `
       /* Contract main content when expanded sidebar is open */
       body.zeroeka-expanded-sidebar-open main {
@@ -58,7 +64,8 @@
     `;
     
     document.head.appendChild(style);
-    console.log('[Gemini] Added side-by-side layout to prevent sidebar overlay on conversation content');
+    const platform = isGemini ? 'Gemini' : 'ChatGPT';
+    console.log(`[${platform}] Added side-by-side layout to prevent sidebar overlay on conversation content`);
     
     // Set up observer to watch for sidebar state changes
     setupSidebarObserver();
