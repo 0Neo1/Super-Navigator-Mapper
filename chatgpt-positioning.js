@@ -1,5 +1,5 @@
 // ChatGPT-specific main content positioning
-// This script eliminates the gap between main content and expanded sidebar
+// This script creates space for the sidebar without overlay using body margin
 
 (function() {
   // Check if we're on ChatGPT
@@ -22,18 +22,13 @@
     const style = document.createElement('style');
     style.id = 'zeroeka-chatgpt-main-positioning';
     style.textContent = `
-      /* Contract main content when expanded sidebar is open - same approach as Gemini */
-      body.zeroeka-expanded-sidebar-open main,
-      body.zeroeka-expanded-sidebar-open [role="main"] {
-        width: calc(100vw - 320px) !important;
-        max-width: calc(100vw - 320px) !important;
-        margin-right: 0 !important;
-        padding-right: 20px !important;
-        box-sizing: border-box !important;
-        overflow-x: hidden !important;
+      /* Create space for sidebar using body margin - prevents overlay */
+      body.zeroeka-expanded-sidebar-open {
+        margin-right: 320px !important;
+        transition: margin-right 0.3s ease !important;
       }
       
-      /* Adjust sidebar positioning to be adjacent, not overlay */
+      /* Ensure sidebar is positioned in the created space */
       body.zeroeka-expanded-sidebar-open .catalogeu-navigation-plugin-floatbar .panel {
         position: fixed !important;
         right: 0 !important;
@@ -43,35 +38,37 @@
         z-index: 1000 !important;
       }
       
-      /* Ensure conversation content fits within contracted space */
-      body.zeroeka-expanded-sidebar-open main *,
-      body.zeroeka-expanded-sidebar-open [role="main"] * {
+      /* Reset when sidebar is closed */
+      body:not(.zeroeka-expanded-sidebar-open) {
+        margin-right: 0 !important;
+        transition: margin-right 0.3s ease !important;
+      }
+      
+      /* Ensure all content respects the body margin */
+      body.zeroeka-expanded-sidebar-open main,
+      body.zeroeka-expanded-sidebar-open [role="main"],
+      body.zeroeka-expanded-sidebar-open .flex.flex-1.overflow-hidden,
+      body.zeroeka-expanded-sidebar-open .flex.h-full.flex-1.flex-col {
         max-width: 100% !important;
         box-sizing: border-box !important;
       }
       
-      /* Reset to full width when sidebar is closed */
-      body:not(.zeroeka-expanded-sidebar-open) main,
-      body:not(.zeroeka-expanded-sidebar-open) [role="main"] {
-        width: auto !important;
-        max-width: none !important;
-        padding-right: 0 !important;
-        overflow-x: visible !important;
-      }
-      
-      /* Override the existing CSS that uses 600px margin */
+      /* Override any existing margin/width styles that might conflict */
       .catalogeu-navigation-plugin-floatbar.show-panel body,
       .catalogeu-navigation-plugin-floatbar.show-panel main,
-      .catalogeu-navigation-plugin-floatbar.show-panel [role="main"],
-      .catalogeu-navigation-plugin-floatbar.show-panel .flex.flex-1.overflow-hidden,
-      .catalogeu-navigation-plugin-floatbar.show-panel .flex.h-full.flex-1.flex-col,
-      .catalogeu-navigation-plugin-floatbar.show-panel .flex-1.overflow-hidden {
-        margin-right: 0 !important;
+      .catalogeu-navigation-plugin-floatbar.show-panel [role="main"] {
+        margin-right: 320px !important;
+        width: auto !important;
+      }
+      
+      /* Prevent horizontal scrollbars */
+      body.zeroeka-expanded-sidebar-open {
+        overflow-x: hidden !important;
       }
     `;
     
     document.head.appendChild(style);
-    console.log('[ChatGPT] Added calc(100vw - 320px) layout to eliminate gap between sidebar and content');
+    console.log('[ChatGPT] Added body margin layout to create sidebar space without overlay');
     
     // Set up observer to watch for sidebar state changes
     setupSidebarObserver();
