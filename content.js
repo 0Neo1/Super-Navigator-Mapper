@@ -855,11 +855,9 @@ const createZeroEkaIconButton = () => {
         // Show panel
         panel.style.display = 'flex';
         floatbar.classList.add('show-panel');
-        // Avoid hard-coded margin; reservation handled globally
-        try { main && (main.style.marginRight = ''); } catch(_){}
-        // Width and body margin managed by reservation logic
-        try { main && (main.style.width = ''); } catch(_){}
-        try { document.body && (document.body.style.marginRight = ''); } catch(_){}
+        main.style.marginRight = '600px';
+        main.style.width = `calc(100vw - 600px)`;
+        document.body.style.marginRight = '600px';
         contractedSidebar.style.display = 'none';
         
         // Immediately replace existing close button when panel opens
@@ -4109,11 +4107,7 @@ const createZeroEkaIconButton = () => {
     };
     const applyReserve = (px) => {
       // Prefer padding-right so layout reflows without clipping scrollbars
-      // Reduce reservation slightly on Gemini to remove extra gap between panel and content
-      const adjustedPx = (typeof isGemini !== 'undefined' && isGemini)
-        ? Math.max(Math.floor(300 * 0.85), 300 - 80)
-        : px;
-      const w = `${adjustedPx}px`;
+      const w = `${px}px`;
       clearReserve();
       // Apply only to the outer wrappers to avoid cumulative inner padding
       try { root && root.style.setProperty('padding-right', w, 'important'); } catch(_){}
@@ -4127,8 +4121,10 @@ const createZeroEkaIconButton = () => {
       contractedSidebar.style.display = 'none';
       const prect = panel.getBoundingClientRect();
       let panelWidth = prect && prect.width ? Math.ceil(prect.width) : 600;
-      // Ensure we do not overshoot, but do not shrink expanded panel reservation
-      panelWidth = Math.max(300, panelWidth);
+      // Use different widths for Gemini vs ChatGPT to match their respective sidebar sizes
+      panelWidth = (typeof isGemini !== 'undefined' && isGemini) 
+        ? Math.max(300, panelWidth)  // Gemini: 300px
+        : Math.max(320, panelWidth); // ChatGPT: 320px (no gap)
       applyReserve(panelWidth);
       console.log('Expanded panel visible; reserving space:', panelWidth);
       // Ensure ChatGPT tree nesting when panel is open
@@ -4591,10 +4587,9 @@ const createReactFlowMindmapPopup = (mindmapData, wasVisible = false) => {
         // Show panel and adjust page layout
         panel.style.display = 'flex';
         floatbar.classList.add('show-panel');
-        // Avoid hard-coding right margin/width; rely on applyReserve to compute exact spacing
-        try { main && (main.style.marginRight = ''); } catch(_){}
-        try { main && (main.style.width = ''); } catch(_){}
-        try { document.body && (document.body.style.marginRight = ''); } catch(_){}
+        main.style.marginRight = '600px';
+        main.style.width = `calc(100vw - 600px)`;
+        document.body.style.marginRight = '600px';
       }
     }
   };
@@ -5059,8 +5054,7 @@ const updateTextSize = (container, size) => {
               // Show panel and adjust page layout
               panel.style.display = 'flex';
               floatbar.classList.add('show-panel');
-              // Avoid hard-coded margin; reservation handled globally
-              try { main && (main.style.marginRight = ''); } catch(_){}
+              main.style.marginRight = '600px';
               main.style.width = `calc(100vw - 600px)`;
               document.body.style.marginRight = '600px';
             }
