@@ -28,10 +28,10 @@
       body.zeroeka-expanded-sidebar-open .flex.flex-1.overflow-hidden,
       body.zeroeka-expanded-sidebar-open .flex.h-full.flex-1.flex-col,
       body.zeroeka-expanded-sidebar-open .flex-1.overflow-hidden {
-        width: calc(100vw - 75px) !important;
-        max-width: calc(100vw - 75px) !important;
+        width: calc(100vw - 75px - 20px) !important;
+        max-width: calc(100vw - 75px - 20px) !important;
         margin-right: 0 !important;
-        padding-right: 20px !important;
+        padding-right: 0 !important;
         box-sizing: border-box !important;
         overflow-x: hidden !important;
       }
@@ -89,7 +89,7 @@
     `;
     
     document.head.appendChild(style);
-    console.log('[ChatGPT] Added side-by-side layout with 75% increased main content width');
+    console.log('[ChatGPT] Added side-by-side layout with minimal gap between content and sidebar');
     
     // Set up observer to watch for sidebar state changes
     setupSidebarObserver();
