@@ -22,13 +22,18 @@
     const style = document.createElement('style');
     style.id = 'zeroeka-chatgpt-main-positioning';
     style.textContent = `
-      /* Push all content away from sidebar using body padding - ChatGPT specific */
-      body.zeroeka-expanded-sidebar-open {
-        padding-right: 320px !important;
+      /* Contract main content when expanded sidebar is open - same approach as Gemini */
+      body.zeroeka-expanded-sidebar-open main,
+      body.zeroeka-expanded-sidebar-open [role="main"] {
+        width: calc(100vw - 320px) !important;
+        max-width: calc(100vw - 320px) !important;
+        margin-right: 0 !important;
+        padding-right: 20px !important;
         box-sizing: border-box !important;
+        overflow-x: hidden !important;
       }
       
-      /* Ensure sidebar is positioned correctly */
+      /* Adjust sidebar positioning to be adjacent, not overlay */
       body.zeroeka-expanded-sidebar-open .catalogeu-navigation-plugin-floatbar .panel {
         position: fixed !important;
         right: 0 !important;
@@ -38,18 +43,20 @@
         z-index: 1000 !important;
       }
       
-      /* Remove any conflicting margins or widths that might create gaps */
-      body.zeroeka-expanded-sidebar-open main,
-      body.zeroeka-expanded-sidebar-open [role="main"] {
-        margin-right: 0 !important;
-        padding-right: 0 !important;
-        width: auto !important;
-        max-width: none !important;
+      /* Ensure conversation content fits within contracted space */
+      body.zeroeka-expanded-sidebar-open main *,
+      body.zeroeka-expanded-sidebar-open [role="main"] * {
+        max-width: 100% !important;
+        box-sizing: border-box !important;
       }
       
-      /* Reset padding when sidebar is closed */
-      body:not(.zeroeka-expanded-sidebar-open) {
+      /* Reset to full width when sidebar is closed */
+      body:not(.zeroeka-expanded-sidebar-open) main,
+      body:not(.zeroeka-expanded-sidebar-open) [role="main"] {
+        width: auto !important;
+        max-width: none !important;
         padding-right: 0 !important;
+        overflow-x: visible !important;
       }
       
       /* Override the existing CSS that uses 600px margin */
@@ -64,7 +71,7 @@
     `;
     
     document.head.appendChild(style);
-    console.log('[ChatGPT] Added body padding layout to eliminate gap between sidebar and content');
+    console.log('[ChatGPT] Added calc(100vw - 320px) layout to eliminate gap between sidebar and content');
     
     // Set up observer to watch for sidebar state changes
     setupSidebarObserver();
