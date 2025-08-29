@@ -22,10 +22,10 @@
     const style = document.createElement('style');
     style.id = 'zeroeka-chatgpt-main-positioning';
     style.textContent = `
-      /* ChatGPT body-level width constraint approach */
+      /* ChatGPT body-level width constraint approach - Fixed 500px main content */
       body.zeroeka-expanded-sidebar-open {
-        width: calc(100vw - 320px) !important;
-        max-width: calc(100vw - 320px) !important;
+        width: 500px !important;
+        max-width: 500px !important;
         margin-left: 0 !important;
         margin-right: 0 !important;
         box-sizing: border-box !important;
@@ -87,7 +87,7 @@
     `;
     
     document.head.appendChild(style);
-    console.log('[ChatGPT] Added body-level width constraint to eliminate sidebar overlay');
+    console.log('[ChatGPT] Added fixed 500px width constraint to eliminate sidebar overlay');
     
     // Set up observer to watch for sidebar state changes
     setupSidebarObserver();
