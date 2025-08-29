@@ -1,5 +1,5 @@
 // ChatGPT-specific main content positioning
-// This script creates space for the sidebar without overlay using body margin
+// This script prevents sidebar overlay by constraining the entire page width
 
 (function() {
   // Check if we're on ChatGPT
@@ -22,13 +22,35 @@
     const style = document.createElement('style');
     style.id = 'zeroeka-chatgpt-main-positioning';
     style.textContent = `
-      /* Create space for sidebar using body margin - prevents overlay */
+      /* ChatGPT body-level width constraint approach */
       body.zeroeka-expanded-sidebar-open {
-        margin-right: 320px !important;
-        transition: margin-right 0.3s ease !important;
+        width: calc(100vw - 320px) !important;
+        max-width: calc(100vw - 320px) !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        box-sizing: border-box !important;
+        overflow-x: hidden !important;
+        position: relative !important;
       }
       
-      /* Ensure sidebar is positioned in the created space */
+      /* Ensure all content respects the body constraint */
+      body.zeroeka-expanded-sidebar-open *:not(.catalogeu-navigation-plugin-floatbar):not(.catalogeu-navigation-plugin-floatbar *) {
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      
+      /* Specific targeting for ChatGPT main containers */
+      body.zeroeka-expanded-sidebar-open main#main,
+      body.zeroeka-expanded-sidebar-open main,
+      body.zeroeka-expanded-sidebar-open [role="main"] {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-right: 0 !important;
+        padding-right: 20px !important;
+        box-sizing: border-box !important;
+      }
+      
+      /* Position sidebar adjacent to constrained content */
       body.zeroeka-expanded-sidebar-open .catalogeu-navigation-plugin-floatbar .panel {
         position: fixed !important;
         right: 0 !important;
@@ -40,35 +62,32 @@
       
       /* Reset when sidebar is closed */
       body:not(.zeroeka-expanded-sidebar-open) {
-        margin-right: 0 !important;
-        transition: margin-right 0.3s ease !important;
+        width: auto !important;
+        max-width: none !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        overflow-x: visible !important;
+        position: static !important;
       }
       
-      /* Ensure all content respects the body margin */
-      body.zeroeka-expanded-sidebar-open main,
-      body.zeroeka-expanded-sidebar-open [role="main"],
-      body.zeroeka-expanded-sidebar-open .flex.flex-1.overflow-hidden,
-      body.zeroeka-expanded-sidebar-open .flex.h-full.flex-1.flex-col {
-        max-width: 100% !important;
-        box-sizing: border-box !important;
+      body:not(.zeroeka-expanded-sidebar-open) main#main,
+      body:not(.zeroeka-expanded-sidebar-open) main,
+      body:not(.zeroeka-expanded-sidebar-open) [role="main"] {
+        width: auto !important;
+        max-width: none !important;
+        padding-right: 0 !important;
       }
       
-      /* Override any existing margin/width styles that might conflict */
+      /* Override existing extension styles that might interfere */
       .catalogeu-navigation-plugin-floatbar.show-panel body,
       .catalogeu-navigation-plugin-floatbar.show-panel main,
       .catalogeu-navigation-plugin-floatbar.show-panel [role="main"] {
-        margin-right: 320px !important;
-        width: auto !important;
-      }
-      
-      /* Prevent horizontal scrollbars */
-      body.zeroeka-expanded-sidebar-open {
-        overflow-x: hidden !important;
+        margin-right: 0 !important;
       }
     `;
     
     document.head.appendChild(style);
-    console.log('[ChatGPT] Added body margin layout to create sidebar space without overlay');
+    console.log('[ChatGPT] Added body-level width constraint to eliminate sidebar overlay');
     
     // Set up observer to watch for sidebar state changes
     setupSidebarObserver();
@@ -109,8 +128,10 @@
     // Add or remove body class to trigger CSS
     if (isExpandedOpen) {
       document.body.classList.add('zeroeka-expanded-sidebar-open');
+      console.log('[ChatGPT] Sidebar opened - applying width constraint');
     } else {
       document.body.classList.remove('zeroeka-expanded-sidebar-open');
+      console.log('[ChatGPT] Sidebar closed - removing width constraint');
     }
   }
 })();
